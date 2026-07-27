@@ -1,0 +1,61 @@
+import { X } from 'lucide-react'
+
+function ConfirmDeleteModal({ open, title, message, confirmLabel, onClose, onConfirm }) {
+  if (!open) return null
+
+  function handleConfirm() {
+    onConfirm()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 py-8">
+      <div className="w-full max-w-[460px] overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+        <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
+          <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
+            {title}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--line-soft)] text-[var(--ink-soft)] transition hover:bg-[var(--line)] hover:text-[var(--ink)]"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="px-[22px] py-[22px]">
+          <div className="rounded-[8px] border border-red-200 border-l-2 border-l-red-500 bg-white px-4 py-4">
+            <h3 className="text-[13px] font-bold text-red-700">
+              This action will archive the record
+            </h3>
+            <p className="mt-[6px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              {message}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-[10px] border-t border-[var(--line)] px-[22px] py-[16px]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="rounded-[8px] border border-red-600 bg-red-600 px-5 py-[10px] text-[12px] font-bold text-white transition hover:border-red-700 hover:bg-red-700"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ConfirmDeleteModal
