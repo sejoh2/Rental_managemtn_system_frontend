@@ -14,7 +14,7 @@ export const agreementPreview = [
   'Deposit: KES 10,000',
   'Rent due: 5th of every month',
   'Water: billed separately per meter reading',
-  'Notice period: 30 days',
+  'Notice period: 30 days and no less',
   '',
   'Signature: ______________________',
 ]
