@@ -114,7 +114,7 @@ const [selectedTenant, setSelectedTenant] = useState(null)
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
         <span>KODI - Owner Web Dashboard</span>
-        <b>Design Prototype</b>
+        
         <span className="proto-pill">{meta.pill}</span>
       </div>
 

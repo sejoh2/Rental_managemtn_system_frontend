@@ -11,7 +11,7 @@ function SignInPage({ onAuthenticated }) {
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
         <span>KODI - Owner Web Dashboard</span>
-        <b>Design Prototype</b>
+        
         <span className="proto-pill">
           {authStep === 'phone' ? 'Login' : 'OTP verify'}
         </span>
