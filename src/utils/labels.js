@@ -55,6 +55,15 @@ export const UNIT_STATUSES = [
   ['maintenance', 'Under maintenance'],
 ]
 
+export const EXPENSE_CATEGORIES = [
+  ['repairs_maintenance', 'Repairs & maintenance'],
+  ['security', 'Security'],
+  ['garbage', 'Garbage'],
+  ['cleaning', 'Cleaning'],
+  ['utilities', 'Utilities'],
+  ['other', 'Other'],
+]
+
 export const PERMISSION_LEVELS = [
   ['level_1', 'Level 1 - View tenants, submit readings & reports'],
   ['level_2', 'Level 2 - Also add / edit tenants'],

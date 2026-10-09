@@ -30,6 +30,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
     unit_type: unit?.unit_type || 'bedsitter',
     monthly_rent: unit ? String(unit.monthly_rent) : '',
     rent_deposit: unit ? String(unit.rent_deposit) : '',
+    water_deposit: unit?.water_deposit ? String(unit.water_deposit) : '',
     // New units start from the property's water rules.
     water_billing_method: unit?.water_billing_method || property.water_billing_method,
     water_rate_per_unit: String(
@@ -66,6 +67,8 @@ function UnitForm({ property, unit, onClose, onSaved }) {
       unit_type: form.unit_type,
       monthly_rent: Number(form.monthly_rent),
       rent_deposit: Number(form.rent_deposit) || 0,
+      // Empty means this unit has no water deposit.
+      water_deposit: Number(form.water_deposit) || 0,
       water_billing_method: form.water_billing_method,
       water_rate_per_unit: metered ? Number(form.water_rate_per_unit) : null,
       water_meter_number: metered ? form.water_meter_number.trim() : null,
@@ -143,7 +146,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
               required
             />
             <Field
-              label="Deposit (KES)"
+              label="Rent deposit (KES)"
               placeholder="e.g. 15000"
               type="number"
               min="0"
@@ -196,6 +199,16 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             ) : null}
 
             <Field
+              label="Water deposit (KES, optional)"
+              placeholder="e.g. 2000"
+              type="number"
+              min="0"
+              step="any"
+              value={form.water_deposit}
+              onChange={setField('water_deposit')}
+            />
+
+            <Field
               label="Electricity (KES / month, optional)"
               placeholder="e.g. 2000"
               type="number"
@@ -215,10 +228,11 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             />
 
             <p className="-mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)] sm:col-span-2">
-              Leave both empty if electricity is not billed for this unit.
-              The monthly amount is added to the tenant's bill on the 1st of
-              every month, together with rent. The deposit is charged once,
-              in full, when a tenant moves in.
+              Leave the electricity fields empty if electricity is not billed
+              for this unit. The monthly amount is added to the tenant's bill
+              on the 1st of every month, together with rent. Each deposit you
+              set is charged once, in full, when a tenant moves in; a deposit
+              left empty is not charged.
             </p>
 
             <div className="sm:col-span-2">
@@ -250,12 +264,6 @@ function UnitForm({ property, unit, onClose, onSaved }) {
                 billed stays at {formatKES(unit.monthly_rent)}.
               </p>
             ) : null}
-
-            <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)] sm:col-span-2">
-              Every unit also carries a fixed water deposit of{' '}
-              {formatKES(unit?.water_deposit ?? 2000)}, charged to the tenant
-              at move-in.
-            </p>
 
             {error ? (
               <div className="sm:col-span-2">

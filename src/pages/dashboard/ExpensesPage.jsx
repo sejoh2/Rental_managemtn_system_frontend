@@ -1,9 +1,67 @@
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import { expenses, profitSummary } from '../../data/expensesData'
+import { useSearchParams } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+import { createExpense, getExpenseSummary, listExpenses, voidExpense } from '../../api/expenses'
+import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import {
+  Field,
+  ModalBody,
+  ModalFooter,
+  ModalShell,
+  SelectField,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../components/common/Modal'
+import { useProperties } from '../../context/PropertiesContext'
+import { useApi } from '../../hooks/useApi'
+import { formatDate, formatKES, formatMonth, formatNumber, toDateInput } from '../../utils/format'
+import { EXPENSE_CATEGORIES, optionLabel } from '../../utils/labels'
+
+// First and last day of a 'YYYY-MM' month, as 'YYYY-MM-DD'.
+function monthRange(month) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const lastDay = new Date(year, monthNumber, 0).getDate()
+
+  return { from_date: `${month}-01`, to_date: `${month}-${String(lastDay).padStart(2, '0')}` }
+}
 
 function ExpensesPage() {
-  const [expenseOpen, setExpenseOpen] = useState(false)
+  const properties = useProperties().data || []
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [addOpen, setAddOpen] = useState(false)
+  const [voiding, setVoiding] = useState(null)
+
+  // Filters live in the URL: /expenses?property=1&month=2026-10
+  const propertyId = searchParams.get('property') || ''
+  const month = searchParams.get('month') || toDateInput().slice(0, 7)
+  const filters = { property_id: propertyId, ...monthRange(month) }
+  const key = `${propertyId || 'all'}-${month}`
+
+  const expensesState = useApi(`expenses-${key}`, () => listExpenses(filters))
+  const summaryState = useApi(`expense-summary-${key}`, () => getExpenseSummary(filters))
+
+  function setParam(name, value) {
+    const next = new URLSearchParams(searchParams)
+
+    if (value) next.set(name, value)
+    else next.delete(name)
+
+    setSearchParams(next)
+  }
+
+  function reloadAll() {
+    expensesState.reload()
+    summaryState.reload()
+  }
+
+  const summary = summaryState.data
+  const incomeRows = summary
+    ? [
+        ['Rent collected', summary.rent_collected],
+        ['Water collected', summary.water_collected],
+        ['Electricity collected', summary.electricity_collected],
+      ]
+    : []
 
   return (
     <>
@@ -20,190 +78,337 @@ function ExpensesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setExpenseOpen(true)}
-          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
-        >
-          <Plus size={15} />
-          Add expense
-        </button>
+        <div className="flex flex-wrap gap-[10px]">
+          <select
+            value={propertyId}
+            onChange={(event) => setParam('property', event.target.value)}
+            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+          >
+            <option value="">All properties</option>
+            {properties.map((property) => (
+              <option key={property.id} value={property.id}>{property.name}</option>
+            ))}
+          </select>
+
+          <input
+            type="month"
+            value={month}
+            max={toDateInput().slice(0, 7)}
+            onChange={(event) => event.target.value && setParam('month', event.target.value)}
+            aria-label="Month"
+            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+          />
+
+          <button
+            onClick={() => setAddOpen(true)}
+            disabled={!properties.length}
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
+          >
+            <Plus size={15} />
+            Add expense
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
-          <div className="overflow-x-auto">
-            <table className="min-w-[760px] w-full border-collapse">
-              <thead>
-                <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
-                  <th className="px-[18px] py-[10px] font-bold">Date</th>
-                  <th className="px-[18px] py-[10px] font-bold">Category</th>
-                  <th className="px-[18px] py-[10px] font-bold">Property</th>
-                  <th className="px-[18px] py-[10px] font-bold">Amount</th>
-                  <th className="px-[18px] py-[10px] font-bold">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((item) => (
-                  <tr key={`${item.date}-${item.category}`} className="border-b border-[var(--line-soft)] last:border-b-0">
-                    <td className="px-[18px] py-[13px] text-[12px]">{item.date}</td>
-                    <td className="px-[18px] py-[13px]">
-                      <span className="inline-flex items-center gap-[6px] rounded-full bg-[var(--line-soft)] px-[9px] py-[3px] text-[9px] font-bold text-[var(--ink-soft)]">
-                        <span className="h-[6px] w-[6px] rounded-full bg-current" />
-                        {item.category}
-                      </span>
-                    </td>
-                    <td className="px-[18px] py-[13px] text-[12px]">{item.property}</td>
-                    <td className="font-mono px-[18px] py-[13px] text-[12px]">{item.amount}</td>
-                    <td className="px-[18px] py-[13px] text-[12px]">{item.notes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataState
+            state={expensesState}
+            loadingLabel="Loading expenses..."
+            isEmpty={(expenses) => !expenses.length}
+            empty={
+              <EmptyState
+                title={`No expenses in ${formatMonth(`${month}-01`)}`}
+                message="Add repairs, security, garbage and other running costs to see the real profit for the month."
+              />
+            }
+          >
+            {(expenses) => (
+              <div className="overflow-x-auto">
+                <table className="min-w-[820px] w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
+                      <th className="px-[18px] py-[10px] font-bold">Date</th>
+                      <th className="px-[18px] py-[10px] font-bold">Category</th>
+                      <th className="px-[18px] py-[10px] font-bold">Property</th>
+                      <th className="px-[18px] py-[10px] font-bold">Amount</th>
+                      <th className="px-[18px] py-[10px] font-bold">Notes</th>
+                      <th className="px-[18px] py-[10px] font-bold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses.map((item) => {
+                      const voided = item.status === 'void'
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`border-b border-[var(--line-soft)] last:border-b-0 ${
+                            voided ? 'text-[var(--ink-faint)]' : ''
+                          }`}
+                        >
+                          <td className="px-[18px] py-[13px] text-[12px]">{formatDate(item.expense_date)}</td>
+                          <td className="px-[18px] py-[13px]">
+                            <span className="inline-flex items-center gap-[6px] rounded-full bg-[var(--line-soft)] px-[9px] py-[3px] text-[9px] font-bold text-[var(--ink-soft)]">
+                              <span className="h-[6px] w-[6px] rounded-full bg-current" />
+                              {optionLabel(EXPENSE_CATEGORIES, item.category)}
+                            </span>
+                          </td>
+                          <td className="px-[18px] py-[13px] text-[12px]">{item.property_name}</td>
+                          <td className={`font-mono px-[18px] py-[13px] text-[12px] ${voided ? 'line-through' : ''}`}>
+                            {formatKES(item.amount)}
+                          </td>
+                          <td className="px-[18px] py-[13px] text-[12px]">
+                            {voided ? `Voided: ${item.void_reason}` : item.notes || '-'}
+                          </td>
+                          <td className="px-[18px] py-[13px] text-right">
+                            {voided ? null : (
+                              <button
+                                onClick={() => setVoiding(item)}
+                                className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                              >
+                                Void
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DataState>
         </section>
 
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="h-fit overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
           <div className="border-b border-[var(--line)] px-[18px] py-4">
-            <h3 className="text-[12px] font-bold">This month</h3>
+            <h3 className="text-[12px] font-bold">{formatMonth(`${month}-01`)}</h3>
           </div>
 
-          <div className="px-[18px] py-4">
-            {profitSummary.map((item) => (
-              <div key={item.label} className="flex items-center justify-between border-b border-[var(--line-soft)] py-[10px] text-[12px] last:border-b-0">
-                <span className="text-[var(--ink-soft)]">{item.label}</span>
-                <span className={`font-mono font-semibold ${item.danger ? 'text-[#B3261E]' : ''}`}>
-                  {item.value}
-                </span>
+          <DataState state={summaryState} loadingLabel="Loading summary...">
+            {() => (
+              <div className="px-[18px] py-4">
+                {incomeRows.map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between border-b border-[var(--line-soft)] py-[10px] text-[12px]">
+                    <span className="text-[var(--ink-soft)]">{label}</span>
+                    <span className="font-mono font-semibold">{formatKES(value)}</span>
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between py-[10px] text-[12px]">
+                  <span className="text-[var(--ink-soft)]">Total expenses</span>
+                  <span className="font-mono font-semibold text-[#B3261E]">
+                    - {formatNumber(summary.total_expenses)}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between border-t border-[var(--line)] pt-5">
+                  <span className="text-[12px] font-bold">Net profit</span>
+                  <span className={`font-mono text-[16px] font-semibold ${summary.net_profit < 0 ? 'text-[#B3261E]' : ''}`}>
+                    {formatKES(summary.net_profit)}
+                  </span>
+                </div>
+
+                <p className="mt-4 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                  Income is rent, water and electricity actually paid in the
+                  month. Deposits are not counted, because they are held for
+                  the tenant.
+                </p>
               </div>
-            ))}
-
-            <div className="mt-5 flex items-center justify-between border-t border-[var(--line)] pt-5">
-              <span className="text-[12px] font-bold">Net profit</span>
-              <span className="font-mono text-[16px] font-semibold">KES 1,376,700</span>
-            </div>
-          </div>
+            )}
+          </DataState>
         </section>
       </div>
 
-      <AddExpenseModal
-        open={expenseOpen}
-        onClose={() => setExpenseOpen(false)}
-      />
+      {addOpen ? (
+        <AddExpenseModal
+          properties={properties}
+          defaultPropertyId={propertyId}
+          onClose={() => setAddOpen(false)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {voiding ? (
+        <VoidExpenseModal expense={voiding} onClose={() => setVoiding(null)} onDone={reloadAll} />
+      ) : null}
     </>
   )
 }
 
-function AddExpenseModal({ open, onClose }) {
-  if (!open) return null
+function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
+  const [form, setForm] = useState({
+    property_id: defaultPropertyId || String(properties[0]?.id || ''),
+    category: 'repairs_maintenance',
+    amount: '',
+    expense_date: toDateInput(),
+    notes: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
 
-  function handleSubmit(event) {
+  function setField(field) {
+    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault()
-    window.alert('Expense added successfully.')
-    onClose()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await createExpense(form.property_id, {
+        category: form.category,
+        amount: Number(form.amount),
+        expense_date: form.expense_date,
+        notes: form.notes.trim() || null,
+      })
+
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="w-full max-w-[640px] overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-        <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
-          <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
-            Add expense
-          </h2>
+    <ModalShell title="Add expense" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="mb-[18px] grid gap-[14px] sm:grid-cols-2">
+            <SelectField
+              label="Property"
+              value={form.property_id}
+              onChange={setField('property_id')}
+              options={properties.map((property) => [String(property.id), property.name])}
+            />
+            <SelectField
+              label="Category"
+              value={form.category}
+              onChange={setField('category')}
+              options={EXPENSE_CATEGORIES}
+            />
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--line-soft)] text-[var(--ink-soft)] transition hover:bg-[var(--line)] hover:text-[var(--ink)]"
-          >
-            <X size={15} />
+            <Field
+              label="Amount (KES)"
+              placeholder="e.g. 6500"
+              type="number"
+              min="1"
+              step="any"
+              value={form.amount}
+              onChange={setField('amount')}
+              required
+            />
+            <Field
+              label="Date"
+              type="date"
+              max={toDateInput()}
+              value={form.expense_date}
+              onChange={setField('expense_date')}
+              required
+            />
+          </div>
+
+          <Field
+            label="Notes"
+            placeholder="e.g. Plumbing repair — House A7"
+            value={form.notes}
+            onChange={setField('notes')}
+          />
+
+          <p className="mt-[14px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            This is added to the selected property's ledger immediately and
+            reduces its net profit figure in Reports.
+          </p>
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
           </button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="px-[22px] py-[22px]">
-            <div className="mb-[18px] grid gap-[14px] sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-                  Property
-                </label>
-                <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]">
-                  <option>Green View Apartments</option>
-                  <option>Sunrise Bedsitters</option>
-                  <option>Riverside Court</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-                  Category
-                </label>
-                <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]">
-                  <option>Repairs & maintenance</option>
-                  <option>Security</option>
-                  <option>Garbage</option>
-                  <option>Cleaning</option>
-                  <option>Utilities</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <Field label="Amount (KES)" placeholder="e.g. 6500" />
-              <Field label="Date" placeholder="e.g. 13 Jul 2026" />
-            </div>
-
-            <div className="mb-[18px]">
-              <Field label="Notes" placeholder="e.g. Plumbing repair — House A7" />
-            </div>
-
-            <div className="mb-[14px]">
-              <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-                Receipt (optional)
-              </label>
-              <input
-                type="file"
-                className="block h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 py-[7px] text-[12px] text-[var(--ink)] file:mr-3 file:rounded-[4px] file:border file:border-[var(--line)] file:bg-[var(--line-soft)] file:px-2 file:py-[2px] file:text-[12px]"
-              />
-            </div>
-
-            <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-              This is added to the selected property's ledger immediately and
-              reduces its net profit figure in Reports.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-[10px] border-t border-[var(--line)] px-[22px] py-[16px]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[10px] text-[12px] font-bold text-white"
-            >
-              Add expense
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <button type="submit" disabled={saving} className={primaryButtonClass}>
+            {saving ? 'Adding...' : 'Add expense'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   )
 }
 
-function Field({ label, placeholder }) {
+function VoidExpenseModal({ expense, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await voidExpense(expense.id, reason.trim())
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
+  }
+
   return (
-    <div>
-      <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-        {label}
-      </label>
-      <input
-        placeholder={placeholder}
-        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-      />
-    </div>
+    <ModalShell title="Void expense" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[#B3261E]">
+              {formatKES(expense.amount)} · {optionLabel(EXPENSE_CATEGORIES, expense.category)} ·{' '}
+              {expense.property_name}
+            </h3>
+            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              The expense stays on record, marked as voided, and no longer
+              counts towards totals or net profit. To correct an expense,
+              void it and add it again.
+            </p>
+          </div>
+
+          <Field
+            label="Reason"
+            placeholder="e.g. Entered twice"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            minLength={2}
+          />
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
+          >
+            {saving ? 'Voiding...' : 'Void expense'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   )
 }
 
