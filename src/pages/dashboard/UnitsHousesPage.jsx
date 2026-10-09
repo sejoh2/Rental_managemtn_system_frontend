@@ -1,43 +1,75 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import {
-  unitFilters,
-  unitsByProperty,
-  unitStatusColors,
-  unitLegend,
-} from '../../data/unitsHousesData'
-import EditUnitModal from '../../components/dashboard/EditUnitModal'
+import { archiveUnit, listUnits } from '../../api/units'
+import { DataState, EmptyState } from '../../components/common/DataState'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
+import UnitFormModal from '../../components/dashboard/UnitFormModal'
+import { useProperties } from '../../context/PropertiesContext'
+import { useApi } from '../../hooks/useApi'
+import { formatKES } from '../../utils/format'
+import { UNIT_TYPES, optionLabel } from '../../utils/labels'
 
-function UnitsHousesPage({ onAddUnit }) {
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [selectedProperty, setSelectedProperty] = useState('Green View Apartments')
-  const [unitsByPropertyState, setUnitsByPropertyState] = useState(unitsByProperty)
+// "arrears" is not a backend status: it is an occupied unit whose tenant owes money.
+const unitFilters = [
+  { key: 'all', label: 'All', matches: () => true },
+  { key: 'occupied', label: 'Occupied', matches: (unit) => unit.status === 'occupied' },
+  { key: 'vacant', label: 'Vacant', matches: (unit) => unit.status === 'vacant' },
+  { key: 'reserved', label: 'Reserved', matches: (unit) => unit.status === 'reserved' },
+  { key: 'maintenance', label: 'Under maintenance', matches: (unit) => unit.status === 'maintenance' },
+  { key: 'arrears', label: 'In arrears', matches: (unit) => displayStatus(unit) === 'arrears' },
+]
+
+const unitStatusColors = {
+  occupied: 'bg-[#2E7D4F]',
+  arrears: 'bg-[#B3261E]',
+  vacant: 'bg-[#A39B8D]',
+  reserved: 'bg-[#3C5C82]',
+  maintenance: 'bg-[#B8790E]',
+}
+
+const unitLegend = [
+  { label: 'Occupied', color: unitStatusColors.occupied },
+  { label: 'In arrears', color: unitStatusColors.arrears },
+  { label: 'Vacant', color: unitStatusColors.vacant },
+  { label: 'Reserved', color: unitStatusColors.reserved },
+  { label: 'Under maintenance', color: unitStatusColors.maintenance },
+]
+
+function displayStatus(unit) {
+  return unit.status === 'occupied' && unit.current_tenant?.balance > 0 ? 'arrears' : unit.status
+}
+
+function UnitsHousesPage() {
+  const propertiesState = useProperties()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [addOpen, setAddOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState(null)
   const [deletingUnit, setDeletingUnit] = useState(null)
 
-  const propertyUnits = unitsByPropertyState[selectedProperty] || []
+  // The selected property lives in the URL (/units?property=1) so it survives a refresh.
+  const properties = propertiesState.data || []
+  const selectedProperty =
+    properties.find((property) => String(property.id) === searchParams.get('property')) ||
+    properties[0]
 
-  const filteredUnits = useMemo(() => {
-    if (activeFilter === 'All') return propertyUnits
+  const unitsState = useApi(
+    selectedProperty ? `units-${selectedProperty.id}` : null,
+    () => listUnits(selectedProperty.id)
+  )
+  const units = unitsState.data || []
+  const filteredUnits = units.filter(unitFilters.find((filter) => filter.key === activeFilter).matches)
 
-    const statusMap = {
-      Occupied: 'occupied',
-      Vacant: 'vacant',
-      'Under maintenance': 'maintenance',
-      'In arrears': 'arrears',
-    }
+  function handleUnitsChanged() {
+    unitsState.reload()
+    // Property cards and the sidebar show unit counts.
+    propertiesState.reload()
+  }
 
-    return propertyUnits.filter((unit) => unit.status === statusMap[activeFilter])
-  }, [activeFilter, propertyUnits])
-
-  function handleDeleteUnit() {
-    setUnitsByPropertyState((currentUnitsByProperty) => ({
-      ...currentUnitsByProperty,
-      [selectedProperty]: currentUnitsByProperty[selectedProperty].filter(
-        (unit) => unit.number !== deletingUnit.number
-      ),
-    }))
+  async function handleDeleteUnit() {
+    await archiveUnit(deletingUnit.id)
+    handleUnitsChanged()
   }
 
   return (
@@ -53,85 +85,127 @@ function UnitsHousesPage({ onAddUnit }) {
           </h1>
 
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
-            {selectedProperty} - {propertyUnits.length} units
+            {selectedProperty
+              ? `${selectedProperty.name} - ${unitsState.data ? `${units.length} ${units.length === 1 ? 'unit' : 'units'}` : 'loading units...'}`
+              : 'Houses in each of your properties'}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-[10px]">
-          <select
-            value={selectedProperty}
-            onChange={(event) => {
-              setSelectedProperty(event.target.value)
-              setActiveFilter('All')
-            }}
-            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
-          >
-            {Object.keys(unitsByPropertyState).map((property) => (
-              <option key={property}>{property}</option>
-            ))}
-          </select>
+        {selectedProperty ? (
+          <div className="flex flex-wrap gap-[10px]">
+            <select
+              value={selectedProperty.id}
+              onChange={(event) => {
+                setSearchParams({ property: event.target.value })
+                setActiveFilter('all')
+              }}
+              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+            >
+              {properties.map((property) => (
+                <option key={property.id} value={property.id}>{property.name}</option>
+              ))}
+            </select>
 
-          <button
-            onClick={onAddUnit}
-            className="inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
-          >
-            <Plus size={15} />
-            Add unit
-          </button>
-        </div>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+            >
+              <Plus size={15} />
+              Add unit
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="mb-[18px] flex flex-wrap gap-[10px]">
-        {unitFilters.map((filter) => (
-          <button
-            key={filter.label}
-            onClick={() => setActiveFilter(filter.label)}
-            className={`rounded-full border px-3 py-[7px] text-[11px] font-medium transition ${
-              activeFilter === filter.label
-                ? 'border-transparent bg-[var(--accent-soft)] text-[var(--accent-hover)]'
-                : 'border-[var(--line)] bg-white text-[var(--ink-soft)] hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
-            }`}
-          >
-            {filter.label} ({filter.count})
-          </button>
-        ))}
-      </div>
+      <DataState
+        state={propertiesState}
+        loadingLabel="Loading properties..."
+        isEmpty={(data) => !data.length}
+        empty={
+          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+            <EmptyState
+              title="Add a property first"
+              message="Units belong to a property. Once you have a property you can add its houses here."
+            >
+              <Link
+                to="/properties"
+                className="mt-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+              >
+                Go to properties
+              </Link>
+            </EmptyState>
+          </section>
+        }
+      >
+        {() => (
+          <DataState state={unitsState} loadingLabel="Loading units...">
+            {() => (
+              <>
+                <div className="mb-[18px] flex flex-wrap gap-[10px]">
+                  {unitFilters.map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => setActiveFilter(filter.key)}
+                      className={`rounded-full border px-3 py-[7px] text-[11px] font-medium transition ${
+                        activeFilter === filter.key
+                          ? 'border-transparent bg-[var(--accent-soft)] text-[var(--accent-hover)]'
+                          : 'border-[var(--line)] bg-white text-[var(--ink-soft)] hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+                      }`}
+                    >
+                      {filter.label} ({units.filter(filter.matches).length})
+                    </button>
+                  ))}
+                </div>
 
-      <div className="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
-        {filteredUnits.map((unit) => (
-          <UnitTile
-            key={`${selectedProperty}-${unit.number}`}
-            unit={unit}
-            onEdit={() => setEditingUnit(unit)}
-            onDelete={() => setDeletingUnit(unit)}
-          />
-        ))}
+                <div className="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
+                  {filteredUnits.map((unit) => (
+                    <UnitTile
+                      key={unit.id}
+                      unit={unit}
+                      onEdit={() => setEditingUnit(unit)}
+                      onDelete={() => setDeletingUnit(unit)}
+                    />
+                  ))}
 
-        <button
-          onClick={onAddUnit}
-          className="flex min-h-[200px] flex-col items-center justify-between rounded-[8px] border border-dashed border-[var(--line)] bg-white px-4 py-4 text-[var(--ink-faint)] transition hover:border-[var(--accent-soft-line)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-        >
-          <Plus size={22} />
-          <span className="text-[11px] font-bold">Add unit</span>
-        </button>
-      </div>
+                  <button
+                    onClick={() => setAddOpen(true)}
+                    className="flex min-h-[200px] flex-col items-center justify-between rounded-[8px] border border-dashed border-[var(--line)] bg-white px-4 py-4 text-[var(--ink-faint)] transition hover:border-[var(--accent-soft-line)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                  >
+                    <Plus size={22} />
+                    <span className="text-[11px] font-bold">Add unit</span>
+                  </button>
+                </div>
 
-      <div className="mt-4 flex flex-wrap gap-[7px] text-[10px] text-[var(--ink-faint)]">
-        {unitLegend.map((item) => (
-          <LegendDot key={item.label} color={item.color} label={item.label} />
-        ))}
-      </div>
+                <div className="mt-4 flex flex-wrap gap-[7px] text-[10px] text-[var(--ink-faint)]">
+                  {unitLegend.map((item) => (
+                    <LegendDot key={item.label} color={item.color} label={item.label} />
+                  ))}
+                </div>
+              </>
+            )}
+          </DataState>
+        )}
+      </DataState>
 
-      <EditUnitModal
+      <UnitFormModal
+        open={addOpen}
+        property={selectedProperty}
+        onClose={() => setAddOpen(false)}
+        onSaved={handleUnitsChanged}
+      />
+
+      <UnitFormModal
         open={Boolean(editingUnit)}
+        property={selectedProperty}
         unit={editingUnit}
         onClose={() => setEditingUnit(null)}
+        onSaved={handleUnitsChanged}
       />
 
       <ConfirmDeleteModal
         open={Boolean(deletingUnit)}
         title="Delete unit / house"
-        message={`Deleting ${deletingUnit?.number || 'this unit'} will archive it from the active unit list. Existing rent history, tenant history and water readings should stay saved for records.`}
+        message={`Deleting ${deletingUnit?.unit_number || 'this unit'} will archive it from the active unit list. Existing rent history, tenant history and water readings should stay saved for records.`}
         confirmLabel="Delete unit"
         onClose={() => setDeletingUnit(null)}
         onConfirm={handleDeleteUnit}
@@ -141,22 +215,32 @@ function UnitsHousesPage({ onAddUnit }) {
 }
 
 function UnitTile({ unit, onEdit, onDelete }) {
+  const status = displayStatus(unit)
+
   return (
     <article className="relative rounded-[8px] border border-[var(--line)] bg-white px-3 py-9 transition hover:-translate-y-[1px] hover:border-[var(--ink-faint)] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]">
       <span
         className={`absolute right-[10px] top-[10px] h-2 w-2 rounded-full ${
-          unitStatusColors[unit.status]
+          unitStatusColors[status]
         }`}
       />
 
-      <h3 className="text-[13px] font-bold">{unit.number}</h3>
+      <h3 className="text-[13px] font-bold">{unit.unit_number}</h3>
 
       <p className="mt-[5px] text-[10px] text-[var(--ink-faint)]">
-        {unit.type} - {unit.floor}
+        {[optionLabel(UNIT_TYPES, unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
+      </p>
+
+      <p className="mt-[3px] truncate text-[10px] text-[var(--ink-faint)]">
+        {unit.current_tenant
+          ? status === 'arrears'
+            ? `${unit.current_tenant.full_name} - owes ${formatKES(unit.current_tenant.balance)}`
+            : unit.current_tenant.full_name
+          : 'No tenant'}
       </p>
 
       <div className="font-mono mt-[10px] text-[12px] font-semibold">
-        {unit.rent}
+        {formatKES(unit.monthly_rent)}
       </div>
 
       <div className="mt-[12px] grid grid-cols-2 gap-[8px]">

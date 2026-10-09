@@ -12,7 +12,6 @@ import StatCard from '../../components/dashboard/StatCard'
 import AddPropertyModal from '../../components/dashboard/AddPropertyModal'
 import AddTenantModal from '../../components/dashboard/AddTenantModal'
 import ExportReportModal from '../../components/dashboard/ExportReportModal'
-import AddUnitModal from '../../components/dashboard/AddUnitModal'
 import PropertiesPage from './PropertiesPage'
 import UnitsHousesPage from './UnitsHousesPage'
 import AgreementsPage from './AgreementsPage'
@@ -20,13 +19,13 @@ import PaymentsPage from './PaymentsPage'
 import WaterBillingPage from './WaterBillingPage'
 import ExpensesPage from './ExpensesPage'
 import TenantsPage from './TenantsPage'
+import TenantProfilePage from './TenantProfilePage'
 import MaintenancePage from './MaintenancePage'
 import CaretakersPage from './CaretakersPage'
 import SmsCentrePage from './SmsCentrePage'
 import ReportsPage from './ReportsPage'
 import SettingsPage from './SettingsPage'
 import { rentStats, waterStats, unmatchedPayments, recentActivity } from '../../data/dashboardData'
-import { tenants } from '../../data/tenantsData'
 import { useAuth } from '../../context/AuthContext'
 import { useProperties } from '../../context/PropertiesContext'
 import PropertiesProvider from '../../context/PropertiesProvider'
@@ -44,7 +43,7 @@ const pageMeta = {
   },
   units: {
   title: 'Units / Houses',
-  subtitle: 'Green View Apartments',
+  subtitle: 'Houses in each property',
   pill: 'Units / Houses',
 },
 agreements: {
@@ -69,8 +68,13 @@ expenses: {
 },
 tenants: {
   title: 'Tenants',
-  subtitle: '123 active tenants',
+  subtitle: 'Everyone renting from you',
   pill: 'Tenants',
+},
+tenantProfile: {
+  title: 'Tenant profile',
+  subtitle: 'Balance, payments and agreement',
+  pill: 'Tenant profile',
 },
 maintenance: {
   title: 'Maintenance',
@@ -113,19 +117,11 @@ function DashboardShell() {
   const [addPropertyOpen, setAddPropertyOpen] = useState(false)
   const [addTenantOpen, setAddTenantOpen] = useState(false)
   const [exportReportOpen, setExportReportOpen] = useState(false)
-const [addUnitOpen, setAddUnitOpen] = useState(false)
   const location = useLocation()
-  const tenantMatch = useMatch('/tenants/:tenantId')
-  const selectedTenant = tenantMatch
-    ? tenants.find((tenant) => tenant.id === tenantMatch.params.tenantId)
-    : null
-  const meta = selectedTenant
-  ? {
-      title: 'Tenant profile',
-      subtitle: `${selectedTenant.name} - ${selectedTenant.unit.replace('·', 'House')}`,
-      pill: 'Tenant profile',
-    }
-  : pageMeta[location.pathname.split('/')[1]] || pageMeta.dashboard
+  const onTenantProfile = Boolean(useMatch('/tenants/:tenantId'))
+  const meta = onTenantProfile
+    ? pageMeta.tenantProfile
+    : pageMeta[location.pathname.split('/')[1]] || pageMeta.dashboard
   const propertyCount = properties
     ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`
     : null
@@ -179,16 +175,13 @@ const [addUnitOpen, setAddUnitOpen] = useState(false)
               />
               <Route
                 path="units"
-                element={<UnitsHousesPage onAddUnit={() => setAddUnitOpen(true)} />}
+                element={<UnitsHousesPage />}
               />
               <Route
                 path="tenants"
                 element={<TenantsPage onAddTenant={() => setAddTenantOpen(true)} />}
               />
-              <Route
-                path="tenants/:tenantId"
-                element={<TenantsPage onAddTenant={() => setAddTenantOpen(true)} />}
-              />
+              <Route path="tenants/:tenantId" element={<TenantProfilePage />} />
               <Route path="agreements" element={<AgreementsPage />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="water-billing" element={<WaterBillingPage />} />
@@ -220,11 +213,6 @@ const [addUnitOpen, setAddUnitOpen] = useState(false)
       <ExportReportModal
         open={exportReportOpen}
         onClose={() => setExportReportOpen(false)}
-      />
-
-      <AddUnitModal
-        open={addUnitOpen}
-        onClose={() => setAddUnitOpen(false)}
       />
     </main>
   )

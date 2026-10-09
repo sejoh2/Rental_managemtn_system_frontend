@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { assignCaretaker, listCaretakers, updatePropertyCaretaker } from '../../api/caretakers'
-import { replacePaymentAccount, updateProperty } from '../../api/properties'
+import {
+  removePaymentAccount,
+  replacePaymentAccount,
+  updateProperty,
+} from '../../api/properties'
 import { useApi } from '../../hooks/useApi'
 import { humanize } from '../../utils/format'
-import { PROPERTY_TYPES, paymentAccountTypeLabel } from '../../utils/labels'
+import {
+  MOVE_IN_BILLING,
+  MOVE_OUT_BILLING,
+  PROPERTY_TYPES,
+  RENT_DUE_DAYS,
+  paymentAccountTypeLabel,
+} from '../../utils/labels'
 import {
   caretakerDetails,
   emptyAccount,
@@ -14,6 +24,12 @@ import {
 import { FormError } from '../common/DataState'
 import CaretakerField from './CaretakerField'
 import PaymentAccountCard from './PaymentAccountCard'
+
+const accountSlots = [
+  ['rent', 'Rent account'],
+  ['water', 'Water account'],
+  ['electricity', 'Electricity account'],
+]
 
 function EditPropertyModal({ open, property, ...props }) {
   if (!open || !property) return null
@@ -30,7 +46,9 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     location: property.location,
     property_type: property.property_type,
     expected_units: String(property.expected_units),
-    rent_due_day: property.rent_due_day,
+    rent_due_day: String(property.rent_due_day),
+    move_in_billing: property.move_in_billing,
+    move_out_billing: property.move_out_billing,
     sms_sender_id: property.sms_sender_id || '',
   })
   const [caretaker, setCaretaker] = useState(
@@ -44,8 +62,14 @@ function EditPropertyForm({ property, onClose, onSaved }) {
       : emptyCaretaker
   )
   // A new account form is shown only for the accounts the owner chose to change.
-  const [changing, setChanging] = useState({ rent: false, water: false })
-  const [accounts, setAccounts] = useState({ rent: emptyAccount, water: emptyAccount })
+  const [changing, setChanging] = useState({ rent: false, water: false, electricity: false })
+  const [accounts, setAccounts] = useState({
+    rent: emptyAccount,
+    water: emptyAccount,
+    electricity: emptyAccount,
+  })
+  // Optional accounts the owner marked for removal; applied on save.
+  const [removing, setRemoving] = useState({ water: false, electricity: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -105,14 +129,16 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     event.preventDefault()
     setError(null)
 
-    const accountsToChange = ['rent', 'water'].filter((accountFor) => changing[accountFor])
+    const accountsToChange = accountSlots
+      .map(([accountFor]) => accountFor)
+      .filter((accountFor) => changing[accountFor])
     const notConnected = accountsToChange.find(
       (accountFor) => accounts[accountFor].status !== 'connected'
     )
 
     if (notConnected) {
       setError({
-        message: `Connect the new ${notConnected} account first, or click "Keep current account".`,
+        message: `Connect the ${notConnected} account first, or cancel that change.`,
       })
       return
     }
@@ -128,10 +154,20 @@ function EditPropertyForm({ property, onClose, onSaved }) {
         location: form.location,
         property_type: form.property_type,
         expected_units: Number(form.expected_units) || 0,
-        rent_due_day: form.rent_due_day,
+        rent_due_day: Number(form.rent_due_day),
+        move_in_billing: form.move_in_billing,
+        move_out_billing: form.move_out_billing,
         sms_sender_id: form.sms_sender_id.trim() || null,
       })
       saved.push('property details')
+
+      for (const accountFor of ['water', 'electricity']) {
+        if (removing[accountFor] && !changing[accountFor]) {
+          await removePaymentAccount(property.id, accountFor)
+          saved.push(`${accountFor} account removal`)
+          setRemoving((current) => ({ ...current, [accountFor]: false }))
+        }
+      }
 
       for (const accountFor of accountsToChange) {
         await replacePaymentAccount(property.id, accountFor, accounts[accountFor].connectionId)
@@ -198,13 +234,32 @@ function EditPropertyForm({ property, onClose, onSaved }) {
                 value={form.expected_units}
                 onChange={setField('expected_units')}
               />
-              <Field
+              <SelectField
                 label="Rent due day"
                 value={form.rent_due_day}
                 onChange={setField('rent_due_day')}
-                required
+                options={RENT_DUE_DAYS}
               />
             </div>
+
+            <SelectField
+              label="If a tenant moves in mid-month"
+              value={form.move_in_billing}
+              onChange={setField('move_in_billing')}
+              options={MOVE_IN_BILLING}
+            />
+
+            <SelectField
+              label="If a tenant moves out mid-month"
+              value={form.move_out_billing}
+              onChange={setField('move_out_billing')}
+              options={MOVE_OUT_BILLING}
+            />
+
+            <p className="-mt-2 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+              These rules apply to move-ins and move-outs from now on. Rent
+              that has already been billed is not changed.
+            </p>
 
             <div className="mb-[18px] max-w-[300px]">
               <Field
@@ -246,23 +301,22 @@ function EditPropertyForm({ property, onClose, onSaved }) {
             <p className="mb-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               To switch to a different M-Pesa account, or to update the
               credentials of the current one, connect it here. Earlier
-              payments stay on record.
+              payments stay on record. Water and electricity are paid
+              through the rent account unless they have their own.
             </p>
 
-            {[
-              ['rent', 'Rent account'],
-              ['water', 'Water account'],
-            ].map(([accountFor, title]) =>
+            {accountSlots.map(([accountFor, title]) =>
               changing[accountFor] ? (
                 <PaymentAccountCard
                   key={accountFor}
-                  title={`New ${title.toLowerCase()}`}
+                  title={property[`${accountFor}_account`] ? `New ${title.toLowerCase()}` : title}
                   accountFor={accountFor}
                   account={accounts[accountFor]}
                   onChange={(patch) => patchAccount(accountFor, patch)}
                   propertyName={form.name}
                   propertyId={property.id}
                   callbackNote="The new account replaces the current one, and payment callbacks are registered with Safaricom, when you save."
+                  cancelLabel={property[`${accountFor}_account`] ? 'Keep current account' : 'Cancel'}
                   onCancel={() => setChanging((current) => ({ ...current, [accountFor]: false }))}
                 />
               ) : (
@@ -271,6 +325,11 @@ function EditPropertyForm({ property, onClose, onSaved }) {
                   title={title}
                   account={property[`${accountFor}_account`]}
                   onChange={() => startChanging(accountFor)}
+                  removable={accountFor !== 'rent'}
+                  removing={Boolean(removing[accountFor])}
+                  onToggleRemove={() =>
+                    setRemoving((current) => ({ ...current, [accountFor]: !current[accountFor] }))
+                  }
                 />
               )
             )}
@@ -316,7 +375,7 @@ function SectionTitle({ title }) {
   )
 }
 
-function CurrentAccount({ title, account, onChange }) {
+function CurrentAccount({ title, account, onChange, removable, removing, onToggleRemove }) {
   return (
     <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
       <div>
@@ -324,17 +383,40 @@ function CurrentAccount({ title, account, onChange }) {
         <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">
           {account
             ? `${paymentAccountTypeLabel(account)} ${account.business_number} - ${humanize(account.environment)}`
-            : 'Not connected'}
+            : title === 'Rent account'
+              ? 'Not connected'
+              : 'No separate account - paid through the rent account'}
         </p>
+
+        {removing ? (
+          <p className="mt-[4px] text-[10px] font-bold text-[#B3261E]">
+            Will be removed when you save. These payments will then go
+            through the rent account.
+          </p>
+        ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={onChange}
-        className="shrink-0 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
-      >
-        {account ? 'Change account' : 'Connect account'}
-      </button>
+      <div className="flex shrink-0 gap-2">
+        {account && removable ? (
+          <button
+            type="button"
+            onClick={onToggleRemove}
+            className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E] transition hover:bg-[#FBE4E2]"
+          >
+            {removing ? 'Undo' : 'Remove'}
+          </button>
+        ) : null}
+
+        {removing ? null : (
+          <button
+            type="button"
+            onClick={onChange}
+            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
+          >
+            {account ? 'Change account' : 'Add account'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { formatKES } from './format'
+import { formatKES, ordinal } from './format'
 
 // [backend value, label] pairs for selects.
 export const PROPERTY_TYPES = [
@@ -12,6 +12,47 @@ export const WATER_BILLING_METHODS = [
   ['per_unit_metered', 'Per-unit metered'],
   ['fixed_monthly', 'Fixed payment every month'],
   ['included_in_rent', 'Included in rent'],
+]
+
+// Day of the month rent is due. Capped at 28 so the day exists in every month.
+export const RENT_DUE_DAYS = Array.from({ length: 28 }, (_, index) => [
+  String(index + 1),
+  `${ordinal(index + 1)} of every month`,
+])
+
+export function rentDueDayLabel(day) {
+  return `${ordinal(day)} of every month`
+}
+
+// How the first month is billed when a tenant moves in part-way through it.
+export const MOVE_IN_BILLING = [
+  ['prorated', 'Pro-rated - bill only the days left in the month'],
+  ['full_month', 'Full month'],
+  ['free_until_next_month', 'Free until the 1st of next month'],
+]
+
+// How the last month is billed when a tenant moves out part-way through it.
+export const MOVE_OUT_BILLING = [
+  ['prorated', 'Pro-rated - bill only the days up to move-out'],
+  ['full_month', 'Full month'],
+]
+
+export const UNIT_TYPES = [
+  ['bedsitter', 'Bedsitter'],
+  ['studio', 'Studio'],
+  ['one_bedroom', 'One bedroom'],
+  ['two_bedroom', 'Two bedroom'],
+  ['three_bedroom', 'Three bedroom'],
+  ['shop', 'Shop'],
+  ['office', 'Office'],
+  ['other', 'Other'],
+]
+
+export const UNIT_STATUSES = [
+  ['vacant', 'Vacant'],
+  ['occupied', 'Occupied'],
+  ['reserved', 'Reserved'],
+  ['maintenance', 'Under maintenance'],
 ]
 
 export const PERMISSION_LEVELS = [

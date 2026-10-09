@@ -91,6 +91,16 @@ export function initials(name) {
   return (parts[0][0] + (parts.length > 1 ? parts.at(-1)[0] : '')).toUpperCase()
 }
 
+// 5 -> "5th", 21 -> "21st"
+export function ordinal(value) {
+  const number = Number(value)
+  const lastTwo = number % 100
+
+  if (lastTwo >= 11 && lastTwo <= 13) return `${number}th`
+
+  return `${number}${{ 1: 'st', 2: 'nd', 3: 'rd' }[number % 10] || 'th'}`
+}
+
 // "one_bedroom" -> "One bedroom"
 export function humanize(value, fallback = '-') {
   if (!value) return fallback

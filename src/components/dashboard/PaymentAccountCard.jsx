@@ -47,6 +47,7 @@ function PaymentAccountCard({
   propertyId,
   callbackNote,
   onCancel,
+  cancelLabel = 'Keep current account',
 }) {
   const [guideOpen, setGuideOpen] = useState(false)
 
@@ -81,7 +82,7 @@ function PaymentAccountCard({
           ...(name
             ? {
                 account_name: name.slice(0, 150),
-                display_name: `${name} ${accountFor === 'rent' ? 'Rent' : 'Water'}`.slice(0, 100),
+                display_name: `${name} ${accountFor.charAt(0).toUpperCase()}${accountFor.slice(1)}`.slice(0, 100),
               }
             : {}),
         },
@@ -226,7 +227,7 @@ function PaymentAccountCard({
               onClick={onCancel}
               disabled={connecting}
             >
-              Keep current account
+              {cancelLabel}
             </button>
           ) : null}
 

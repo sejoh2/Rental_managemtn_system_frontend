@@ -8,9 +8,12 @@ import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { formatKESCompact, humanize } from '../../utils/format'
 import {
+  MOVE_IN_BILLING,
+  MOVE_OUT_BILLING,
   PROPERTY_TYPES,
   optionLabel,
   paymentAccountTypeLabel,
+  rentDueDayLabel,
   waterBillingLabel,
 } from '../../utils/labels'
 
@@ -123,17 +126,19 @@ function PropertiesPage({ onAddProperty }) {
                   {[
                     ['Property type', optionLabel(PROPERTY_TYPES, selectedProperty.property_type)],
                     ['Location', selectedProperty.location],
-                    ['Rent due day', selectedProperty.rent_due_day],
+                    ['Rent due day', rentDueDayLabel(selectedProperty.rent_due_day)],
+                    ['Mid-month move-in', optionLabel(MOVE_IN_BILLING, selectedProperty.move_in_billing)],
+                    ['Mid-month move-out', optionLabel(MOVE_OUT_BILLING, selectedProperty.move_out_billing)],
                     ['Assigned caretaker', selectedProperty.caretaker?.full_name || 'Not assigned'],
                     ['Water billing', waterBillingLabel(selectedProperty)],
                     ['SMS sender ID', selectedProperty.sms_sender_id || '-'],
                   ].map(([label, value]) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between border-b border-[var(--line-soft)] py-[9px] text-[12px] last:border-b-0"
+                      className="flex items-center justify-between gap-4 border-b border-[var(--line-soft)] py-[9px] text-[12px] last:border-b-0"
                     >
                       <span className="text-[var(--ink-soft)]">{label}</span>
-                      <span className="font-bold">{value}</span>
+                      <span className="text-right font-bold">{value}</span>
                     </div>
                   ))}
                 </div>
@@ -148,6 +153,11 @@ function PropertiesPage({ onAddProperty }) {
 
                   <PaymentAccount account={selectedProperty.rent_account} badge="Rent" tone="rent" />
                   <PaymentAccount account={selectedProperty.water_account} badge="Water" tone="water" />
+                  <PaymentAccount
+                    account={selectedProperty.electricity_account}
+                    badge="Electricity"
+                    tone="water"
+                  />
                 </div>
               </div>
             </section>
@@ -241,7 +251,7 @@ function PaymentAccount({ account, badge, tone }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h4 className="text-[13px] font-bold">
-            {badge} - {account ? paymentAccountTypeLabel(account) : 'Not connected'}
+            {badge} - {account ? paymentAccountTypeLabel(account) : badge === 'Rent' ? 'Not connected' : 'No separate account'}
           </h4>
           <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">
             {account
@@ -252,7 +262,9 @@ function PaymentAccount({ account, badge, tone }) {
                 ]
                   .filter(Boolean)
                   .join(' - ')
-              : 'No active payment account for this property.'}
+              : badge === 'Rent'
+                ? 'No active payment account for this property.'
+                : 'Paid through the rent account.'}
           </p>
         </div>
 

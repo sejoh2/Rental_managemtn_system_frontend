@@ -43,3 +43,10 @@ export async function replacePaymentAccount(propertyId, accountFor, connectionId
 
   return data
 }
+
+// Removes the optional water or electricity account; those charges then go through the rent account.
+export async function removePaymentAccount(propertyId, accountFor) {
+  const { data } = await api.delete(`/api/properties/${propertyId}/payment-accounts/${accountFor}`)
+
+  return data
+}

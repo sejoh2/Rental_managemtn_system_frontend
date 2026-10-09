@@ -3,9 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { assignCaretaker, listCaretakers } from '../../api/caretakers';
 import { createProperty } from '../../api/properties';
+import { getSettings } from '../../api/settings';
 import { useProperties } from '../../context/PropertiesContext';
 import { useApi } from '../../hooks/useApi';
-import { PROPERTY_TYPES, WATER_BILLING_METHODS } from '../../utils/labels';
+import {
+  MOVE_IN_BILLING,
+  MOVE_OUT_BILLING,
+  PROPERTY_TYPES,
+  RENT_DUE_DAYS,
+  WATER_BILLING_METHODS,
+} from '../../utils/labels';
 import {
   caretakerDetails,
   emptyAccount,
@@ -21,6 +28,12 @@ const inputClass =
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]';
 
+// Water and electricity can each have their own account, or be paid through the rent account.
+const optionalAccounts = [
+  ['water', 'Water account'],
+  ['electricity', 'Electricity account'],
+];
+
 function AddPropertyModal({ open, onClose }) {
   if (!open) return null;
 
@@ -31,19 +44,28 @@ function AddPropertyForm({ onClose }) {
   const navigate = useNavigate();
   const properties = useProperties();
   const caretakers = useApi('caretakers', listCaretakers);
+  const settings = useApi('settings', getSettings);
 
   const [form, setForm] = useState({
     name: '',
     location: '',
     property_type: 'apartment_block',
     expected_units: '',
-    rent_due_day: '5th of every month',
+    // Empty until the owner picks one; the Settings default is used meanwhile.
+    rent_due_day: '',
+    move_in_billing: 'prorated',
+    move_out_billing: 'prorated',
     sms_sender_id: '',
     water_billing_method: 'per_unit_metered',
     water_rate_per_unit: '',
     water_fixed_fee: '',
   });
-  const [accounts, setAccounts] = useState({ rent: emptyAccount, water: emptyAccount });
+  const [accounts, setAccounts] = useState({
+    rent: emptyAccount,
+    water: emptyAccount,
+    electricity: emptyAccount,
+  });
+  const [separateAccount, setSeparateAccount] = useState({ water: true, electricity: false });
   const [caretaker, setCaretaker] = useState(emptyCaretaker);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -51,6 +73,8 @@ function AddPropertyForm({ onClose }) {
   const [partialResult, setPartialResult] = useState(null);
 
   const existingCaretakers = uniqueCaretakers(caretakers.data);
+  const rentDueDay =
+    form.rent_due_day || String(settings.data?.defaults.default_rent_due_day || 5);
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -73,13 +97,24 @@ function AddPropertyForm({ onClose }) {
     event.preventDefault();
     setError(null);
 
-    if (accounts.rent.status !== 'connected' || accounts.water.status !== 'connected') {
-      setError({ message: 'Connect both the rent account and the water account before adding the property.' });
+    const usedAccounts = [
+      'rent',
+      ...optionalAccounts.map(([accountFor]) => accountFor).filter((accountFor) => separateAccount[accountFor]),
+    ];
+    const notConnected = usedAccounts.find((accountFor) => accounts[accountFor].status !== 'connected');
+
+    if (notConnected) {
+      setError({
+        message:
+          notConnected === 'rent'
+            ? 'Connect the rent account before adding the property.'
+            : `Connect the ${notConnected} account, or choose to pay ${notConnected} through the rent account.`,
+      });
       return;
     }
 
     // A validated connection is only held by the backend for a few minutes.
-    const expired = ['rent', 'water'].filter((accountFor) => Date.now() > accounts[accountFor].expiresAt);
+    const expired = usedAccounts.filter((accountFor) => Date.now() > accounts[accountFor].expiresAt);
 
     if (expired.length) {
       expired.forEach((accountFor) =>
@@ -103,7 +138,9 @@ function AddPropertyForm({ onClose }) {
         location: form.location,
         property_type: form.property_type,
         expected_units: Number(form.expected_units) || 0,
-        rent_due_day: form.rent_due_day.trim() || undefined,
+        rent_due_day: Number(rentDueDay),
+        move_in_billing: form.move_in_billing,
+        move_out_billing: form.move_out_billing,
         sms_sender_id: form.sms_sender_id.trim() || null,
         water_billing_method: form.water_billing_method,
         ...(form.water_billing_method === 'per_unit_metered'
@@ -113,7 +150,10 @@ function AddPropertyForm({ onClose }) {
           ? { water_fixed_fee: Number(form.water_fixed_fee) }
           : {}),
         rent_connection_id: accounts.rent.connectionId,
-        water_connection_id: accounts.water.connectionId,
+        water_connection_id: separateAccount.water ? accounts.water.connectionId : null,
+        electricity_connection_id: separateAccount.electricity
+          ? accounts.electricity.connectionId
+          : null,
       });
     } catch (createError) {
       setError(createError);
@@ -253,13 +293,15 @@ function AddPropertyForm({ onClose }) {
 
                 <div>
                   <label className={labelClass}>Rent due day</label>
-                  <input
-                    type="text"
-                    value={form.rent_due_day}
+                  <select
+                    value={rentDueDay}
                     onChange={setField('rent_due_day')}
-                    placeholder="5th of every month"
                     className={inputClass}
-                  />
+                  >
+                    {RENT_DUE_DAYS.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -271,6 +313,37 @@ function AddPropertyForm({ onClose }) {
                     placeholder="e.g. KODI-GVA"
                     className={inputClass}
                   />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>If a tenant moves in mid-month</label>
+                  <select
+                    value={form.move_in_billing}
+                    onChange={setField('move_in_billing')}
+                    className={inputClass}
+                  >
+                    {MOVE_IN_BILLING.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>If a tenant moves out mid-month</label>
+                  <select
+                    value={form.move_out_billing}
+                    onChange={setField('move_out_billing')}
+                    className={inputClass}
+                  >
+                    {MOVE_OUT_BILLING.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                    Rent is billed on the 1st of every month. These two rules
+                    decide what a tenant pays for a first or last month they
+                    only spend part of. Deposits are always charged in full.
+                  </p>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -288,10 +361,11 @@ function AddPropertyForm({ onClose }) {
               <SectionTitle title="Payment accounts" className="mt-[22px]" />
 
               <p className="mb-4 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-                Connect the M-Pesa account that should receive rent and the one
-                that should receive water payments for this property. Rent and
-                water must use two different business numbers. These
-                credentials belong only to this property.
+                Connect the M-Pesa account that receives rent. Water and
+                electricity can each have their own account, or be paid
+                through the rent account. Every account needs a different
+                business number, and these credentials belong only to this
+                property.
               </p>
 
               <PaymentAccountCard
@@ -303,14 +377,44 @@ function AddPropertyForm({ onClose }) {
                 callbackNote="Payment callbacks are registered with Safaricom when you add the property."
               />
 
-              <PaymentAccountCard
-                title="Water account"
-                accountFor="water"
-                account={accounts.water}
-                onChange={(patch) => patchAccount('water', patch)}
-                propertyName={form.name}
-                callbackNote="Payment callbacks are registered with Safaricom when you add the property."
-              />
+              {optionalAccounts.map(([accountFor, title]) =>
+                separateAccount[accountFor] ? (
+                  <PaymentAccountCard
+                    key={accountFor}
+                    title={`${title} (optional)`}
+                    accountFor={accountFor}
+                    account={accounts[accountFor]}
+                    onChange={(patch) => patchAccount(accountFor, patch)}
+                    propertyName={form.name}
+                    callbackNote="Payment callbacks are registered with Safaricom when you add the property."
+                    cancelLabel="Use the rent account instead"
+                    onCancel={() => {
+                      patchAccount(accountFor, emptyAccount);
+                      setSeparateAccount((current) => ({ ...current, [accountFor]: false }));
+                    }}
+                  />
+                ) : (
+                  <div
+                    key={accountFor}
+                    className="mb-4 flex items-center justify-between gap-4 rounded-[10px] border border-[var(--line)] bg-white p-4"
+                  >
+                    <div>
+                      <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
+                      <p className="mt-[4px] text-[11px] text-[var(--ink-faint)]">
+                        No separate account - {accountFor} is paid through the rent account.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSeparateAccount((current) => ({ ...current, [accountFor]: true }))}
+                      className="shrink-0 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
+                    >
+                      Add {accountFor} account
+                    </button>
+                  </div>
+                )
+              )}
 
               {/* Water Billing Section */}
               <SectionTitle title="Water billing" className="mt-[6px]" />
