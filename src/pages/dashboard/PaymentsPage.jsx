@@ -410,7 +410,7 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
 
           <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
             The money is applied to the tenant's oldest unpaid{' '}
-            {payment.account_for === 'rent' ? 'deposits and rent' : `${payment.account_for} charges`}{' '}
+            {payment.account_for === 'rent' ? 'rent deposit and rent' : `${payment.account_for} deposit and bills`}{' '}
             first, because it arrived in the {payment.account_for} account.
           </p>
 

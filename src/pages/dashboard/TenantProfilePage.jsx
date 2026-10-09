@@ -325,12 +325,25 @@ function ChargesSummary({ charges, tenant }) {
         <DetailRow label="Billed" value={formatKES(billed)} />
         <DetailRow label="Paid so far" value={formatKES(paid)} />
         <DetailRow label="Balance" value={formatKES(tenant.balance)} danger={tenant.balance > 0} />
+        {tenant.credit_balance > 0 ? (
+          <DetailRow label="Credit held" value={formatKES(tenant.credit_balance)} />
+        ) : null}
         <div className="mt-3 h-[5px] rounded-full bg-[var(--line-soft)]">
           <div
             className="h-full rounded-full bg-[var(--accent)]"
             style={{ width: `${billed ? Math.min((paid / billed) * 100, 100) : 0}%` }}
           />
         </div>
+
+        {tenant.balance > 0 && tenant.credit_balance > 0 ? (
+          <p className="mt-3 text-[11px] leading-[1.5] text-[#B8790E]">
+            This tenant owes money and also holds credit. The credit was
+            paid into a different account (for example water), so it can
+            only settle that kind of bill. If the payment was meant for
+            what is owed, reverse it on the Payments page and record it
+            against the right account.
+          </p>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto border-t border-[var(--line)]">

@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { API_URL } from '../../api/client'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
 import { FormError } from '../../components/common/DataState'
 import { useAuth } from '../../context/AuthContext'
 import { formatPhone, humanize } from '../../utils/format'
 
+// Shown to signed-in accounts that are neither an owner nor an admin.
 function NoAccessPage() {
   const { user, signOut, refreshUser } = useAuth()
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState(null)
 
-  const isAdmin = user.role === 'admin'
+  const isCaretaker = user.role === 'caretaker'
 
   async function checkAgain() {
     setChecking(true)
@@ -39,11 +39,11 @@ function NoAccessPage() {
         <section className="flex min-h-[620px] items-center justify-center px-6 py-12 sm:px-10 lg:min-h-[calc(100vh-34px)]">
           <div className="w-full max-w-[360px]">
             <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
-              {humanize(user.role)} account
+              {isCaretaker ? 'Caretaker account' : `${humanize(user.role)} account`}
             </div>
 
             <h2 className="font-display text-[22px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
-              {isAdmin ? 'This dashboard is for owners' : 'Owner access not set up yet'}
+              {isCaretaker ? 'This dashboard is for owners' : 'Owner access not set up yet'}
             </h2>
 
             <p className="mt-2 mb-7 text-[12px] leading-[1.5] text-[var(--ink-soft)]">
@@ -52,9 +52,9 @@ function NoAccessPage() {
                 {formatPhone(user.phone)}
               </span>
               .{' '}
-              {isAdmin
-                ? 'Administrator accounts manage users, not properties. Use the API docs to promote a user to owner.'
-                : 'A system admin has to promote this number to an owner account before you can manage properties.'}
+              {isCaretaker
+                ? 'Caretaker accounts cannot use the owner web dashboard.'
+                : 'A system admin has to make this number an owner account before you can manage properties.'}
             </p>
 
             {error ? (
@@ -63,16 +63,7 @@ function NoAccessPage() {
               </div>
             ) : null}
 
-            {isAdmin ? (
-              <a
-                href={`${API_URL}/api-docs`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex w-full items-center justify-center rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-3 text-[12.5px] font-bold text-white transition hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
-              >
-                Open API docs
-              </a>
-            ) : (
+            {isCaretaker ? null : (
               <button
                 type="button"
                 onClick={checkAgain}

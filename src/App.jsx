@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { LoadingState } from './components/common/DataState'
 import { useAuth } from './context/AuthContext'
+import AdminPage from './pages/admin/AdminPage'
 import NoAccessPage from './pages/auth/NoAccessPage'
 import SignInPage from './pages/auth/SignInPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
@@ -39,6 +40,8 @@ function App() {
             <Navigate to="/login" replace state={{ from: location.pathname }} />
           ) : user.role === 'owner' ? (
             <DashboardPage />
+          ) : user.role === 'admin' ? (
+            <AdminPage />
           ) : (
             // The dashboard API is owner-only; other roles would get 403 on every page.
             <NoAccessPage />

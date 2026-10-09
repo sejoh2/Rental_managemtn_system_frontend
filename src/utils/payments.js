@@ -16,7 +16,7 @@ export const PAYMENT_ACCOUNTS = [
 ]
 
 export const PAYMENT_ACCOUNT_HINTS = {
-  rent: 'Settles the deposits first, then rent. It also covers water and electricity bills if this property has no separate account for them.',
+  rent: 'Settles the rent deposit first, then rent. It also covers the water and electricity deposits and bills, but only if this property has no separate account for them.',
   water: 'Settles the water deposit and water bills only.',
   electricity: 'Settles the electricity deposit and electricity bills only.',
 }
