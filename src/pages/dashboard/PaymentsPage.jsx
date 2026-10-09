@@ -1,32 +1,79 @@
 import { useState } from 'react'
-import { Download, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Download, Plus } from 'lucide-react'
+import { listPayments, matchPayment, reversePayment } from '../../api/payments'
+import { listTenants } from '../../api/tenants'
+import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import {
+  Field,
+  ModalBody,
+  ModalFooter,
+  ModalShell,
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../components/common/Modal'
+import StatusBadge from '../../components/common/StatusBadge'
+import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import StatCard from '../../components/dashboard/StatCard'
-import { paymentStats, payments } from '../../data/paymentsData'
+import { usePaymentStats } from '../../context/PaymentStatsContext'
+import { useApi } from '../../hooks/useApi'
+import { downloadCsv } from '../../utils/csv'
+import {
+  formatDateTime,
+  formatKES,
+  formatPercent,
+  formatPhone,
+  humanize,
+  toDateInput,
+} from '../../utils/format'
+import { appliedToLabel, paymentMethodLabel, paymentStatus } from '../../utils/payments'
+import { isCurrentTenant } from '../../utils/tenantStatus'
 
-const unmatchedPayments = [
-  {
-    id: 'unmatched-001',
-    title: 'M-Pesa from 0722 •• 019',
-    amount: 'KES 3,000',
-    meta: 'Received 2:41 PM - no tenant registered with this phone number',
-  },
-  {
-    id: 'unmatched-002',
-    title: 'Bank transfer - Ref "H12-KAMAU"',
-    amount: 'KES 8,500',
-    meta: "Received 11:15 AM - reference doesn't match any active tenant code",
-  },
-  {
-    id: 'unmatched-003',
-    title: 'M-Pesa from 0798 •• 442',
-    amount: 'KES 12,000',
-    meta: 'Received 9:50 AM - amount covers rent for two possible tenants',
-  },
-]
+function payerLabel(payment) {
+  if (payment.tenant_name) {
+    return `${payment.tenant_name}${payment.unit_number ? ` - ${payment.unit_number}` : ''}`
+  }
+
+  return payment.payer_phone ? formatPhone(payment.payer_phone) : 'Unknown payer'
+}
 
 function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState('All payments')
-  const [selectedPayment, setSelectedPayment] = useState(null)
+  const paymentsState = useApi('payments', listPayments)
+  const statsState = usePaymentStats()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [assigning, setAssigning] = useState(null)
+  const [reversing, setReversing] = useState(null)
+  const [recordOpen, setRecordOpen] = useState(false)
+
+  // The tab lives in the URL so other pages can link straight to /payments?tab=unmatched.
+  const activeTab = searchParams.get('tab') === 'unmatched' ? 'unmatched' : 'all'
+  const payments = paymentsState.data || []
+  const unmatched = payments.filter((payment) => payment.status === 'unmatched')
+
+  function reloadAll() {
+    paymentsState.reload()
+    statsState.reload()
+  }
+
+  function exportCsv() {
+    downloadCsv(
+      `payments-${toDateInput()}.csv`,
+      ['Date', 'Tenant / payer', 'Unit', 'Amount (KES)', 'Method', 'For', 'Applied to', 'Reference', 'Status'],
+      payments.map((payment) => [
+        formatDateTime(payment.received_at),
+        payment.tenant_name || formatPhone(payment.payer_phone, ''),
+        payment.unit_number || '',
+        payment.amount,
+        paymentMethodLabel(payment),
+        humanize(payment.account_for, ''),
+        appliedToLabel(payment),
+        payment.provider_transaction_id || payment.reference || '',
+        paymentStatus(payment).label,
+      ])
+    )
+  }
 
   return (
     <>
@@ -39,236 +86,441 @@ function PaymentsPage() {
             Payments
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
-            Rent and water payments, matched automatically from M-Pesa and bank feeds.
+            Rent, water and electricity payments. M-Pesa is matched to tenants
+            automatically; cash and bank payments are recorded by hand.
           </p>
         </div>
 
-        <button
-          onClick={() => window.alert('CSV export generated successfully.')}
-          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
-        >
-          <Download size={15} />
-          Export CSV
-        </button>
+        <div className="flex flex-wrap gap-[10px]">
+          <button
+            onClick={exportCsv}
+            disabled={!payments.length}
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+          >
+            <Download size={15} />
+            Export CSV
+          </button>
+
+          <button
+            onClick={() => setRecordOpen(true)}
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+          >
+            <Plus size={15} />
+            Record payment
+          </button>
+        </div>
       </div>
 
       <div className="mb-[18px] flex gap-7 border-b border-[var(--line)]">
-        {['All payments', 'Unmatched'].map((tab) => (
+        {[
+          ['all', 'All payments'],
+          ['unmatched', 'Unmatched'],
+        ].map(([key, label]) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={key}
+            onClick={() => setSearchParams(key === 'all' ? {} : { tab: key })}
             className={`pb-[12px] text-[11px] font-bold ${
-              activeTab === tab
+              activeTab === key
                 ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
                 : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
             }`}
           >
-            {tab}
-            {tab === 'Unmatched' ? (
+            {label}
+            {key === 'unmatched' && unmatched.length ? (
               <span className="ml-2 rounded-full bg-[#FBF0DA] px-[9px] py-[3px] text-[9px] text-[#B8790E]">
-                3
+                {unmatched.length}
               </span>
             ) : null}
           </button>
         ))}
       </div>
 
-      {activeTab === 'Unmatched' ? (
-        <UnmatchedView onAssign={setSelectedPayment} />
+      {activeTab === 'unmatched' ? (
+        <UnmatchedView paymentsState={paymentsState} unmatched={unmatched} onAssign={setAssigning} />
       ) : (
-        <AllPaymentsView />
+        <AllPaymentsView
+          paymentsState={paymentsState}
+          stats={statsState.data}
+          onReverse={setReversing}
+        />
       )}
 
-      <AssignPaymentModal
-        payment={selectedPayment}
-        onClose={() => setSelectedPayment(null)}
-      />
+      {assigning ? (
+        <AssignPaymentModal
+          payment={assigning}
+          onClose={() => setAssigning(null)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {reversing ? (
+        <ReversePaymentModal
+          payment={reversing}
+          onClose={() => setReversing(null)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {recordOpen ? (
+        <RecordPaymentModal onClose={() => setRecordOpen(false)} onDone={reloadAll} />
+      ) : null}
     </>
   )
 }
 
-function AllPaymentsView() {
+function AllPaymentsView({ paymentsState, stats, onReverse }) {
+  const statCards = [
+    {
+      label: 'Received today',
+      value: stats ? formatKES(stats.received_today) : '-',
+      note: stats
+        ? `${stats.received_today_count} ${stats.received_today_count === 1 ? 'transaction' : 'transactions'}`
+        : 'Loading...',
+      tone: 'muted',
+    },
+    {
+      label: 'Auto-matched',
+      value: stats ? formatPercent(stats.auto_match_rate) : '-',
+      note: 'of all payments',
+      tone: 'success',
+    },
+    {
+      label: 'Pending review',
+      value: stats ? String(stats.unmatched_count) : '-',
+      note: stats?.unmatched_count ? 'needs attention' : 'nothing to review',
+      tone: stats?.unmatched_count ? 'danger' : 'muted',
+    },
+  ]
+
   return (
     <>
       <div className="mb-6 grid gap-[14px] md:grid-cols-3">
-        {paymentStats.map((item) => (
+        {statCards.map((item) => (
           <StatCard key={item.label} {...item} />
         ))}
       </div>
 
       <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full border-collapse">
-            <thead>
-              <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
-                <th className="px-[18px] py-[10px] font-bold">Tenant</th>
-                <th className="px-[18px] py-[10px] font-bold">Amount</th>
-                <th className="px-[18px] py-[10px] font-bold">Method</th>
-                <th className="px-[18px] py-[10px] font-bold">Applied to</th>
-                <th className="px-[18px] py-[10px] font-bold">Date</th>
-                <th className="px-[18px] py-[10px] font-bold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((item) => (
-                <tr key={`${item.tenant}-${item.date}`} className="border-b border-[var(--line-soft)] last:border-b-0">
-                  <td className="px-[18px] py-[13px] text-[12px] font-bold">{item.tenant}</td>
-                  <td className="font-mono px-[18px] py-[13px] text-[12px]">{item.amount}</td>
-                  <td className="px-[18px] py-[13px] text-[12px]">{item.method}</td>
-                  <td className="px-[18px] py-[13px] text-[12px]">{item.appliedTo}</td>
-                  <td className="px-[18px] py-[13px] text-[12px]">{item.date}</td>
-                  <td className="px-[18px] py-[13px]">
-                    <StatusBadge tone="success">{item.status}</StatusBadge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataState
+          state={paymentsState}
+          loadingLabel="Loading payments..."
+          isEmpty={(payments) => !payments.length}
+          empty={
+            <EmptyState
+              title="No payments yet"
+              message="M-Pesa payments to your property accounts appear here automatically. Use Record payment for cash or bank payments."
+            />
+          }
+        >
+          {(payments) => (
+            <div className="overflow-x-auto">
+              <table className="min-w-[1040px] w-full border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
+                    <th className="px-[18px] py-[10px] font-bold">Tenant</th>
+                    <th className="px-[18px] py-[10px] font-bold">Amount</th>
+                    <th className="px-[18px] py-[10px] font-bold">Method</th>
+                    <th className="px-[18px] py-[10px] font-bold">Applied to</th>
+                    <th className="px-[18px] py-[10px] font-bold">Date</th>
+                    <th className="px-[18px] py-[10px] font-bold">Status</th>
+                    <th className="px-[18px] py-[10px] font-bold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => {
+                    const status = paymentStatus(payment)
+
+                    return (
+                      <tr key={payment.id} className="border-b border-[var(--line-soft)] last:border-b-0">
+                        <td className="px-[18px] py-[13px] text-[12px] font-bold">
+                          {payment.tenant_id ? (
+                            <Link to={`/tenants/${payment.tenant_id}`} className="hover:text-[var(--accent)]">
+                              {payerLabel(payment)}
+                            </Link>
+                          ) : (
+                            payerLabel(payment)
+                          )}
+                        </td>
+                        <td className="font-mono px-[18px] py-[13px] text-[12px]">
+                          {formatKES(payment.amount)}
+                        </td>
+                        <td className="px-[18px] py-[13px] text-[12px]">{paymentMethodLabel(payment)}</td>
+                        <td className="px-[18px] py-[13px] text-[12px]">
+                          {payment.status === 'reversed'
+                            ? payment.reverse_reason || '-'
+                            : appliedToLabel(payment)}
+                        </td>
+                        <td className="px-[18px] py-[13px] text-[12px]">
+                          {formatDateTime(payment.received_at)}
+                        </td>
+                        <td className="px-[18px] py-[13px]">
+                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                        </td>
+                        <td className="px-[18px] py-[13px] text-right">
+                          {payment.status === 'matched' ? (
+                            <button
+                              onClick={() => onReverse(payment)}
+                              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                            >
+                              {payment.payment_source === 'manual' ? 'Reverse' : 'Unassign'}
+                            </button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DataState>
       </section>
     </>
   )
 }
 
-function UnmatchedView({ onAssign }) {
+function UnmatchedView({ paymentsState, unmatched, onAssign }) {
   return (
     <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
       <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
         <h3 className="text-[12px] font-bold">Needs manual review</h3>
-        <span className="text-[10px] text-[var(--ink-faint)]">3 transactions</span>
+        <span className="text-[10px] text-[var(--ink-faint)]">
+          {paymentsState.data
+            ? `${unmatched.length} ${unmatched.length === 1 ? 'transaction' : 'transactions'}`
+            : ''}
+        </span>
       </div>
 
-      <div className="space-y-[12px] p-[18px]">
-        {unmatchedPayments.map((payment) => (
-          <div
-            key={payment.id}
-            className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-[14px] font-bold">{payment.title}</h3>
-                <StatusBadge tone="warning">Unmatched</StatusBadge>
+      <DataState
+        state={paymentsState}
+        loadingLabel="Loading payments..."
+        isEmpty={() => !unmatched.length}
+        empty={
+          <EmptyState
+            title="Nothing to review"
+            message="Every payment received has been matched to a tenant."
+          />
+        }
+      >
+        {() => (
+          <div className="space-y-[12px] p-[18px]">
+            {unmatched.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[14px] font-bold">
+                      {formatKES(payment.amount)} from {payerLabel(payment)}
+                    </h3>
+                    <StatusBadge tone="warning">Unmatched</StatusBadge>
+                  </div>
+                  <p className="mt-[5px] text-[11px] text-[var(--ink-faint)]">
+                    Received {formatDateTime(payment.received_at)} into the{' '}
+                    {humanize(payment.account_for, 'property').toLowerCase()} account
+                    {payment.reference ? ` - reference "${payment.reference}"` : ''}
+                  </p>
+                  {payment.unmatched_reason ? (
+                    <p className="mt-[3px] text-[11px] text-[var(--ink-faint)]">
+                      {payment.unmatched_reason}
+                    </p>
+                  ) : null}
+                </div>
+
+                <button
+                  onClick={() => onAssign(payment)}
+                  className="shrink-0 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+                >
+                  Assign to tenant
+                </button>
               </div>
-              <p className="mt-[5px] text-[11px] text-[var(--ink-faint)]">
-                {payment.amount} {payment.meta}
-              </p>
-            </div>
-
-            <button
-              onClick={() => onAssign(payment)}
-              className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
-            >
-              Assign to tenant
-            </button>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
+      </DataState>
     </section>
   )
 }
 
-function AssignPaymentModal({ payment, onClose }) {
-  if (!payment) return null
+function AssignPaymentModal({ payment, onClose, onDone }) {
+  // A payment can only go to a tenant of the property whose account received it.
+  const tenantsState = useApi(`tenants-property-${payment.property_id}`, () =>
+    listTenants({ property_id: payment.property_id })
+  )
+  const tenants = (tenantsState.data || []).filter(isCurrentTenant)
 
-  function confirmMatch() {
-    window.alert('Payment matched to tenant successfully.')
-    onClose()
+  const [tenantId, setTenantId] = useState('')
+  const [rememberPhone, setRememberPhone] = useState(Boolean(payment.payer_phone))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await matchPayment(payment.id, {
+        tenant_id: Number(tenantId),
+        remember_payment_phone: rememberPhone,
+      })
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="w-full max-w-[640px] overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-        <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
-          <h2 className="font-display text-[15px] font-semibold">
-            Assign payment to tenant
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--line-soft)] text-[var(--ink-soft)]"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="px-[22px] py-[22px]">
+    <ModalShell title="Assign payment to tenant" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
           <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-[14px] font-bold">{payment.title}</h3>
+                <h3 className="text-[14px] font-bold">{paymentMethodLabel(payment)} from {payerLabel(payment)}</h3>
                 <p className="mt-[4px] text-[11px] text-[var(--ink-faint)]">
-                  {payment.meta}
+                  Received {formatDateTime(payment.received_at)} into the{' '}
+                  {humanize(payment.account_for, 'property').toLowerCase()} account
                 </p>
               </div>
-              <div className="font-mono text-[14px] font-bold">{payment.amount}</div>
+              <div className="font-mono text-[14px] font-bold">{formatKES(payment.amount)}</div>
             </div>
           </div>
 
-          <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-            Match to tenant
-          </label>
-          <select className="mb-[18px] h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] outline-none">
-            <option>John Otieno - H44</option>
-            <option>Faith Njeri - H12</option>
-            <option>David Kamau - A7</option>
-            <option>Grace Achieng - B3</option>
+          <label className={labelClass}>Match to tenant</label>
+          <select
+            value={tenantId}
+            onChange={(event) => setTenantId(event.target.value)}
+            required
+            className={inputClass}
+          >
+            <option value="">
+              {tenantsState.loading ? 'Loading tenants...' : 'Choose a tenant'}
+            </option>
+            {tenants.map((tenant) => (
+              <option key={tenant.id} value={tenant.id}>
+                {tenant.full_name} - {tenant.unit_number}
+                {tenant.balance > 0 ? ` (owes ${formatKES(tenant.balance)})` : ''}
+              </option>
+            ))}
           </select>
 
-          <div className="grid gap-[14px] sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-                Apply to
-              </label>
-              <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] outline-none">
-                <option>Rent balance</option>
-                <option>Water bill</option>
-                <option>Deposit</option>
-              </select>
-            </div>
+          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+            The money is applied to the tenant's oldest unpaid{' '}
+            {payment.account_for === 'rent' ? 'deposits and rent' : `${payment.account_for} charges`}{' '}
+            first, because it arrived in the {payment.account_for} account.
+          </p>
 
-            <div>
-              <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-                Also save as tenant's payment number?
-              </label>
-              <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] outline-none">
-                <option>Yes, remember this number</option>
-                <option>No, only match this payment</option>
-              </select>
+          {payment.payer_phone ? (
+            <label className="mt-[18px] flex items-start gap-3 text-[12px] font-medium">
+              <input
+                type="checkbox"
+                checked={rememberPhone}
+                onChange={(event) => setRememberPhone(event.target.checked)}
+                className="mt-[2px] h-[13px] w-[13px]"
+              />
+              <span>
+                Also save {formatPhone(payment.payer_phone)} as this tenant's payment number
+                <span className="mt-[2px] block text-[10px] font-normal text-[var(--ink-faint)]">
+                  Future payments from this number will then match automatically. It replaces the number currently on the tenant's record.
+                </span>
+              </span>
+            </label>
+          ) : null}
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
             </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+
+          <button type="submit" disabled={saving || !tenantId} className={primaryButtonClass}>
+            {saving ? 'Matching...' : 'Confirm match'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
+  )
+}
+
+function ReversePaymentModal({ payment, onClose, onDone }) {
+  const manual = payment.payment_source === 'manual'
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await reversePayment(payment.id, reason.trim())
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ModalShell title={manual ? 'Reverse payment' : 'Unassign payment'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[#B3261E]">
+              {formatKES(payment.amount)} will be taken off {payment.tenant_name || 'the tenant'}'s account
+            </h3>
+            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              Every charge this payment settled goes back to unpaid, and any
+              credit it left is removed.{' '}
+              {manual
+                ? 'The payment stays on record, marked as reversed.'
+                : 'Because this is real M-Pesa money, it returns to Unmatched so you can assign it to the right tenant.'}
+            </p>
           </div>
-        </div>
 
-        <div className="flex justify-end gap-[10px] border-t border-[var(--line)] px-[22px] py-[16px]">
-          <button
-            onClick={onClose}
-            className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold"
-          >
+          <Field
+            label="Reason"
+            placeholder={manual ? 'e.g. Entered the wrong amount' : 'e.g. Assigned to the wrong tenant'}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            minLength={2}
+          />
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
             Cancel
           </button>
 
           <button
-            onClick={confirmMatch}
-            className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[10px] text-[12px] font-bold text-white"
+            type="submit"
+            disabled={saving}
+            className="rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
           >
-            Confirm match
+            {saving ? 'Working...' : manual ? 'Reverse payment' : 'Unassign payment'}
           </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StatusBadge({ tone, children }) {
-  const tones = {
-    success: 'bg-[#E3F1E8] text-[#2E7D4F]',
-    warning: 'bg-[#FBF0DA] text-[#B8790E]',
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-[6px] rounded-full px-[9px] py-[3px] text-[9px] font-bold ${tones[tone]}`}>
-      <span className="h-[6px] w-[6px] rounded-full bg-current" />
-      {children}
-    </span>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   )
 }
 

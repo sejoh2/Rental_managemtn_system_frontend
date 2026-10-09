@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { displayName, useAuth } from '../../context/AuthContext'
+import { usePaymentStats } from '../../context/PaymentStatsContext'
 import { useProperties } from '../../context/PropertiesContext'
 import { humanize, initials } from '../../utils/format'
 
@@ -38,7 +39,7 @@ const navGroups = [
   {
     label: 'Money',
     items: [
-      { label: 'Payments', icon: CreditCard, count: 3, to: '/payments' },
+      { label: 'Payments', icon: CreditCard, badge: 'unmatchedPayments', to: '/payments' },
       { label: 'Water billing', icon: Droplets, to: '/water-billing' },
       { label: 'Expenses', icon: ReceiptText, to: '/expenses' },
     ],
@@ -46,7 +47,7 @@ const navGroups = [
   {
     label: 'Operations',
     items: [
-      { label: 'Maintenance', icon: Wrench, count: 2, to: '/maintenance' },
+      { label: 'Maintenance', icon: Wrench, to: '/maintenance' },
       { label: 'Caretakers', icon: UserRoundCog, to: '/caretakers' },
       { label: 'SMS centre', icon: MessageSquareText, to: '/sms-centre' },
       { label: 'Reports', icon: BarChart3, to: '/reports' },
@@ -64,6 +65,10 @@ function DashboardSidebar({ open, onClose }) {
   const { user, signOut } = useAuth()
   const name = displayName(user)
   const properties = useProperties().data
+  // Live counts shown next to nav items; an item with a zero count shows no badge.
+  const badges = {
+    unmatchedPayments: usePaymentStats().data?.unmatched_count || 0,
+  }
 
   return (
     <>
@@ -117,9 +122,9 @@ function DashboardSidebar({ open, onClose }) {
                 >
                   <item.icon size={17} />
                   <span>{item.label}</span>
-                  {item.count ? (
+                  {badges[item.badge] ? (
                     <span className="ml-auto rounded-full bg-[var(--accent)] px-[6px] py-[1px] font-mono text-[10px] font-bold text-white">
-                      {item.count}
+                      {badges[item.badge]}
                     </span>
                   ) : null}
                 </NavLink>
@@ -129,24 +134,24 @@ function DashboardSidebar({ open, onClose }) {
         </nav>
 
         <div className="border-t border-[var(--sidebar-line)] px-4 py-[14px]">
-          <button
-            type="button"
-            onClick={signOut}
-            title="Sign out"
-            aria-label="Sign out"
-            className="mb-7 ml-auto flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-white"
-          >
-            <LogOut size={18} />
-          </button>
-
           <div className="flex items-center gap-[10px]">
-            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[12px] font-bold text-[var(--accent)]">
+            <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[12px] font-bold text-[var(--accent)]">
               {initials(name)}
             </div>
-            <div>
-              <div className="text-[12px] font-bold text-white">{name}</div>
+            <div className="min-w-0">
+              <div className="truncate text-[12px] font-bold text-white">{name}</div>
               <div className="text-[10px] text-[var(--sidebar-ink-soft)]">{humanize(user.role)}</div>
             </div>
+
+            <button
+              type="button"
+              onClick={signOut}
+              title="Sign out"
+              aria-label="Sign out"
+              className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-white"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>

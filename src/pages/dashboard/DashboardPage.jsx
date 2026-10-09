@@ -29,6 +29,7 @@ import { rentStats, waterStats, unmatchedPayments, recentActivity } from '../../
 import { useAuth } from '../../context/AuthContext'
 import { useProperties } from '../../context/PropertiesContext'
 import PropertiesProvider from '../../context/PropertiesProvider'
+import PaymentStatsProvider from '../../context/PaymentStatsProvider'
 
 const pageMeta = {
   dashboard: {
@@ -53,7 +54,7 @@ agreements: {
 },
 payments: {
   title: 'Payments',
-  subtitle: 'Rent & water, matched automatically',
+  subtitle: 'Rent, water & electricity received',
   pill: 'Payments',
 },
 'water-billing': {
@@ -106,7 +107,9 @@ settings: {
 function DashboardPage() {
   return (
     <PropertiesProvider>
-      <DashboardShell />
+      <PaymentStatsProvider>
+        <DashboardShell />
+      </PaymentStatsProvider>
     </PropertiesProvider>
   )
 }

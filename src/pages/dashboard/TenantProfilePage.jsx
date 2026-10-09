@@ -9,7 +9,6 @@ import {
   getTenantStatement,
   listTenantPayments,
   moveOutTenant,
-  recordManualPayment,
   updateTenant,
 } from '../../api/tenants'
 import { listWaterReadings } from '../../api/water'
@@ -24,6 +23,7 @@ import {
   secondaryButtonClass,
 } from '../../components/common/Modal'
 import StatusBadge from '../../components/common/StatusBadge'
+import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import { chargeLabel, moveOutEstimate } from '../../utils/billing'
@@ -37,23 +37,10 @@ import {
   initials,
   toDateInput,
 } from '../../utils/format'
+import { appliedToLabel, paymentMethodLabel, paymentStatus } from '../../utils/payments'
 import { isCurrentTenant, tenantStatus } from '../../utils/tenantStatus'
 
 const tabs = ['Overview', 'Payment history', 'Water bills', 'Documents']
-
-const paymentMethods = [
-  ['cash', 'Cash'],
-  ['mpesa', 'M-Pesa'],
-  ['bank', 'Bank transfer'],
-  ['other', 'Other'],
-]
-
-// The backend decides which charge a payment settles; the owner only picks the account.
-const paymentAccounts = [
-  ['rent', 'Rent account - deposits, rent, then other bills'],
-  ['water', 'Water account - water deposit and water bills'],
-  ['electricity', 'Electricity account - electricity deposit and bills'],
-]
 
 const refundDecisions = [
   ['full_refund', 'Full refund'],
@@ -68,30 +55,6 @@ const headRowClass =
   'bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]'
 const smallButtonClass =
   'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold'
-
-function paymentMethodLabel(payment) {
-  const method =
-    paymentMethods.find(([value]) => value === payment.payment_method)?.[1] ||
-    humanize(payment.payment_method)
-  const how =
-    payment.match_type === 'automatic'
-      ? 'auto-matched'
-      : payment.payment_source === 'manual'
-        ? 'recorded manually'
-        : payment.match_type === 'manual'
-          ? 'matched manually'
-          : ''
-
-  return how ? `${method} · ${how}` : method
-}
-
-function appliedToLabel(payment) {
-  return payment.applied_to?.length
-    ? payment.applied_to.map((item) => chargeLabel(item)).join(', ')
-    : payment.tenant_id
-      ? 'Held as credit'
-      : '-'
-}
 
 function TenantProfilePage() {
   const { tenantId } = useParams()
@@ -279,9 +242,8 @@ function TenantProfile({ tenant, onTenantChanged }) {
       ) : null}
 
       {openModal === 'payment' ? (
-        <RecordManualPaymentModal
+        <RecordPaymentModal
           tenant={tenant}
-          property={property}
           onClose={() => setOpenModal(null)}
           onDone={reloadMoney}
         />
@@ -445,8 +407,8 @@ function PaymentsTable({ title, paymentsState, action, limit, showStatus }) {
                     <td className="px-[18px] py-[13px]">{appliedToLabel(payment)}</td>
                     {showStatus ? (
                       <td className="px-[18px] py-[13px]">
-                        <StatusBadge tone={payment.status === 'matched' ? 'success' : 'warning'}>
-                          {humanize(payment.status)}
+                        <StatusBadge tone={paymentStatus(payment).tone}>
+                          {paymentStatus(payment).label}
                         </StatusBadge>
                       </td>
                     ) : null}
@@ -763,121 +725,6 @@ function useSubmit(action, { onClose, onDone }) {
   }
 
   return { saving, error, submit }
-}
-
-function RecordManualPaymentModal({ tenant, property, onClose, onDone }) {
-  const [form, setForm] = useState({
-    amount: '',
-    received_on: toDateInput(),
-    payment_method: 'cash',
-    account_for: 'rent',
-    reference: '',
-    notes: '',
-  })
-
-  function setField(field) {
-    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
-  }
-
-  const { saving, error, submit } = useSubmit(
-    () =>
-      recordManualPayment(tenant.id, {
-        amount: Number(form.amount),
-        payment_method: form.payment_method,
-        account_for: form.account_for,
-        // Today's payments keep the current time; earlier dates are recorded at midday.
-        received_at:
-          form.received_on === toDateInput()
-            ? new Date().toISOString()
-            : new Date(`${form.received_on}T12:00:00`).toISOString(),
-        reference: form.reference.trim() || null,
-        notes: form.notes.trim() || null,
-      }),
-    { onClose, onDone }
-  )
-
-  // Offer the water and electricity accounts only when this property has them.
-  const accountOptions = paymentAccounts.filter(
-    ([value]) => value === 'rent' || property?.[`${value}_account`]
-  )
-
-  return (
-    <ModalShell title="Record manual payment" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-1 flex-col overflow-hidden">
-        <ModalBody>
-          <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-            For cash, or any payment that didn't come through M-Pesa
-            auto-matching. This is applied straight to {tenant.full_name}'s
-            balance for House {tenant.unit_number}, deposits first.
-          </p>
-
-          <div className="grid gap-[14px] sm:grid-cols-2">
-            <Field
-              label="Amount (KES)"
-              placeholder="e.g. 5000"
-              type="number"
-              min="1"
-              step="any"
-              value={form.amount}
-              onChange={setField('amount')}
-              required
-            />
-            <Field
-              label="Date received"
-              type="date"
-              max={toDateInput()}
-              value={form.received_on}
-              onChange={setField('received_on')}
-              required
-            />
-
-            <SelectField
-              label="Payment method"
-              value={form.payment_method}
-              onChange={setField('payment_method')}
-              options={paymentMethods}
-            />
-            <SelectField
-              label="Apply to"
-              value={form.account_for}
-              onChange={setField('account_for')}
-              options={accountOptions}
-            />
-          </div>
-
-          <div className="mt-[18px] grid gap-[14px]">
-            <Field
-              label="Reference (optional)"
-              placeholder="e.g. receipt or transaction number"
-              value={form.reference}
-              onChange={setField('reference')}
-            />
-            <Field
-              label="Notes (optional)"
-              placeholder="e.g. Paid in person at the office"
-              value={form.notes}
-              onChange={setField('notes')}
-            />
-          </div>
-
-          {error ? (
-            <div className="mt-[14px]">
-              <FormError error={error} />
-            </div>
-          ) : null}
-        </ModalBody>
-
-        <ModalFooter>
-          <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancel
-          </button>
-          <button type="submit" disabled={saving} className={primaryButtonClass}>
-            {saving ? 'Recording...' : 'Record payment'}
-          </button>
-        </ModalFooter>
-      </form>
-    </ModalShell>
-  )
 }
 
 function MoveOutModal({ tenant, property, onClose, onDone }) {
