@@ -1,20 +1,38 @@
 import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { properties as initialProperties, propertyDetails } from '../../data/propertiesData'
+import { archiveProperty } from '../../api/properties'
+import { DataState, EmptyState } from '../../components/common/DataState'
 import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
+import { useProperties } from '../../context/PropertiesContext'
+import { formatKESCompact, humanize } from '../../utils/format'
+import {
+  PROPERTY_TYPES,
+  optionLabel,
+  paymentAccountTypeLabel,
+  waterBillingLabel,
+} from '../../utils/labels'
 
 function PropertiesPage({ onAddProperty }) {
-  const [properties, setProperties] = useState(initialProperties)
+  const propertiesState = useProperties()
+  const { propertyId } = useParams()
+  const navigate = useNavigate()
   const [editingProperty, setEditingProperty] = useState(null)
   const [deletingProperty, setDeletingProperty] = useState(null)
 
-  const selectedProperty = properties[0]
+  const properties = propertiesState.data || []
+  const selectedProperty =
+    properties.find((property) => String(property.id) === propertyId) || properties[0]
+  const totalUnits = properties.reduce(
+    (total, property) => total + property.summary.total_units,
+    0
+  )
 
-  function handleDeleteProperty() {
-    setProperties((currentProperties) =>
-      currentProperties.filter((property) => property.id !== deletingProperty.id)
-    )
+  async function handleDeleteProperty() {
+    await archiveProperty(deletingProperty.id)
+    propertiesState.reload()
+    navigate('/properties')
   }
 
   return (
@@ -28,7 +46,9 @@ function PropertiesPage({ onAddProperty }) {
             Properties
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
-            3 properties - 128 units total
+            {propertiesState.data
+              ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'} - ${totalUnits} ${totalUnits === 1 ? 'unit' : 'units'} total`
+              : 'Loading your properties...'}
           </p>
         </div>
 
@@ -41,83 +61,105 @@ function PropertiesPage({ onAddProperty }) {
         </button>
       </div>
 
-      <div className="mb-6 grid gap-[14px] lg:grid-cols-3">
-        {properties.map((property) => (
-          <PropertyCard
-            key={property.id}
-            property={property}
-            onDelete={() => setDeletingProperty(property)}
-          />
-        ))}
-      </div>
-
-      {selectedProperty ? (
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4">
-            <h3 className="text-[12px] font-bold">
-              {selectedProperty.name} - details
-            </h3>
-
-            <div className="flex flex-wrap gap-[8px]">
+      <DataState
+        state={propertiesState}
+        loadingLabel="Loading properties..."
+        isEmpty={(data) => !data.length}
+        empty={
+          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+            <EmptyState
+              title="No properties yet"
+              message="Add your first property to start managing its units, tenants and payments."
+            >
               <button
-                onClick={() => setEditingProperty(selectedProperty)}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                onClick={onAddProperty}
+                className="mt-2 inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
               >
-                Edit property
+                <Plus size={15} />
+                Add property
               </button>
-
-              <button
-                onClick={() => setDeletingProperty(selectedProperty)}
-                className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-[11px] font-bold text-red-600"
-              >
-                Delete property
-              </button>
-            </div>
-          </div>
-
-          <div className="grid gap-6 px-[18px] py-5 xl:grid-cols-[1.6fr_1fr]">
-            <div>
-              {propertyDetails.map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between border-b border-[var(--line-soft)] py-[9px] text-[12px] last:border-b-0"
-                >
-                  <span className="text-[var(--ink-soft)]">{label}</span>
-                  <span className="font-bold">{value}</span>
-                </div>
+            </EmptyState>
+          </section>
+        }
+      >
+        {() => (
+          <>
+            <div className="mb-6 grid gap-[14px] lg:grid-cols-3">
+              {properties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  selected={property.id === selectedProperty.id}
+                  onDelete={() => setDeletingProperty(property)}
+                />
               ))}
             </div>
 
-            <div>
-              <div className="mb-[14px] flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
-                  Payment accounts
-                </span>
-                <span className="h-px flex-1 bg-[var(--line)]" />
+            <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4">
+                <h3 className="text-[12px] font-bold">
+                  {selectedProperty.name} - details
+                </h3>
+
+                <div className="flex flex-wrap gap-[8px]">
+                  <button
+                    onClick={() => setEditingProperty(selectedProperty)}
+                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                  >
+                    Edit property
+                  </button>
+
+                  <button
+                    onClick={() => setDeletingProperty(selectedProperty)}
+                    className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-[11px] font-bold text-red-600"
+                  >
+                    Delete property
+                  </button>
+                </div>
               </div>
 
-              <PaymentAccount
-                title="Rent - M-Pesa Paybill"
-                subtitle="Paybill 400 200 - Green View Rent"
-                badge="Rent"
-                tone="rent"
-              />
+              <div className="grid gap-6 px-[18px] py-5 xl:grid-cols-[1.6fr_1fr]">
+                <div>
+                  {[
+                    ['Property type', optionLabel(PROPERTY_TYPES, selectedProperty.property_type)],
+                    ['Location', selectedProperty.location],
+                    ['Rent due day', selectedProperty.rent_due_day],
+                    ['Assigned caretaker', selectedProperty.caretaker?.full_name || 'Not assigned'],
+                    ['Water billing', waterBillingLabel(selectedProperty)],
+                    ['SMS sender ID', selectedProperty.sms_sender_id || '-'],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between border-b border-[var(--line-soft)] py-[9px] text-[12px] last:border-b-0"
+                    >
+                      <span className="text-[var(--ink-soft)]">{label}</span>
+                      <span className="font-bold">{value}</span>
+                    </div>
+                  ))}
+                </div>
 
-              <PaymentAccount
-                title="Water - Bank account"
-                subtitle="Equity ** 4471 - Green View Water"
-                badge="Water"
-                tone="water"
-              />
-            </div>
-          </div>
-        </section>
-      ) : null}
+                <div>
+                  <div className="mb-[14px] flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+                      Payment accounts
+                    </span>
+                    <span className="h-px flex-1 bg-[var(--line)]" />
+                  </div>
+
+                  <PaymentAccount account={selectedProperty.rent_account} badge="Rent" tone="rent" />
+                  <PaymentAccount account={selectedProperty.water_account} badge="Water" tone="water" />
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+      </DataState>
 
       <EditPropertyModal
         open={Boolean(editingProperty)}
         property={editingProperty}
         onClose={() => setEditingProperty(null)}
+        onSaved={propertiesState.reload}
       />
 
       <ConfirmDeleteModal
@@ -132,27 +174,38 @@ function PropertiesPage({ onAddProperty }) {
   )
 }
 
-function PropertyCard({ property, onDelete }) {
+function PropertyCard({ property, selected, onDelete }) {
   return (
-    <article className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
-      <div className="property-thumb">
-        <span className="absolute left-[10px] top-[10px] rounded-full bg-[rgba(28,23,18,.85)] px-[9px] py-[3px] text-[10px] font-bold text-white">
-          {property.type}
-        </span>
-      </div>
-
-      <div className="p-4">
-        <h3 className="text-[12px] font-bold">{property.name}</h3>
-        <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
-          {property.location}
-        </p>
-
-        <div className="mt-4 grid grid-cols-3 border-t border-[var(--line-soft)] pt-4">
-          <MiniStat value={property.units} label="Units" />
-          <MiniStat value={property.occupied} label="Occupied" />
-          <MiniStat value={property.collected} label="Collected" />
+    <article
+      className={`overflow-hidden rounded-[10px] border bg-white transition ${
+        selected ? 'border-[var(--accent)]' : 'border-[var(--line)] hover:border-[var(--ink-faint)]'
+      }`}
+    >
+      <Link to={`/properties/${property.id}`} className="block">
+        <div className="property-thumb">
+          <span className="absolute left-[10px] top-[10px] z-10 rounded-full bg-[rgba(28,23,18,.85)] px-[9px] py-[3px] text-[10px] font-bold text-white">
+            {optionLabel(PROPERTY_TYPES, property.property_type, humanize(property.property_type))}
+          </span>
         </div>
 
+        <div className="px-4 pt-4">
+          <h3 className="text-[12px] font-bold">{property.name}</h3>
+          <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
+            {property.location}
+          </p>
+
+          <div className="mt-4 grid grid-cols-3 border-t border-[var(--line-soft)] pt-4">
+            <MiniStat value={property.summary.total_units} label="Units" />
+            <MiniStat value={property.summary.occupied_units} label="Occupied" />
+            <MiniStat
+              value={formatKESCompact(property.summary.rent_collected_this_month)}
+              label="Collected"
+            />
+          </div>
+        </div>
+      </Link>
+
+      <div className="px-4 pb-4">
         <button
           onClick={onDelete}
           className="mt-[12px] w-full rounded-[8px] border border-red-500 bg-white px-3 py-2 text-left text-[11px] font-bold text-red-600 transition hover:bg-red-50"
@@ -175,19 +228,31 @@ function MiniStat({ value, label }) {
   )
 }
 
-function PaymentAccount({ title, subtitle, badge, tone }) {
+function PaymentAccount({ account, badge, tone }) {
   const badgeClass =
     tone === 'water'
       ? 'bg-[#E6EDF4] text-[#3C5C82]'
       : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'
 
+  const numberLabel = account?.account_type === 'till' ? 'Till' : 'Paybill'
+
   return (
     <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h4 className="text-[13px] font-bold">{title}</h4>
+          <h4 className="text-[13px] font-bold">
+            {badge} - {account ? paymentAccountTypeLabel(account) : 'Not connected'}
+          </h4>
           <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">
-            {subtitle}
+            {account
+              ? [
+                  `${numberLabel} ${account.business_number}`,
+                  account.display_name || account.account_name,
+                  humanize(account.environment, ''),
+                ]
+                  .filter(Boolean)
+                  .join(' - ')
+              : 'No active payment account for this property.'}
           </p>
         </div>
 

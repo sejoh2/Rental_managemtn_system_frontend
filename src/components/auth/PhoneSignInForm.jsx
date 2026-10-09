@@ -1,4 +1,6 @@
-function PhoneSignInForm({ phone, onPhoneChange, onSendCode }) {
+import { FormError } from '../common/DataState'
+
+function PhoneSignInForm({ phone, onPhoneChange, onSendCode, sending, error }) {
   function handleSubmit(event) {
     event.preventDefault()
     onSendCode()
@@ -43,6 +45,9 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode }) {
               value={phone}
               onChange={(event) => onPhoneChange(event.target.value)}
               inputMode="tel"
+              autoFocus
+              required
+              placeholder="712 345 678"
               className="font-mono min-w-0 flex-1 border-0 px-3 py-3 text-[13px] text-[var(--ink)] outline-none"
             />
           </div>
@@ -51,11 +56,18 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode }) {
             We’ll text a 6-digit code to this number.
           </p>
 
+          {error ? (
+            <div className="mt-[18px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+
           <button
             type="submit"
-            className="mt-[30px] flex w-full items-center justify-center rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-3 text-[12.5px] font-bold text-white transition hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
+            disabled={sending}
+            className="mt-[30px] flex w-full items-center justify-center rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-3 text-[12.5px] font-bold text-white transition hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
           >
-            Send code
+            {sending ? 'Sending code...' : 'Send code'}
           </button>
 
           <p className="mt-6 text-center text-[11px] text-[var(--ink-faint)]">

@@ -1,11 +1,29 @@
+import { useState } from 'react'
 import { X } from 'lucide-react'
+import { FormError } from '../common/DataState'
 
-function ConfirmDeleteModal({ open, title, message, confirmLabel, onClose, onConfirm }) {
+function ConfirmDeleteModal({ open, ...props }) {
   if (!open) return null
 
-  function handleConfirm() {
-    onConfirm()
-    onClose()
+  return <ConfirmDeleteDialog {...props} />
+}
+
+// onConfirm may be async; the dialog stays open and shows the error if it fails.
+function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm }) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleConfirm() {
+    setWorking(true)
+    setError(null)
+
+    try {
+      await onConfirm()
+      onClose()
+    } catch (confirmError) {
+      setError(confirmError)
+      setWorking(false)
+    }
   }
 
   return (
@@ -34,6 +52,12 @@ function ConfirmDeleteModal({ open, title, message, confirmLabel, onClose, onCon
               {message}
             </p>
           </div>
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-[10px] border-t border-[var(--line)] px-[22px] py-[16px]">
@@ -48,9 +72,10 @@ function ConfirmDeleteModal({ open, title, message, confirmLabel, onClose, onCon
           <button
             type="button"
             onClick={handleConfirm}
-            className="rounded-[8px] border border-red-600 bg-red-600 px-5 py-[10px] text-[12px] font-bold text-white transition hover:border-red-700 hover:bg-red-700"
+            disabled={working}
+            className="rounded-[8px] border border-red-600 bg-red-600 px-5 py-[10px] text-[12px] font-bold text-white transition hover:border-red-700 hover:bg-red-700 disabled:opacity-50"
           >
-            {confirmLabel}
+            {working ? 'Working...' : confirmLabel}
           </button>
         </div>
       </div>

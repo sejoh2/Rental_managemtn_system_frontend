@@ -15,48 +15,56 @@ import {
   X,
   Settings,
 } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { displayName, useAuth } from '../../context/AuthContext'
+import { useProperties } from '../../context/PropertiesContext'
+import { humanize, initials } from '../../utils/format'
 
 const navGroups = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' }],
+    items: [{ label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' }],
   },
   {
     label: 'Property',
     items: [
-      { label: 'Properties', icon: Building2, page: 'properties' },
-      { label: 'Units / Houses', icon: Home, page: 'units' },
-      { label: 'Tenants', icon: Users, page: 'tenants' },
-      { label: 'Agreements', icon: FileText, page: 'agreements' },
+      { label: 'Properties', icon: Building2, to: '/properties' },
+      { label: 'Units / Houses', icon: Home, to: '/units' },
+      { label: 'Tenants', icon: Users, to: '/tenants' },
+      { label: 'Agreements', icon: FileText, to: '/agreements' },
       
     ],
   },
   {
     label: 'Money',
     items: [
-      { label: 'Payments', icon: CreditCard, count: 3, page: 'payments' },
-      { label: 'Water billing', icon: Droplets, page: 'water' },
-      { label: 'Expenses', icon: ReceiptText, page: 'expenses' },
+      { label: 'Payments', icon: CreditCard, count: 3, to: '/payments' },
+      { label: 'Water billing', icon: Droplets, to: '/water-billing' },
+      { label: 'Expenses', icon: ReceiptText, to: '/expenses' },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { label: 'Maintenance', icon: Wrench, count: 2, page: 'maintenance' },
-      { label: 'Caretakers', icon: UserRoundCog, page: 'caretakers' },
-      { label: 'SMS centre', icon: MessageSquareText, page: 'sms' },
-      { label: 'Reports', icon: BarChart3, page: 'reports' },
+      { label: 'Maintenance', icon: Wrench, count: 2, to: '/maintenance' },
+      { label: 'Caretakers', icon: UserRoundCog, to: '/caretakers' },
+      { label: 'SMS centre', icon: MessageSquareText, to: '/sms-centre' },
+      { label: 'Reports', icon: BarChart3, to: '/reports' },
     ],
   },
   {
   label: 'System',
   items: [
-    { label: 'Settings', icon: Settings, page: 'settings' },
+    { label: 'Settings', icon: Settings, to: '/settings' },
   ],
 },
 ]
 
-function DashboardSidebar({ open, activePage, onNavigate, onClose }) {
+function DashboardSidebar({ open, onClose }) {
+  const { user, signOut } = useAuth()
+  const name = displayName(user)
+  const properties = useProperties().data
+
   return (
     <>
       <div
@@ -76,7 +84,9 @@ function DashboardSidebar({ open, activePage, onNavigate, onClose }) {
           <div>
             <div className="font-display text-[16px] font-semibold text-white">Kodi</div>
             <div className="mt-[3px] text-[10px] uppercase tracking-[0.04em] text-[var(--sidebar-ink-soft)]">
-              3 properties · 1 account
+              {properties
+                ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'} · 1 account`
+                : '1 account'}
             </div>
           </div>
 
@@ -93,14 +103,17 @@ function DashboardSidebar({ open, activePage, onNavigate, onClose }) {
               </div>
 
               {group.items.map((item) => (
-                <button
+                <NavLink
                   key={item.label}
-                  onClick={() => item.page && onNavigate(item.page)}
-                  className={`mb-[1px] flex w-full items-center gap-[10px] rounded-[8px] px-[10px] py-[9px] text-left text-[13px] font-medium transition ${
-                    item.page === activePage
-                      ? 'bg-[var(--accent)] text-white'
-                      : 'text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-[var(--sidebar-ink)]'
-                  }`}
+                  to={item.to}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `mb-[1px] flex w-full items-center gap-[10px] rounded-[8px] px-[10px] py-[9px] text-left text-[13px] font-medium transition ${
+                      isActive
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-[var(--sidebar-ink)]'
+                    }`
+                  }
                 >
                   <item.icon size={17} />
                   <span>{item.label}</span>
@@ -109,24 +122,30 @@ function DashboardSidebar({ open, activePage, onNavigate, onClose }) {
                       {item.count}
                     </span>
                   ) : null}
-                </button>
+                </NavLink>
               ))}
             </div>
           ))}
         </nav>
 
         <div className="border-t border-[var(--sidebar-line)] px-4 py-[14px]">
-          <button className="mb-7 ml-auto flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-white">
+          <button
+            type="button"
+            onClick={signOut}
+            title="Sign out"
+            aria-label="Sign out"
+            className="mb-7 ml-auto flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--sidebar-ink-soft)] hover:bg-[#26201A] hover:text-white"
+          >
             <LogOut size={18} />
           </button>
 
           <div className="flex items-center gap-[10px]">
             <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[12px] font-bold text-[var(--accent)]">
-              MW
+              {initials(name)}
             </div>
             <div>
-              <div className="text-[12px] font-bold text-white">Mary Wanjiru</div>
-              <div className="text-[10px] text-[var(--sidebar-ink-soft)]">Owner</div>
+              <div className="text-[12px] font-bold text-white">{name}</div>
+              <div className="text-[10px] text-[var(--sidebar-ink-soft)]">{humanize(user.role)}</div>
             </div>
           </div>
         </div>

@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Download, FileText, MoreVertical, Plus, X } from 'lucide-react'
 import { tenantFilters, tenants } from '../../data/tenantsData'
 
-function TenantsPage({ selectedTenant, onSelectTenant, onBack, onAddTenant }) {
+function TenantsPage({ onAddTenant }) {
   const [activeFilter, setActiveFilter] = useState('All')
+  const { tenantId } = useParams()
+  const navigate = useNavigate()
+  const selectedTenant = tenantId ? tenants.find((tenant) => tenant.id === tenantId) : null
+  const onSelectTenant = (tenant) => navigate(`/tenants/${tenant.id}`)
 
   const filteredTenants = useMemo(() => {
     if (activeFilter === 'All') return tenants
@@ -17,8 +22,12 @@ function TenantsPage({ selectedTenant, onSelectTenant, onBack, onAddTenant }) {
     return tenants.filter((tenant) => tenant.filter === filterMap[activeFilter])
   }, [activeFilter])
 
+  if (tenantId && !selectedTenant) {
+    return <Navigate to="/tenants" replace />
+  }
+
   if (selectedTenant) {
-    return <TenantProfile tenant={selectedTenant} onBack={onBack} />
+    return <TenantProfile tenant={selectedTenant} onBack={() => navigate('/tenants')} />
   }
 
   return (

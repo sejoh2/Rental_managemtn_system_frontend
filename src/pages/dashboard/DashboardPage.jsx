@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useMatch } from 'react-router-dom'
 import {
   Bell,
   Download,
@@ -25,6 +26,10 @@ import SmsCentrePage from './SmsCentrePage'
 import ReportsPage from './ReportsPage'
 import SettingsPage from './SettingsPage'
 import { rentStats, waterStats, unmatchedPayments, recentActivity } from '../../data/dashboardData'
+import { tenants } from '../../data/tenantsData'
+import { useAuth } from '../../context/AuthContext'
+import { useProperties } from '../../context/PropertiesContext'
+import PropertiesProvider from '../../context/PropertiesProvider'
 
 const pageMeta = {
   dashboard: {
@@ -52,7 +57,7 @@ payments: {
   subtitle: 'Rent & water, matched automatically',
   pill: 'Payments',
 },
-water: {
+'water-billing': {
   title: 'Water billing',
   subtitle: 'Metered per unit',
   pill: 'Water billing',
@@ -77,7 +82,7 @@ caretakers: {
   subtitle: 'Manage access & permissions',
   pill: 'Caretakers',
 },
-sms: {
+'sms-centre': {
   title: 'SMS centre',
   subtitle: 'Reminders & announcements',
   pill: 'SMS centre',
@@ -95,20 +100,39 @@ settings: {
 }
 
 function DashboardPage() {
+  return (
+    <PropertiesProvider>
+      <DashboardShell />
+    </PropertiesProvider>
+  )
+}
+
+function DashboardShell() {
+  const properties = useProperties().data
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activePage, setActivePage] = useState('dashboard')
   const [addPropertyOpen, setAddPropertyOpen] = useState(false)
   const [addTenantOpen, setAddTenantOpen] = useState(false)
   const [exportReportOpen, setExportReportOpen] = useState(false)
 const [addUnitOpen, setAddUnitOpen] = useState(false)
-const [selectedTenant, setSelectedTenant] = useState(null)
+  const location = useLocation()
+  const tenantMatch = useMatch('/tenants/:tenantId')
+  const selectedTenant = tenantMatch
+    ? tenants.find((tenant) => tenant.id === tenantMatch.params.tenantId)
+    : null
   const meta = selectedTenant
   ? {
       title: 'Tenant profile',
       subtitle: `${selectedTenant.name} - ${selectedTenant.unit.replace('·', 'House')}`,
       pill: 'Tenant profile',
     }
-  : pageMeta[activePage]
+  : pageMeta[location.pathname.split('/')[1]] || pageMeta.dashboard
+  const propertyCount = properties
+    ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`
+    : null
+  const subtitle =
+    meta === pageMeta.properties && properties
+      ? `${propertyCount}, ${properties.reduce((total, property) => total + property.summary.total_units, 0)} units`
+      : meta.subtitle
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
@@ -121,59 +145,64 @@ const [selectedTenant, setSelectedTenant] = useState(null)
       <div className="flex min-h-screen pt-[34px]">
         <DashboardSidebar
           open={sidebarOpen}
-          activePage={activePage}
-          onNavigate={(page) => {
-            setActivePage(page)
-            setSelectedTenant(null)
-            setSidebarOpen(false)
-          }}
           onClose={() => setSidebarOpen(false)}
         />
 
         <section className="min-w-0 flex-1">
           <Topbar
             title={meta.title}
-            subtitle={meta.subtitle}
+            subtitle={subtitle}
+            propertyCount={propertyCount}
             onOpenSidebar={() => setSidebarOpen(true)}
             onAddTenant={() => setAddTenantOpen(true)}
           />
 
           <div className="h-[calc(100vh-98px)] overflow-y-auto px-4 py-6 sm:px-6 lg:px-[30px]">
-            {activePage === 'properties' ? (
-              <PropertiesPage onAddProperty={() => setAddPropertyOpen(true)} />
-           ) : activePage === 'units' ? (
-            <UnitsHousesPage onAddUnit={() => setAddUnitOpen(true)} />
-            ) : activePage === 'tenants' ? (
-            <TenantsPage
-              selectedTenant={selectedTenant}
-              onSelectTenant={setSelectedTenant}
-              onBack={() => setSelectedTenant(null)}
-              onAddTenant={() => setAddTenantOpen(true)}
-            />
-            ) : activePage === 'agreements' ? (
-              <AgreementsPage />
-            ) : activePage === 'payments' ? (
-              <PaymentsPage />
-            ) : activePage === 'water' ? (
-              <WaterBillingPage />
-            ) : activePage === 'expenses' ? (
-              <ExpensesPage />
-            ) : activePage === 'maintenance' ? (
-              <MaintenancePage />
-            ) : activePage === 'caretakers' ? (
-              <CaretakersPage />
-            ) : activePage === 'sms' ? (
-              <SmsCentrePage />
-            ) : activePage === 'reports' ? (
-              <ReportsPage />
-            ) : activePage === 'settings' ? (
-             <SettingsPage onAddProperty={() => setAddPropertyOpen(true)} />
-            ) : (
-             <DashboardHome
-              onAddProperty={() => setAddPropertyOpen(true)}
-              onExportReport={() => setExportReportOpen(true)}
-            />
-            )}
+            <Routes>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="dashboard"
+                element={
+                  <DashboardHome
+                    onAddProperty={() => setAddPropertyOpen(true)}
+                    onExportReport={() => setExportReportOpen(true)}
+                  />
+                }
+              />
+              <Route
+                path="properties"
+                element={<PropertiesPage onAddProperty={() => setAddPropertyOpen(true)} />}
+              />
+              <Route
+                path="properties/:propertyId"
+                element={<PropertiesPage onAddProperty={() => setAddPropertyOpen(true)} />}
+              />
+              <Route
+                path="units"
+                element={<UnitsHousesPage onAddUnit={() => setAddUnitOpen(true)} />}
+              />
+              <Route
+                path="tenants"
+                element={<TenantsPage onAddTenant={() => setAddTenantOpen(true)} />}
+              />
+              <Route
+                path="tenants/:tenantId"
+                element={<TenantsPage onAddTenant={() => setAddTenantOpen(true)} />}
+              />
+              <Route path="agreements" element={<AgreementsPage />} />
+              <Route path="payments" element={<PaymentsPage />} />
+              <Route path="water-billing" element={<WaterBillingPage />} />
+              <Route path="expenses" element={<ExpensesPage />} />
+              <Route path="maintenance" element={<MaintenancePage />} />
+              <Route path="caretakers" element={<CaretakersPage />} />
+              <Route path="sms-centre" element={<SmsCentrePage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route
+                path="settings"
+                element={<SettingsPage onAddProperty={() => setAddPropertyOpen(true)} />}
+              />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
           </div>
         </section>
          </div>
@@ -202,6 +231,8 @@ const [selectedTenant, setSelectedTenant] = useState(null)
 }
 
 function DashboardHome({ onAddProperty, onExportReport }) {
+  const { user } = useAuth()
+
   return (
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -210,7 +241,7 @@ function DashboardHome({ onAddProperty, onExportReport }) {
             Overview
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
-            Good afternoon, Mary 👋
+            Good afternoon{user.first_name ? `, ${user.first_name}` : ''} 👋
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
             Here’s how your 3 properties are performing this month.
@@ -259,7 +290,7 @@ function DashboardHome({ onAddProperty, onExportReport }) {
   )
 }
 
-function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
+function Topbar({ title, subtitle, propertyCount, onOpenSidebar, onAddTenant }) {
   return (
     <header className="sticky top-[34px] z-30 flex h-[64px] items-center gap-4 border-b border-[var(--line)] bg-white px-4 sm:px-6">
       <button
@@ -283,7 +314,7 @@ function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
       </div>
 
       <select className="hidden rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[12px] font-bold md:block">
-        <option>All 3 properties</option>
+        <option>{propertyCount ? `All ${propertyCount}` : 'All properties'}</option>
       </select>
 
       <div className="ml-auto flex items-center gap-[10px]">
