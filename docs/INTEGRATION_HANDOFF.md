@@ -3,6 +3,8 @@
 Read this before doing anything. It replaces the earlier conversations, which are too long to load.
 Last updated 2026-10-12, at the end of the session that finished steps 9 to 15.
 
+**First thing to do in a new chat.** The user asked for this explicitly: after reading this file, write one numbered list of everything that is pending, then go through it with the user one item at a time. Build the list from three places in this file: the checks the user still has to do (section 8), the tasks the user has asked for and that are not done (section 2, "Requested and not done"), and the open items (section 7). Ask the user which item to start with. Do not start building before that.
+
 ## 1. What this project is
 
 Kodi is a rental management system for Kenyan property owners.
@@ -37,9 +39,44 @@ Every screen in the owner web app now uses the backend. All fifteen steps are bu
 
 **What "built this session" means for testing.** Each piece was tested on the backend against the real database, inside a transaction that was rolled back (or read-only), and lint and the production build pass. None of it was clicked through in a browser by the assistant. The user was given click-by-click test steps for each piece and committed and pushed each one, but has not reported test results. Expect the next messages to be bug reports or change requests from that testing.
 
-**Branches.** Both repos are on `feature/dashboard-settings`, pushed. Earlier work is on `feature/tenant-charges` and `feature/sms-reports`, also pushed. Uncommitted in the frontend at handoff: the removal of the page-name pill from the top strip, and this file. The backend is clean.
+**Branches.** Both repos are on `feature/dashboard-settings`, pushed. Earlier work is on `feature/tenant-charges` and `feature/sms-reports`, also pushed. Uncommitted in the frontend at handoff: the removal of the page-name pill from the top strip, the sidebar unit count, and this file. The backend is clean. The user was given this to run in the frontend:
+
+```
+git add -A
+git commit -m "Remove page-name pill, show unit count in sidebar, update integration handoff"
+git push
+```
 
 **The step list is finished.** What is left is in section 7.
+
+### What the user asked for this session, in order
+
+So the new chat knows what was requested and how each request ended.
+
+| # | The user asked | Outcome |
+|---|---|---|
+| 1 | Continue from the previous handoff; answered the open question on service charges: bill the remaining days, like a mid-month move-in | Service charges built with that rule |
+| 2 | Repairs: tick "charge to tenant" each time; service charge amounts differ per unit; some monthly, some once; reconcile in Expenses; deduct at move-out | All built (section 5) |
+| 3 | Let the owner choose the account service charges are paid into, or connect their own | Built: `service_charge_account` and an optional "service" payment account |
+| 4 | At move-out each deposit covers its own bills; owner clicks Calculate for the final figure; owner enters extra deductions; a tenant who owes more keeps the debt | Built: deposit reconciliation |
+| 5 | Electricity should have two options: fixed, or amount entered | Built |
+| 6 | "Implement everything", then asked for a click-by-click explanation of what was added, where to test, what to expect | Done for every piece since; this is now a standing rule (section 3) |
+| 7 | Caretakers; added mid-way: a caretaker should record and update maintenance like the owner, only for assigned properties | Built |
+| 8 | SMS centre; create the branch locally and give the commands | Built; branches are created locally when both repos are clean |
+| 9 | Confirmed the repair SMS should be sent manually, with a Send SMS action | Changed from automatic to a "Send SMS" button |
+| 10 | "Send to" in the SMS centre should be a searchable dropdown where one person can be chosen | Built (`SearchableSelect`) |
+| 11 | Reports | Built |
+| 12 | Dashboard home and Settings together | Built |
+| 13 | Asked how the invite works | Explained: there is no invite; a caretaker is added by phone and nothing is sent to them |
+| 14 | Asked whether SMS centre messages go out when testing | Explained: no, `SMS_MODE=console`; told how to switch to live. Not changed |
+| 15 | Remove the page-name pill at the right of the top strip | Done (owner dashboard and admin area) |
+| 16 | Asked what "1 property · 1 account" in the sidebar means | Explained; "1 account" was fixed text. Replaced with the live unit count: "1 property · 1 unit" |
+| 17 | Light mode and dark mode under Settings | **Not started.** See below |
+
+### Requested and not done
+
+1. **Light mode and dark mode** (details in the next heading).
+2. **Blank due date in reminders** (found by the assistant, not yet raised as a decision; details at the end of the next heading).
 
 ### Next task the user asked for: light mode and dark mode
 
@@ -191,3 +228,67 @@ Known gaps in what is built:
 - Assigning a payment with "remember this number" and later unassigning it leaves the tenant with the new phone number.
 - `OTP_EXPIRES_MINUTES` is 120 in the backend `.env`; the user may have meant 5.
 - `PUBLIC_API_URL` must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.
+
+## 8. What the user still has to check in the browser
+
+None of this was clicked through by the assistant. The user received detailed steps for each at the time; this is the short version to turn into a checklist. Testing changes the real test data, so two warnings apply: **move-out is permanent** (John is the only tenant, so add a second unit and tenant before testing move-out), and **John holds credit**, so new bills on him may show as paid at once.
+
+**Service charges** (Properties page)
+- The "service charges" section under a property: add a monthly charge and a one-off charge, see the amount billed now, edit a per-unit amount, remove one, and the duplicate-name refusal.
+- "Service charges and repairs are paid into" in Edit property and Add property, and the optional service charges account.
+- "Service charges" as an "Apply to" choice in Record manual payment.
+
+**Electricity** (Units / Houses page)
+- The "Electricity billing" choice on a unit: not billed, fixed, or amount entered.
+- "Enter electricity bills": enter an amount, correct it, set it to 0, and check the tenant's charges.
+
+**Maintenance and repairs** (Maintenance page)
+- Report an issue (in a unit, and in a common area), the tabs and property filter in the address bar.
+- Resolve with a cost, with and without "charge to tenant": the expense appears in Expenses, the charge on the tenant.
+- The cost is locked afterwards.
+- "Send SMS" on a charged repair, and "Send SMS again".
+- "Assigned caretaker" on a request.
+
+**Expenses** (Expenses page)
+- The two new income lines and the net profit.
+- The "Recovered from tenants" table: spent, charged, paid, still owed, own cost.
+
+**Move-out and deposits** (tenant profile, on a second test tenant)
+- The move-out form without the refund choice.
+- The deposit reconciliation card: each deposit against its own bills, add a deduction, Calculate, Confirm.
+- Record the refund, or record a payment from a former tenant who still owes.
+
+**Caretakers** (Caretakers page)
+- Add a caretaker; the replace warning.
+- Manage: edit name and phone, suspend and reactivate, change a level, assign to another property, remove from a property.
+
+**SMS centre**
+- The four cards, the Test mode note, the starter templates.
+- Create, edit and delete a template.
+- Send a broadcast now; schedule one and cancel it.
+- The searchable "Send to", including one tenant.
+- The repair charge message appearing in Recent messages.
+
+**Reports**
+- The property and period filters and the five cards.
+- Export report as PDF and as CSV, for each type; the top-bar Export button.
+- The tenant statement PDF.
+
+**Dashboard home and top bar**
+- The eight cards, the chart, unmatched payments, recent activity.
+- The property dropdown (Dashboard only), the search box, the bell.
+- The sidebar line "1 property · 1 unit", and the top strip with no page-name pill.
+
+**Settings**
+- Account: save name, email and default rent due day; the audit log panel.
+- Payment accounts and Water rules per property.
+- Users & roles; Notifications (two working switches); Manage properties.
+- The flagged-reading SMS, with its switch on.
+
+**Admin** (as admin)
+- The audit log shows the new actions under the owner's account: service charges, electricity bills, maintenance, expenses, repair charge and its SMS, deposit reconciled and refund paid, caretaker changes, SMS actions, report exported, statement downloaded, settings changes.
+
+**Decisions the user may want to revisit while testing**
+- A caretaker can charge a repair to a tenant (same rights as the owner on maintenance).
+- The caretaker water-reading reminder is switched on by default.
+- `SMS_COST_PER_MESSAGE` is 0.80, not the 1.50 shown in the original design.
