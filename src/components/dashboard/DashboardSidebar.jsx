@@ -65,6 +65,11 @@ function DashboardSidebar({ open, onClose }) {
   const { user, signOut } = useAuth()
   const name = displayName(user)
   const properties = useProperties().data
+  // Units across every property, shown under the Kodi name.
+  const unitCount = (properties || []).reduce(
+    (total, property) => total + property.summary.total_units,
+    0
+  )
   // Live counts shown next to nav items; an item with a zero count shows no badge.
   const badges = {
     unmatchedPayments: usePaymentStats().data?.unmatched_count || 0,
@@ -90,8 +95,8 @@ function DashboardSidebar({ open, onClose }) {
             <div className="font-display text-[16px] font-semibold text-white">Kodi</div>
             <div className="mt-[3px] text-[10px] uppercase tracking-[0.04em] text-[var(--sidebar-ink-soft)]">
               {properties
-                ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'} · 1 account`
-                : '1 account'}
+                ? `${properties.length} ${properties.length === 1 ? 'property' : 'properties'} · ${unitCount} ${unitCount === 1 ? 'unit' : 'units'}`
+                : 'Loading...'}
             </div>
           </div>
 
