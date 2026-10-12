@@ -7,7 +7,24 @@ export async function listCaretakers() {
   return data
 }
 
+// -> { caretaker, assignments, activity_last_30_days: { water_readings, maintenance_reports, expenses_recorded } }
+export async function getCaretaker(caretakerId) {
+  const { data } = await api.get(`/api/caretakers/${caretakerId}`)
+
+  return data
+}
+
+// The caretaker's own details, whichever properties they have.
+// body: { first_name?, last_name?, phone?, status?: 'active' | 'suspended' }
+// 'suspended' stops them signing in but keeps their properties.
+export async function updateCaretaker(caretakerId, body) {
+  const { data } = await api.patch(`/api/caretakers/${caretakerId}`, body)
+
+  return data
+}
+
 // body: { phone, first_name, last_name, permission_level }. Replaces the property's current caretaker.
+// A caretaker can be assigned to several properties, one call per property.
 export async function assignCaretaker(propertyId, body) {
   const { data } = await api.post(`/api/properties/${propertyId}/caretaker`, body)
 

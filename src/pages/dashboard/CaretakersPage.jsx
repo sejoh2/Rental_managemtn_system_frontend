@@ -1,10 +1,114 @@
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import { caretakers } from '../../data/caretakersData'
+import { Plus } from 'lucide-react'
+import {
+  assignCaretaker,
+  getCaretaker,
+  listCaretakers,
+  updateCaretaker,
+  updatePropertyCaretaker,
+} from '../../api/caretakers'
+import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import {
+  Field,
+  ModalBody,
+  ModalFooter,
+  ModalShell,
+  SelectField,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../components/common/Modal'
+import StatusBadge from '../../components/common/StatusBadge'
+import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
+import { useProperties } from '../../context/PropertiesContext'
+import { useApi } from '../../hooks/useApi'
+import { formatPhone } from '../../utils/format'
+import { PERMISSION_LEVELS } from '../../utils/labels'
+
+const smallButtonClass =
+  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+
+const sectionTitleClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]'
+
+/*
+  The API returns one row per caretaker-and-property, past ones included.
+  -> one entry per caretaker, with the properties they look after now.
+*/
+function groupCaretakers(rows) {
+  const caretakers = new Map()
+
+  for (const row of rows) {
+    if (!caretakers.has(row.caretaker_id)) {
+      caretakers.set(row.caretaker_id, {
+        caretaker_id: row.caretaker_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        full_name: row.full_name,
+        phone: row.phone,
+        user_status: row.user_status,
+        assignments: [],
+      })
+    }
+
+    if (row.assignment_status === 'active') {
+      caretakers.get(row.caretaker_id).assignments.push({
+        property_id: row.property_id,
+        property_name: row.property_name,
+        permission_level: row.permission_level,
+      })
+    }
+  }
+
+  const order = { active: 0, suspended: 1, inactive: 2 }
+
+  return [...caretakers.values()].sort(
+    (first, second) =>
+      order[caretakerStatus(first).key] - order[caretakerStatus(second).key] ||
+      first.full_name.localeCompare(second.full_name)
+  )
+}
+
+// -> { key, label, tone } for a StatusBadge
+function caretakerStatus(caretaker) {
+  if (caretaker.user_status === 'suspended') {
+    return { key: 'suspended', label: 'Suspended', tone: 'warning' }
+  }
+
+  return caretaker.assignments.length && caretaker.user_status === 'active'
+    ? { key: 'active', label: 'Active', tone: 'success' }
+    : { key: 'inactive', label: 'Inactive', tone: 'neutral' }
+}
+
+function levelLabel(level) {
+  return level === 'level_2' ? 'Level 2 · Add tenants' : 'Level 1 · View only'
+}
+
+// "Green View Apartments - currently: Peter Mwangi"
+function propertyOption(property) {
+  return [
+    String(property.id),
+    property.caretaker
+      ? `${property.name} - currently: ${property.caretaker.full_name}`
+      : `${property.name} - no caretaker`,
+  ]
+}
 
 function CaretakersPage() {
+  const propertiesState = useProperties()
+  const properties = propertiesState.data || []
+  const caretakersState = useApi('caretakers', listCaretakers)
   const [addOpen, setAddOpen] = useState(false)
-  const [selectedCaretaker, setSelectedCaretaker] = useState(null)
+  const [managingId, setManagingId] = useState(null)
+
+  const caretakers = groupCaretakers(caretakersState.data || [])
+  // Looked up again after every reload, so the Manage modal always shows fresh data.
+  const managing = caretakers.find((caretaker) => caretaker.caretaker_id === managingId)
+
+  function reloadAll() {
+    caretakersState.reload()
+    // Property cards and forms show each property's caretaker.
+    propertiesState.reload()
+  }
 
   return (
     <>
@@ -23,7 +127,8 @@ function CaretakersPage() {
 
         <button
           onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+          disabled={!properties.length}
+          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
         >
           <Plus size={15} />
           Add caretaker
@@ -31,146 +136,234 @@ function CaretakersPage() {
       </div>
 
       <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-[880px] w-full border-collapse">
-            <thead>
-              <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
-                <th className="px-[18px] py-[10px] font-bold">Caretaker</th>
-                <th className="px-[18px] py-[10px] font-bold">Assigned property</th>
-                <th className="px-[18px] py-[10px] font-bold">Permission level</th>
-                <th className="px-[18px] py-[10px] font-bold">Status</th>
-                <th className="px-[18px] py-[10px] font-bold"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {caretakers.map((item) => (
-                <tr key={item.name} className="border-b border-[var(--line-soft)] last:border-b-0">
-                  <td className="px-[18px] py-[13px]">
-                    <div className="text-[12px] font-bold">{item.name}</div>
-                    <div className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
-                      {item.phone}
-                    </div>
-                  </td>
+        <DataState
+          state={caretakersState}
+          loadingLabel="Loading caretakers..."
+          isEmpty={() => !caretakers.length}
+          empty={
+            <EmptyState
+              title="No caretakers yet"
+              message="Add a caretaker to a property so they can submit meter readings, report maintenance and record expenses for it."
+            />
+          }
+        >
+          {() => (
+            <div className="overflow-x-auto">
+              <table className="min-w-[880px] w-full border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
+                    <th className="px-[18px] py-[10px] font-bold">Caretaker</th>
+                    <th className="px-[18px] py-[10px] font-bold">Assigned properties</th>
+                    <th className="px-[18px] py-[10px] font-bold">Status</th>
+                    <th className="px-[18px] py-[10px] font-bold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {caretakers.map((caretaker) => {
+                    const status = caretakerStatus(caretaker)
 
-                  <td className="px-[18px] py-[13px] text-[12px]">
-                    {item.property}
-                  </td>
+                    return (
+                      <tr
+                        key={caretaker.caretaker_id}
+                        className="border-b border-[var(--line-soft)] align-top last:border-b-0"
+                      >
+                        <td className="px-[18px] py-[13px]">
+                          <div className="text-[12px] font-bold">{caretaker.full_name}</div>
+                          <div className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
+                            {formatPhone(caretaker.phone)}
+                          </div>
+                        </td>
 
-                  <td className="px-[18px] py-[13px]">
-                    <PermissionBadge tone={item.permissionTone}>
-                      {item.permission}
-                    </PermissionBadge>
-                  </td>
+                        <td className="px-[18px] py-[13px] text-[12px]">
+                          {caretaker.assignments.length ? (
+                            <div className="space-y-[6px]">
+                              {caretaker.assignments.map((assignment) => (
+                                <div key={assignment.property_id} className="flex flex-wrap items-center gap-2">
+                                  <span>{assignment.property_name}</span>
+                                  <StatusBadge tone={assignment.permission_level === 'level_2' ? 'info' : 'neutral'}>
+                                    {levelLabel(assignment.permission_level)}
+                                  </StatusBadge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[var(--ink-faint)]">Not assigned to a property</span>
+                          )}
+                        </td>
 
-                  <td className="px-[18px] py-[13px]">
-                    <StatusBadge tone={item.statusTone}>{item.status}</StatusBadge>
-                  </td>
+                        <td className="px-[18px] py-[13px]">
+                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                        </td>
 
-                  <td className="px-[18px] py-[13px]">
-                    <button
-                      onClick={() => setSelectedCaretaker(item)}
-                      className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
-                    >
-                      Manage
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        <td className="px-[18px] py-[13px] text-right">
+                          <button
+                            onClick={() => setManagingId(caretaker.caretaker_id)}
+                            className={smallButtonClass}
+                          >
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DataState>
       </section>
 
-      <AddCaretakerModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-      />
+      {addOpen ? (
+        <AddCaretakerModal
+          properties={properties}
+          onClose={() => setAddOpen(false)}
+          onDone={reloadAll}
+        />
+      ) : null}
 
-      <ManageCaretakerModal
-        caretaker={selectedCaretaker}
-        onClose={() => setSelectedCaretaker(null)}
-      />
+      {managing ? (
+        <ManageCaretakerModal
+          key={managing.caretaker_id}
+          caretaker={managing}
+          properties={properties}
+          onClose={() => setManagingId(null)}
+          onChanged={reloadAll}
+        />
+      ) : null}
     </>
   )
 }
 
-function AddCaretakerModal({ open, onClose }) {
-  if (!open) return null
+// Shown wherever assigning would take a property away from its current caretaker.
+function ReplaceWarning({ property, caretakerId }) {
+  const current = property?.caretaker
 
-  function handleSubmit(event) {
+  if (!current || current.caretaker_id === caretakerId) return null
+
+  return (
+    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B8790E] bg-white px-4 py-4">
+      <h3 className="text-[13px] font-bold text-[#B8790E]">This will replace the current caretaker</h3>
+      <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+        Every property has one caretaker. {current.full_name} will lose access
+        to {property.name} as soon as you save.
+      </p>
+    </div>
+  )
+}
+
+function AddCaretakerModal({ properties, onClose, onDone }) {
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    property_id: String(properties[0]?.id || ''),
+    permission_level: 'level_1',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const property = properties.find((item) => String(item.id) === form.property_id)
+
+  function setField(field) {
+    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault()
-    window.alert('Caretaker added successfully.')
-    onClose()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await assignCaretaker(form.property_id, {
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        phone: form.phone.replace(/\s/g, ''),
+        permission_level: form.permission_level,
+      })
+
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
   }
 
   return (
     <ModalShell title="Add caretaker" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <div className="px-[22px] py-[22px]">
-          <div className="mb-[18px]">
-            <Field label="Full name" placeholder="e.g. Ruth Chebet" />
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="grid gap-[14px] sm:grid-cols-2">
+            <Field
+              label="First name"
+              placeholder="e.g. Ruth"
+              value={form.first_name}
+              onChange={setField('first_name')}
+              required
+              minLength={2}
+            />
+            <Field
+              label="Last name"
+              placeholder="e.g. Chebet"
+              value={form.last_name}
+              onChange={setField('last_name')}
+              required
+              minLength={2}
+            />
+
+            <div className="sm:col-span-2">
+              <Field
+                label="Phone number"
+                placeholder="e.g. 0733 908 771"
+                inputMode="tel"
+                value={form.phone}
+                onChange={setField('phone')}
+                required
+                hint="The caretaker signs in with this number and a one-time code - no password to set up."
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Assigned property"
+                value={form.property_id}
+                onChange={setField('property_id')}
+                options={properties.map(propertyOption)}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Permission level"
+                value={form.permission_level}
+                onChange={setField('permission_level')}
+                options={PERMISSION_LEVELS}
+              />
+            </div>
           </div>
 
-          <div className="mb-[18px]">
-            <Field label="Phone number" placeholder="e.g. 0733 908 771" />
+          <div className="mt-[18px]">
+            <ReplaceWarning property={property} />
           </div>
 
-          <div className="mb-[18px]">
-            <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-              Assigned property
-            </label>
-            <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]">
-              <option>Green View Apartments - currently: Peter Mwangi</option>
-              <option>Sunrise Bedsitters - currently: Ruth Chebet</option>
-              <option>Riverside Court - currently: James Odhiambo</option>
-            </select>
-
-            <p className="mt-2 text-[10px] text-[var(--ink-faint)]">
-              Every property has exactly one caretaker. Picking a property above
-              will replace its current caretaker.
-            </p>
-          </div>
-
-          <div className="mb-[18px]">
-            <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-              Permission level
-            </label>
-            <select className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]">
-              <option>Level 1 - View tenants, submit readings & reports</option>
-              <option>Level 2 - Also add / edit tenants</option>
-            </select>
-          </div>
-
-          <div className="mb-[12px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B8790E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B8790E]">
-              This will replace the current caretaker
-            </h3>
-            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-              Peter Mwangi will lose caretaker access to Green View Apartments
-              as soon as you save.
-            </p>
-          </div>
-
-          <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-            The caretaker will sign in with their phone number and a one-time
-            code - no password to set up.
+          <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            To put a caretaker you already have on another property, open
+            Manage on that caretaker instead.
           </p>
-        </div>
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
 
         <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold"
-          >
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
             Cancel
           </button>
-
-          <button
-            type="submit"
-            className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[10px] text-[12px] font-bold text-white"
-          >
-            Add caretaker
+          <button type="submit" disabled={saving || !form.property_id} className={primaryButtonClass}>
+            {saving ? 'Adding...' : 'Add caretaker'}
           </button>
         </ModalFooter>
       </form>
@@ -178,196 +371,268 @@ function AddCaretakerModal({ open, onClose }) {
   )
 }
 
-function ManageCaretakerModal({ caretaker, onClose }) {
-  if (!caretaker) return null
+function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
+  const detailState = useApi(`caretaker-${caretaker.caretaker_id}`, () =>
+    getCaretaker(caretaker.caretaker_id)
+  )
+  const suspended = caretaker.user_status === 'suspended'
 
-  function saveChanges(event) {
+  const [form, setForm] = useState({
+    first_name: caretaker.first_name || '',
+    last_name: caretaker.last_name || '',
+    phone: formatPhone(caretaker.phone, ''),
+    status: suspended ? 'suspended' : 'active',
+  })
+  // property id -> permission level picked, for the properties whose level was changed.
+  const [levels, setLevels] = useState({})
+  const [another, setAnother] = useState({ property_id: '', permission_level: 'level_1' })
+  const [removing, setRemoving] = useState(null)
+  // 'save' | 'assign' while a request is running.
+  const [working, setWorking] = useState(null)
+  const [error, setError] = useState(null)
+
+  const assignedIds = caretaker.assignments.map((assignment) => assignment.property_id)
+  const otherProperties = properties.filter((property) => !assignedIds.includes(property.id))
+  const anotherProperty = properties.find((property) => String(property.id) === another.property_id)
+  const activity = detailState.data?.activity_last_30_days
+
+  function setField(field) {
+    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
+  }
+
+  async function handleSave(event) {
     event.preventDefault()
-    window.alert(`${caretaker.name}'s caretaker settings were saved successfully.`)
-    onClose()
+    setWorking('save')
+    setError(null)
+
+    const phone = form.phone.replace(/\s/g, '')
+    const details = {
+      ...(form.first_name.trim() !== (caretaker.first_name || '')
+        ? { first_name: form.first_name.trim() }
+        : {}),
+      ...(form.last_name.trim() !== (caretaker.last_name || '')
+        ? { last_name: form.last_name.trim() }
+        : {}),
+      ...(phone !== formatPhone(caretaker.phone, '').replace(/\s/g, '') ? { phone } : {}),
+      ...(form.status !== (suspended ? 'suspended' : 'active') ? { status: form.status } : {}),
+    }
+
+    try {
+      if (Object.keys(details).length) await updateCaretaker(caretaker.caretaker_id, details)
+
+      for (const assignment of caretaker.assignments) {
+        const level = levels[assignment.property_id]
+
+        if (level && level !== assignment.permission_level) {
+          await updatePropertyCaretaker(assignment.property_id, { permission_level: level })
+        }
+      }
+
+      onChanged()
+      onClose()
+    } catch (saveError) {
+      onChanged()
+      setError(saveError)
+      setWorking(null)
+    }
   }
 
-  function removeCaretaker() {
-    window.alert(`${caretaker.name} has been removed from this property.`)
-    onClose()
+  async function assignAnother() {
+    setWorking('assign')
+    setError(null)
+
+    try {
+      await assignCaretaker(another.property_id, {
+        first_name: caretaker.first_name,
+        last_name: caretaker.last_name,
+        phone: caretaker.phone,
+        permission_level: another.permission_level,
+      })
+
+      setAnother({ property_id: '', permission_level: 'level_1' })
+      onChanged()
+    } catch (assignError) {
+      setError(assignError)
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  async function removeFromProperty() {
+    await updatePropertyCaretaker(removing.property_id, { status: 'inactive' })
+    onChanged()
   }
 
   return (
-    <ModalShell title={`Manage caretaker - ${caretaker.name}`} onClose={onClose}>
-      <form onSubmit={saveChanges}>
-        <div className="px-[22px] py-[22px]">
-          <div className="mb-[18px]">
-            <Field label="Full name" defaultValue={caretaker.name} />
+    <ModalShell title={`Manage caretaker - ${caretaker.full_name}`} onClose={onClose}>
+      <form onSubmit={handleSave} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="grid gap-[14px] sm:grid-cols-2">
+            <Field
+              label="First name"
+              value={form.first_name}
+              onChange={setField('first_name')}
+              required
+              minLength={2}
+            />
+            <Field
+              label="Last name"
+              value={form.last_name}
+              onChange={setField('last_name')}
+              required
+              minLength={2}
+            />
+            <Field
+              label="Phone number"
+              inputMode="tel"
+              value={form.phone}
+              onChange={setField('phone')}
+              required
+              hint="This is the number they sign in with. Changing it signs them out."
+            />
+            <SelectField
+              label="Sign-in"
+              value={form.status}
+              onChange={setField('status')}
+              options={[
+                ['active', 'Active'],
+                ['suspended', 'Suspended - cannot sign in'],
+              ]}
+            />
           </div>
 
-          <div className="mb-[18px]">
-            <Field label="Phone number" defaultValue={caretaker.phone} />
-          </div>
-
-          <div className="mb-[18px]">
-            <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-              Assigned property
-            </label>
-            <select
-              defaultValue={caretaker.property}
-              className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-            >
-              <option>Green View Apartments</option>
-              <option>Sunrise Bedsitters</option>
-              <option>Riverside Court</option>
-            </select>
-          </div>
-
-          <div className="mb-[18px]">
-            <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-              Permission level
-            </label>
-            <select
-              defaultValue={
-                caretaker.permission.includes('Level 2')
-                  ? 'Level 2 - Also add / edit tenants'
-                  : 'Level 1 - View tenants, submit readings & reports'
-              }
-              className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-            >
-              <option>Level 1 - View tenants, submit readings & reports</option>
-              <option>Level 2 - Also add / edit tenants</option>
-            </select>
-          </div>
-
-          <div className="mb-[18px]">
-            <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-              Status
-            </label>
-            <select
-              defaultValue={caretaker.status === 'Active' ? 'Active' : 'Inactive - suspend access'}
-              className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-            >
-              <option>Active</option>
-              <option>Inactive - suspend access</option>
-            </select>
-          </div>
-
-          <div className="my-[18px] h-px bg-[var(--line)]" />
-
-          <p className="mb-[10px] text-[11px] text-[var(--ink-faint)]">
-            Recent activity: 12 water readings and 1 maintenance report
-            submitted in the last 30 days.
+          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+            {form.status === 'suspended'
+              ? 'A suspended caretaker cannot sign in, but keeps the properties below. Set them back to Active to restore access.'
+              : caretaker.assignments.length
+                ? 'An active caretaker can sign in and work on the properties below.'
+                : 'This caretaker is not on any property, so they cannot sign in until you assign one below.'}
           </p>
 
-          <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B3261E]">
-              Remove caretaker
-            </h3>
-            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-              Revokes their login immediately. Readings and reports they already
-              submitted stay on record. This property will have no caretaker
-              until you add a new one.
-            </p>
-
-            <button
-              type="button"
-              onClick={removeCaretaker}
-              className="mt-3 rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E]"
-            >
-              Remove caretaker
-            </button>
+          <div className="mb-[10px] mt-[22px] flex items-center gap-3">
+            <div className={sectionTitleClass}>Assigned properties</div>
+            <div className="h-px flex-1 bg-[var(--line)]" />
           </div>
-        </div>
+
+          {caretaker.assignments.length ? (
+            <div className="grid gap-[10px]">
+              {caretaker.assignments.map((assignment) => (
+                <div key={assignment.property_id} className="flex flex-wrap items-center gap-3">
+                  <span className="min-w-[150px] flex-1 text-[12px] font-bold">
+                    {assignment.property_name}
+                  </span>
+                  <select
+                    value={levels[assignment.property_id] || assignment.permission_level}
+                    onChange={(event) =>
+                      setLevels((current) => ({
+                        ...current,
+                        [assignment.property_id]: event.target.value,
+                      }))
+                    }
+                    aria-label={`Permission level for ${assignment.property_name}`}
+                    className={`${inputClass} max-w-[300px]`}
+                  >
+                    {PERMISSION_LEVELS.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setRemoving(assignment)}
+                    className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E]"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-[var(--ink-faint)]">Not assigned to any property.</p>
+          )}
+
+          {otherProperties.length ? (
+            <div className="mt-[14px] rounded-[8px] border border-[var(--line)] bg-white px-4 py-4">
+              <div className="mb-3 text-[12px] font-bold">Assign to another property</div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={another.property_id}
+                  onChange={(event) =>
+                    setAnother((current) => ({ ...current, property_id: event.target.value }))
+                  }
+                  aria-label="Property"
+                  className={`${inputClass} min-w-[200px] flex-1`}
+                >
+                  <option value="">Choose a property</option>
+                  {otherProperties.map((property) => {
+                    const [value, label] = propertyOption(property)
+
+                    return <option key={value} value={value}>{label}</option>
+                  })}
+                </select>
+                <select
+                  value={another.permission_level}
+                  onChange={(event) =>
+                    setAnother((current) => ({ ...current, permission_level: event.target.value }))
+                  }
+                  aria-label="Permission level"
+                  className={`${inputClass} max-w-[150px]`}
+                >
+                  <option value="level_1">Level 1</option>
+                  <option value="level_2">Level 2</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={assignAnother}
+                  disabled={!another.property_id || Boolean(working)}
+                  className={`${smallButtonClass} disabled:opacity-50`}
+                >
+                  {working === 'assign' ? 'Assigning...' : 'Assign'}
+                </button>
+              </div>
+
+              {anotherProperty?.caretaker ? (
+                <div className="mt-3">
+                  <ReplaceWarning property={anotherProperty} caretakerId={caretaker.caretaker_id} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <p className="mt-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            {activity
+              ? `Recent activity: ${activity.water_readings} water ${activity.water_readings === 1 ? 'reading' : 'readings'}, ${activity.maintenance_reports} maintenance ${activity.maintenance_reports === 1 ? 'report' : 'reports'} and ${activity.expenses_recorded} ${activity.expenses_recorded === 1 ? 'expense' : 'expenses'} submitted in the last 30 days.`
+              : detailState.error
+                ? 'Recent activity could not be loaded.'
+                : 'Loading recent activity...'}
+          </p>
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
 
         <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold"
-          >
-            Cancel
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Close
           </button>
-
-          <button
-            type="submit"
-            className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[10px] text-[12px] font-bold text-white"
-          >
-            Save changes
+          <button type="submit" disabled={Boolean(working)} className={primaryButtonClass}>
+            {working === 'save' ? 'Saving...' : 'Save changes'}
           </button>
         </ModalFooter>
       </form>
-    </ModalShell>
-  )
-}
 
-function Field({ label, placeholder, defaultValue }) {
-  return (
-    <div>
-      <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">
-        {label}
-      </label>
-      <input
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+      <ConfirmDeleteModal
+        open={Boolean(removing)}
+        title="Remove caretaker from property"
+        message={`${caretaker.full_name} will lose access to ${removing?.property_name || 'this property'} immediately. Readings and reports they already submitted stay on record, and the property will have no caretaker until you assign one.${caretaker.assignments.length === 1 ? ' This is their last property, so they will no longer be able to sign in.' : ''}`}
+        confirmLabel="Remove caretaker"
+        onClose={() => setRemoving(null)}
+        onConfirm={removeFromProperty}
       />
-    </div>
-  )
-}
-
-function ModalShell({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="w-full max-w-[640px] overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-        <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
-          <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
-            {title}
-          </h2>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--line-soft)] text-[var(--ink-soft)] transition hover:bg-[var(--line)] hover:text-[var(--ink)]"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function ModalFooter({ children }) {
-  return (
-    <div className="flex justify-end gap-[10px] border-t border-[var(--line)] px-[22px] py-[16px]">
-      {children}
-    </div>
-  )
-}
-
-function PermissionBadge({ tone, children }) {
-  const tones = {
-    accent: 'bg-[var(--accent-soft)] text-[var(--accent-hover)]',
-    neutral: 'bg-[var(--line-soft)] text-[var(--ink-soft)]',
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-[6px] rounded-full px-[9px] py-[3px] text-[9px] font-bold ${tones[tone]}`}>
-      <span className="h-[6px] w-[6px] rounded-full bg-current" />
-      {children}
-    </span>
-  )
-}
-
-function StatusBadge({ tone, children }) {
-  const tones = {
-    success: 'bg-[#E3F1E8] text-[#2E7D4F]',
-    neutral: 'bg-[var(--line-soft)] text-[var(--ink-soft)]',
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-[6px] rounded-full px-[9px] py-[3px] text-[9px] font-bold ${tones[tone]}`}>
-      <span className="h-[6px] w-[6px] rounded-full bg-current" />
-      {children}
-    </span>
+    </ModalShell>
   )
 }
 

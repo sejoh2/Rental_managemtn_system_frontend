@@ -33,13 +33,20 @@ const statusTones = {
   cancelled: 'neutral',
 }
 
-// "Test Apartment · reported by New User · 12 Oct 2026 · KES 2,500 · charged to John Otieno"
+// The caretaker and / or outside worker on the job: "Peter Mwangi / Kamau Repairs"
+function assignedTo(request) {
+  return [(request.assigned_caretaker_name || '').trim(), request.assigned_vendor_name]
+    .filter(Boolean)
+    .join(' / ')
+}
+
+// "Test Apartment · reported by New User · 12 Oct 2026 · KES 2,500 · charged to tenant"
 function requestSubtitle(request) {
   return [
     request.property_name,
     `reported by ${request.reporter_name || request.reporter_role}`,
     formatDate(request.created_at),
-    request.assigned_vendor_name ? `assigned to ${request.assigned_vendor_name}` : null,
+    assignedTo(request) ? `assigned to ${assignedTo(request)}` : null,
     request.actual_cost
       ? formatKES(request.actual_cost)
       : request.estimated_cost
@@ -199,6 +206,7 @@ function MaintenancePage() {
       {updating ? (
         <UpdateRequestModal
           request={updating}
+          property={properties.find((property) => property.id === updating.property_id)}
           onClose={() => setUpdating(null)}
           onDone={requestsState.reload}
         />
@@ -330,7 +338,19 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
   )
 }
 
-function UpdateRequestModal({ request, onClose, onDone }) {
+function UpdateRequestModal({ request, property, onClose, onDone }) {
+  // A request can be given to the property's caretaker; one already assigned stays listed.
+  const caretakerOptions = [
+    ['', 'Not assigned to a caretaker'],
+    ...(property?.caretaker
+      ? [[String(property.caretaker.caretaker_id), property.caretaker.full_name]]
+      : []),
+    ...(request.assigned_caretaker_id &&
+    request.assigned_caretaker_id !== property?.caretaker?.caretaker_id
+      ? [[String(request.assigned_caretaker_id), (request.assigned_caretaker_name || '').trim()]]
+      : []),
+  ]
+
   // Once the cost is an expense it is fixed, and a closed request is read-only.
   const costRecorded = Boolean(request.expense_id)
   const closed = request.status === 'cancelled' || (request.status === 'resolved' && costRecorded)
@@ -338,6 +358,7 @@ function UpdateRequestModal({ request, onClose, onDone }) {
   const [form, setForm] = useState({
     status: request.status,
     priority: request.priority,
+    assigned_caretaker_id: request.assigned_caretaker_id ? String(request.assigned_caretaker_id) : '',
     assigned_vendor_name: request.assigned_vendor_name || '',
     estimated_cost: request.estimated_cost === null ? '' : String(request.estimated_cost),
     actual_cost: request.actual_cost === null ? '' : String(request.actual_cost),
@@ -366,6 +387,14 @@ function UpdateRequestModal({ request, onClose, onDone }) {
         // Sent only when it changes, so the resolved date is not reset by a later edit.
         ...(form.status !== request.status ? { status: form.status } : {}),
         priority: form.priority,
+        // Sent only when it changes: a caretaker since removed from the property cannot be re-sent.
+        ...(form.assigned_caretaker_id !== String(request.assigned_caretaker_id || '')
+          ? {
+              assigned_caretaker_id: form.assigned_caretaker_id
+                ? Number(form.assigned_caretaker_id)
+                : null,
+            }
+          : {}),
         assigned_vendor_name: form.assigned_vendor_name.trim() || null,
         estimated_cost: form.estimated_cost === '' ? null : Number(form.estimated_cost),
         ...(costRecorded
@@ -416,8 +445,18 @@ function UpdateRequestModal({ request, onClose, onDone }) {
               disabled={closed}
             />
 
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Assigned caretaker"
+                value={form.assigned_caretaker_id}
+                onChange={setField('assigned_caretaker_id')}
+                options={caretakerOptions}
+                disabled={closed}
+              />
+            </div>
+
             <Field
-              label="Who is doing the work (optional)"
+              label="Outside worker (optional)"
               placeholder="e.g. Kamau Repairs"
               value={form.assigned_vendor_name}
               onChange={setField('assigned_vendor_name')}

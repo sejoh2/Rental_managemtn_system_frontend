@@ -108,12 +108,22 @@ Other additions: property edit, change or remove a payment account, caretaker cr
 | 7 | Water billing | Done |
 | 8 | Expenses | Done, but see section 6: tenant charges come next |
 | 9 | Maintenance | Done as part of tenant charges (section 6, part C). No assigning to a caretaker from the screen yet |
-| 10 | Caretakers | Not started. Uses `src/data/caretakersData.js`. Backend and `src/api/caretakers.js` partly exist |
+| 10 | Caretakers | Built 2026-10-12, awaiting the user's test. See "Caretaker rules" below |
 | 11 | SMS centre | Not started. Uses `src/data/smsCentreData.js` |
 | 12 | Reports | Not started. Uses `src/data/reportsData.js`. Must add electricity to income |
 | 13 | Dashboard home | Not started. Uses `src/data/dashboardData.js`. Top-bar property select and search are still static |
 | 14 | Settings | Not started. Hard-coded data inside `SettingsPage.jsx`. Reuse `WaterRulesModal` |
 | 15 | Cleanup | Delete `src/data/`, final lint and build |
+
+Caretaker rules (decided by the user on 2026-10-12):
+
+- One caretaker can look after several properties, with a permission level per property. Each property still has one caretaker; assigning replaces the current one.
+- **Suspend** (`users.status = 'suspended'`) stops sign-in but keeps the properties; **Remove** takes the caretaker off one property, and off their last property makes the account `inactive`. `PATCH /api/caretakers/:id` edits name, phone and suspend/reactivate; changing the phone signs them out.
+- **Level 1** may view the tenants of an assigned property; **Level 2** may also add and edit them. Move-out, payments and the all-tenants list stay owner-only.
+- A caretaker manages maintenance in assigned properties exactly like the owner, including costs and "charge to tenant".
+- Any assigned caretaker may enter electricity bills.
+- The Caretakers page lists one row per caretaker (grouped in the frontend from `GET /api/caretakers`, which returns one row per assignment). The Maintenance update form can assign a request to the property's caretaker.
+- Caretakers still have no screens of their own in this web app (`NoAccessPage`); these are backend permissions for the later caretaker app.
 
 Branch state at handoff: both repos are on `feature/water-expenses`. The last commit covers water billing and expenses. Uncommitted on top of it: backend CSV exports, the expense category filter, the database pool cap, and this file. Maintenance and Caretakers are the next pair and should get a new branch.
 
