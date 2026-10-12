@@ -111,9 +111,21 @@ Other additions: property edit, change or remove a payment account, caretaker cr
 | 10 | Caretakers | Built 2026-10-12, awaiting the user's test. See "Caretaker rules" below |
 | 11 | SMS centre | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "SMS rules" below |
 | 12 | Reports | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "Reports rules" below |
-| 13 | Dashboard home | Not started. Uses `src/data/dashboardData.js`. Top-bar property select and search are still static |
-| 14 | Settings | Not started. Hard-coded data inside `SettingsPage.jsx`. Reuse `WaterRulesModal` |
-| 15 | Cleanup | Delete `src/data/`, final lint and build |
+| 13 | Dashboard home | Built 2026-10-12 on `feature/dashboard-settings`, awaiting the user's test. See "Dashboard and Settings rules" below |
+| 14 | Settings | Built 2026-10-12 on `feature/dashboard-settings`, awaiting the user's test |
+| 15 | Cleanup | Done: `src/data/` is deleted, no `window.alert` placeholders remain, lint and build pass |
+
+Dashboard and Settings rules (decided by the user on 2026-10-12):
+
+- The top-bar property dropdown filters the Dashboard only (`/dashboard?property=1`) and is hidden on other pages, which have their own property filters.
+- The bell lists what needs attention (unmatched payments, flagged readings, failed SMS, open maintenance) from `GET /api/dashboard/attention`; the dot shows only when the total is above zero.
+- The search box (`GET /api/dashboard/search`) finds tenants by name, phone, ID or house and payments by M-Pesa code or reference.
+- `GET /api/dashboard/home` feeds the whole Dashboard home; its rent and occupancy agree with Reports.
+- Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles and no invitations.
+- Two notification switches act: `alert_suspicious_water` (SMS to the owner when a reading is flagged) and `remind_water_readings` (one SMS per property per month to its caretaker on the water billing day, after 8 AM, if readings are missing; `water_reading_reminders` records it; the scheduler is in `src/water/water_notification_service.js`). The other four switches are shown as "Not active yet". There is no email sending.
+- Settings > Payment accounts and Water rules reuse `EditPropertyModal` and `WaterRulesModal`. Bank accounts are not supported, only M-Pesa paybill or till. The owner's phone number cannot be changed.
+
+Every screen in the owner web app now uses the backend. What remains is in section 7.
 
 Caretaker rules (decided by the user on 2026-10-12):
 
