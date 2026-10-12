@@ -149,15 +149,6 @@ button {
   color: var(--strip-ink-strong);
 }
 
-.proto-pill {
-  margin-left: auto;
-  border-radius: 20px;
-  background: var(--accent);
-  color: #fff;
-  padding: 3px 10px;
-  font-weight: 700;
-}
-
 .auth-visual {
   position: relative;
   display: flex;

@@ -32,8 +32,6 @@ function NamePage() {
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
         <span>KODI - Owner Web Dashboard</span>
-
-        <span className="proto-pill">Your name</span>
       </div>
 
       <section className="grid min-h-screen pt-[34px] lg:grid-cols-[1.1fr_1fr]">
