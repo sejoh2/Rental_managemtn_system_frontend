@@ -103,6 +103,23 @@ export const REFUND_METHODS = [
   ['other', 'Other'],
 ]
 
+// Periods end today, except last month, which is the whole month.
+export const REPORT_PERIODS = [
+  ['this_month', 'This month'],
+  ['last_month', 'Last month'],
+  ['last_3_months', 'Last 3 months'],
+  ['last_6_months', 'Last 6 months'],
+  ['this_year', 'This year'],
+]
+
+export const REPORT_TYPES = [
+  ['full_monthly_summary', 'Full summary (income, rent, water, occupancy, arrears)'],
+  ['rent_collection', 'Rent collection only'],
+  ['water_billing', 'Water billing only'],
+  ['occupancy_arrears', 'Occupancy and arrears only'],
+  ['sms_usage', 'SMS usage only'],
+]
+
 export const SERVICE_CHARGE_FREQUENCIES = [
   ['monthly', 'Every month, with rent'],
   ['once', 'One-off - billed once per tenant'],

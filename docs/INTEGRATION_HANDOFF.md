@@ -110,7 +110,7 @@ Other additions: property edit, change or remove a payment account, caretaker cr
 | 9 | Maintenance | Done as part of tenant charges (section 6, part C). No assigning to a caretaker from the screen yet |
 | 10 | Caretakers | Built 2026-10-12, awaiting the user's test. See "Caretaker rules" below |
 | 11 | SMS centre | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "SMS rules" below |
-| 12 | Reports | Not started. Uses `src/data/reportsData.js`. Must add electricity to income |
+| 12 | Reports | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "Reports rules" below |
 | 13 | Dashboard home | Not started. Uses `src/data/dashboardData.js`. Top-bar property select and search are still static |
 | 14 | Settings | Not started. Hard-coded data inside `SettingsPage.jsx`. Reuse `WaterRulesModal` |
 | 15 | Cleanup | Delete `src/data/`, final lint and build |
@@ -136,6 +136,17 @@ SMS rules (decided by the user on 2026-10-12):
 - "Send to" in New broadcast is a searchable dropdown (`components/common/SearchableSelect.jsx`) listing groups, each property and every current tenant, so one tenant can be messaged (`recipient_group: specific_tenant`).
 - "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part.
 - All SMS actions were already audited in `sms_controller.js`.
+
+Reports rules (decided by the user on 2026-10-12):
+
+- The Reports page has property and period filters in the URL and an "Income and expenses" card. Income in `report_service.js` (`get_collection_summary`) uses the same definition as the Expenses page; a read-only test confirmed both give the same net figure.
+- Arrears show what current tenants owe and, separately, what former tenants still owe. Archived properties are left out of occupancy and arrears.
+- An exported report holds the totals and a line per tenant (`get_report_details`). `report_file_service.js` builds the PDF and CSV from one list of sections, so they agree. Exports and statement downloads are audited; the CSV goes through `utils/csv.js`.
+- Periods and "received on" dates are Kenyan time (`nairobi_today`).
+- The tenant statement returns `deposit_settlement`, and its PDF shows proper charge names, totals and the reconciliation.
+- One `ExportReportModal` (in `components/dashboard/`) serves both the Reports page and the top bar.
+
+Still open after the tenant-charges list: the caretaker app cannot enter electricity bills from a screen, and a deposit reconciliation cannot be undone.
 
 Branch state at handoff: both repos are on `feature/water-expenses`. The last commit covers water billing and expenses. Uncommitted on top of it: backend CSV exports, the expense category filter, the database pool cap, and this file. Maintenance and Caretakers are the next pair and should get a new branch.
 
@@ -187,7 +198,6 @@ How parts B to E are built:
 
 Still open after these parts:
 
-- `report_service.js` (Reports, step 12) does not yet count electricity, service charges, repairs or deposit money used at move-out as income. The tenant statement PDF does not show the deposit reconciliation.
 - The caretaker app cannot enter electricity bills yet (owner only).
 - A deposit reconciliation cannot be undone once confirmed.
 
