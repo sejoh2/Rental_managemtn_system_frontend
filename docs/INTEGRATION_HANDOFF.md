@@ -107,7 +107,7 @@ Other additions: property edit, change or remove a payment account, caretaker cr
 | — | Admin area (users, audit log) | Done |
 | 7 | Water billing | Done |
 | 8 | Expenses | Done, but see section 6: tenant charges come next |
-| 9 | Maintenance | Not started. Uses `src/data/maintenanceData.js` |
+| 9 | Maintenance | Done as part of tenant charges (section 6, part C). No assigning to a caretaker from the screen yet |
 | 10 | Caretakers | Not started. Uses `src/data/caretakersData.js`. Backend and `src/api/caretakers.js` partly exist |
 | 11 | SMS centre | Not started. Uses `src/data/smsCentreData.js` |
 | 12 | Reports | Not started. Uses `src/data/reportsData.js`. Must add electricity to income |
@@ -124,10 +124,12 @@ Decided by the user on 2026-10-12. Built in five parts; the status of each is in
 | Part | What | Status |
 |---|---|---|
 | A | Service charges per property, billed to tenants, with a choice of account | Built, awaiting the user's test |
-| B | Electricity: fixed monthly amount, or an amount the owner types each month per unit | Not started |
-| C | Repairs: "charge to tenant" tick on resolving a maintenance request, expense created, SMS to the tenant | Not started (needs the Maintenance page wired) |
-| D | Expenses reconciliation: spent against charged to tenants and paid, per category | Not started |
-| E | Move-out reconciliation: each deposit covers its own bills, extra deductions, a Calculate button, refund or debt | Not started |
+| B | Electricity: fixed monthly amount, or an amount the owner types each month per unit | Built, awaiting the user's test |
+| C | Repairs: "charge to tenant" tick on resolving a maintenance request, expense created, SMS to the tenant. The Maintenance page (step 9) was wired for this | Built, awaiting the user's test |
+| D | Expenses reconciliation: spent against charged to tenants and paid, per category | Built, awaiting the user's test |
+| E | Move-out reconciliation: each deposit covers its own bills, extra deductions, a Calculate button, refund or debt | Built, awaiting the user's test |
+
+All five were tested on the backend inside a rolled-back transaction. None has been clicked through in a browser by the assistant, because sign-in needs the OTP.
 
 Rules decided:
 
@@ -145,7 +147,27 @@ How part A is built:
 - `tenant_charges` gained `description` and `source_id`; uniqueness is now `(tenant_id, charge_type, billing_period, source_id)`. Charge types `service` and `repair` exist. One-off charges use billing period `1970-01-01`, like deposits.
 - `billing_service.js`: `bill_service_charges` (new charge or new tenant), a second insert in the monthly run, and service charges in `adjust_move_out_charges`.
 - Frontend: `ServiceChargesSection` on the Properties page; the account choice in the Add and Edit property forms.
-- Not yet done for service charges: they are missing from the income totals in `expense_service.js` and `report_service.js` (part D), and a charge already billed cannot be voided from the screen.
+- A service charge already billed cannot be voided from the screen.
+
+More rules decided on 2026-10-12 for parts B to E:
+
+- **Deposits are always settled first** by any money that comes in (the existing payment order). If a deposit was still not fully paid at move-out, only the paid part counts as held and the unpaid part is cancelled.
+- **Credit held** by the tenant is added to the final figure at Calculate.
+- **The refund** is recorded once, in full.
+- **Repair cost** is fixed once it is recorded as an expense; it cannot be edited from Maintenance afterwards.
+
+How parts B to E are built:
+
+- **B.** `units.electricity_billing_method` is `fixed_monthly` or `entered`. Module `src/electricity/`: `GET/PUT /api/properties/:id/electricity-bills` (period `YYYY-MM`). Entered bills are never pro-rated at move-out. Frontend: the unit form's "Electricity billing" choice and `ElectricityBillsModal`, opened from the Units page.
+- **C.** `maintenance_requests` gained `charge_to_tenant`, `expense_id`, `tenant_charge_id`, `charged_tenant_id`. `record_repair_cost` in `maintenance_service.js` runs when a request is resolved with an actual cost: it always creates a `repairs_maintenance` expense, and with the tick a `repair` tenant charge (source id = request id) plus an SMS sent directly through `sms_provider` (it is not stored in `sms_messages`, which needs a broadcast). Frontend: `MaintenancePage.jsx` is wired (list, report, update); `src/data/maintenanceData.js` is deleted.
+- **D.** `GET /api/expenses/reconciliation`, and the summary now includes `service_collected` and `repairs_collected` (repairs plus move-out deductions). Deposit money used at move-out counts as income on the confirmation day.
+- **E.** Module `src/deposits/` (tables `deposit_settlements`, `deposit_applications`): `GET /api/tenants/:id/deposit-reconciliation`, `POST .../calculate`, `.../confirm`, `.../refund`. Deductions become `deduction` tenant charges. The move-out form no longer asks for a refund decision. A moved-out tenant can still record payments. Frontend: `DepositReconciliation` on the tenant profile.
+
+Still open after these parts:
+
+- `report_service.js` (Reports, step 12) does not yet count electricity, service charges, repairs or deposit money used at move-out as income. The tenant statement PDF does not show the deposit reconciliation.
+- The caretaker app cannot enter electricity bills yet (owner only).
+- A deposit reconciliation cannot be undone once confirmed.
 
 Earlier context, kept for reference:
 

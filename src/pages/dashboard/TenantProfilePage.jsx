@@ -18,11 +18,11 @@ import {
   ModalBody,
   ModalFooter,
   ModalShell,
-  SelectField,
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../components/common/Modal'
 import StatusBadge from '../../components/common/StatusBadge'
+import DepositReconciliation from '../../components/dashboard/DepositReconciliation'
 import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
@@ -41,12 +41,6 @@ import { appliedToLabel, paymentMethodLabel, paymentStatus } from '../../utils/p
 import { isCurrentTenant, tenantStatus } from '../../utils/tenantStatus'
 
 const tabs = ['Overview', 'Payment history', 'Water bills', 'Documents']
-
-const refundDecisions = [
-  ['full_refund', 'Full refund'],
-  ['partial_refund', 'Partial refund'],
-  ['no_refund', 'No refund'],
-]
 
 const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
 const cardHeaderClass =
@@ -108,7 +102,8 @@ function TenantProfile({ tenant, onTenantChanged }) {
     }
   }
 
-  const recordPaymentButton = current ? (
+  // A tenant who has moved out can still pay off what they owe.
+  const recordPaymentButton = current || tenant.balance > 0 ? (
     <button onClick={() => setOpenModal('payment')} className={smallButtonClass}>
       Record manual payment
     </button>
@@ -206,6 +201,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
           statementState={statementState}
           paymentsState={paymentsState}
           recordPaymentButton={recordPaymentButton}
+          onMoneyChanged={reloadMoney}
         />
       ) : activeTab === 'Payment history' ? (
         <PaymentsTable
@@ -260,10 +256,20 @@ function TenantProfile({ tenant, onTenantChanged }) {
   )
 }
 
-function TenantOverview({ tenant, statementState, paymentsState, recordPaymentButton }) {
+function TenantOverview({
+  tenant,
+  statementState,
+  paymentsState,
+  recordPaymentButton,
+  onMoneyChanged,
+}) {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
       <div className="space-y-4">
+        {tenant.status === 'moved_out' ? (
+          <DepositReconciliation tenant={tenant} onChanged={onMoneyChanged} />
+        ) : null}
+
         <section className={cardClass}>
           <div className={cardHeaderClass}>
             <h3 className="text-[12px] font-bold">Account status</h3>
@@ -743,7 +749,6 @@ function useSubmit(action, { onClose, onDone }) {
 function MoveOutModal({ tenant, property, onClose, onDone }) {
   const [form, setForm] = useState({
     move_out_date: toDateInput(),
-    deposit_refund_decision: 'full_refund',
     move_out_reason: '',
   })
 
@@ -755,7 +760,6 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
     () =>
       moveOutTenant(tenant.id, {
         move_out_date: form.move_out_date,
-        deposit_refund_decision: form.deposit_refund_decision,
         move_out_reason: form.move_out_reason.trim() || null,
       }),
     { onClose, onDone }
@@ -787,21 +791,23 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
               onChange={setField('move_out_date')}
               required
             />
-            <SelectField
-              label="Deposit refund"
-              value={form.deposit_refund_decision}
-              onChange={setField('deposit_refund_decision')}
-              options={refundDecisions}
-            />
-          </div>
-
-          <div className="mt-[18px]">
             <Field
               label="Reason (optional)"
               placeholder="e.g. End of lease, relocating"
               value={form.move_out_reason}
               onChange={setField('move_out_reason')}
             />
+          </div>
+
+          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+            <h3 className="text-[13px] font-bold text-[var(--ink)]">Deposits</h3>
+            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              Nothing is refunded or deducted at this step. After the
+              move-out, a deposit reconciliation appears on this tenant&apos;s
+              profile: each deposit covers its own unpaid bills, you add any
+              deductions such as repainting, and Calculate gives the final
+              amount to refund or still owed.
+            </p>
           </div>
 
           {estimate ? (

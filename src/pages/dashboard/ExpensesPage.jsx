@@ -4,6 +4,7 @@ import { Download, Plus } from 'lucide-react'
 import {
   createExpense,
   exportExpenses,
+  getExpenseReconciliation,
   getExpenseSummary,
   listExpenses,
   voidExpense,
@@ -51,6 +52,9 @@ function ExpensesPage() {
 
   const expensesState = useApi(`expenses-${key}-${category}`, () => listExpenses(listFilters))
   const summaryState = useApi(`expense-summary-${key}`, () => getExpenseSummary(filters))
+  const reconciliationState = useApi(`expense-reconciliation-${key}`, () =>
+    getExpenseReconciliation(filters)
+  )
 
   async function exportCsv() {
     setExporting(true)
@@ -77,6 +81,7 @@ function ExpensesPage() {
   function reloadAll() {
     expensesState.reload()
     summaryState.reload()
+    reconciliationState.reload()
   }
 
   const summary = summaryState.data
@@ -85,6 +90,8 @@ function ExpensesPage() {
         ['Rent collected', summary.rent_collected],
         ['Water collected', summary.water_collected],
         ['Electricity collected', summary.electricity_collected],
+        ['Service charges collected', summary.service_collected],
+        ['Repairs & deductions collected', summary.repairs_collected],
       ]
     : []
 
@@ -263,15 +270,84 @@ function ExpensesPage() {
                 </div>
 
                 <p className="mt-4 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-                  Income is rent, water and electricity actually paid in the
-                  month. Deposits are not counted, because they are held for
-                  the tenant.
+                  Income is rent, water, electricity, service charges and
+                  repairs actually paid in the month. Deposits are not
+                  counted while they are held for the tenant; deposit money
+                  used for a bill at move-out is counted on that day.
                 </p>
               </div>
             )}
           </DataState>
         </section>
       </div>
+
+      <section className="mt-4 overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <div className="border-b border-[var(--line)] px-[18px] py-4">
+          <h3 className="text-[12px] font-bold">
+            Recovered from tenants - {formatMonth(`${month}-01`)}
+          </h3>
+          <p className="mt-[3px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+            What you spent in each category against what tenants were charged
+            for it through service charges, repairs and move-out deductions.
+          </p>
+        </div>
+
+        <DataState
+          state={reconciliationState}
+          loadingLabel="Loading reconciliation..."
+          isEmpty={(data) => !data.categories.length}
+          empty={
+            <EmptyState
+              title="Nothing to reconcile"
+              message="No expenses were recorded and no service charges or repairs were billed to tenants for this month."
+            />
+          }
+        >
+          {(data) => (
+            <div className="overflow-x-auto">
+              <table className="min-w-[760px] w-full border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
+                    <th className="px-[18px] py-[10px] font-bold">Category</th>
+                    <th className="px-[18px] py-[10px] font-bold">You spent</th>
+                    <th className="px-[18px] py-[10px] font-bold">Charged to tenants</th>
+                    <th className="px-[18px] py-[10px] font-bold">Tenants have paid</th>
+                    <th className="px-[18px] py-[10px] font-bold">Still owed by tenants</th>
+                    <th className="px-[18px] py-[10px] font-bold">Your own cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.categories, { ...data.totals, category: 'total' }].map((row) => (
+                    <tr
+                      key={row.category}
+                      className={`border-b border-[var(--line-soft)] text-[12px] last:border-b-0 ${
+                        row.category === 'total' ? 'font-bold' : ''
+                      }`}
+                    >
+                      <td className="px-[18px] py-[13px]">
+                        {row.category === 'total'
+                          ? 'Total'
+                          : optionLabel(EXPENSE_CATEGORIES, row.category)}
+                      </td>
+                      <td className="font-mono px-[18px] py-[13px]">{formatKES(row.spent)}</td>
+                      <td className="font-mono px-[18px] py-[13px]">{formatKES(row.charged)}</td>
+                      <td className="font-mono px-[18px] py-[13px]">{formatKES(row.paid)}</td>
+                      <td className={`font-mono px-[18px] py-[13px] ${row.outstanding > 0 ? 'text-[#B8790E]' : ''}`}>
+                        {formatKES(row.outstanding)}
+                      </td>
+                      <td className="font-mono px-[18px] py-[13px]">
+                        {row.owner_cost < 0
+                          ? `${formatKES(-row.owner_cost)} over-recovered`
+                          : formatKES(row.owner_cost)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DataState>
+      </section>
 
       {addOpen ? (
         <AddExpenseModal

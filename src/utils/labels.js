@@ -64,6 +64,45 @@ export const EXPENSE_CATEGORIES = [
   ['other', 'Other'],
 ]
 
+// How a unit's electricity is billed. 'none' is saved as a fixed monthly amount of nothing.
+export const ELECTRICITY_BILLING = [
+  ['none', 'Not billed'],
+  ['fixed_monthly', 'Fixed amount every month'],
+  ['entered', 'Amount I enter each month'],
+]
+
+export const MAINTENANCE_STATUSES = [
+  ['reported', 'Reported'],
+  ['in_progress', 'In progress'],
+  ['resolved', 'Resolved'],
+  ['cancelled', 'Cancelled'],
+]
+
+export const MAINTENANCE_CATEGORIES = [
+  ['plumbing', 'Plumbing'],
+  ['electrical', 'Electrical'],
+  ['water', 'Water'],
+  ['structural', 'Structural'],
+  ['security', 'Security'],
+  ['cleaning', 'Cleaning'],
+  ['appliance', 'Appliance'],
+  ['other', 'Other'],
+]
+
+export const MAINTENANCE_PRIORITIES = [
+  ['low', 'Low'],
+  ['normal', 'Normal'],
+  ['high', 'High'],
+  ['urgent', 'Urgent'],
+]
+
+export const REFUND_METHODS = [
+  ['mpesa', 'M-Pesa'],
+  ['cash', 'Cash'],
+  ['bank', 'Bank transfer'],
+  ['other', 'Other'],
+]
+
 export const SERVICE_CHARGE_FREQUENCIES = [
   ['monthly', 'Every month, with rent'],
   ['once', 'One-off - billed once per tenant'],

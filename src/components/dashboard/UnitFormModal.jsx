@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createUnit, updateUnit } from '../../api/units'
 import { formatKES } from '../../utils/format'
-import { UNIT_STATUSES, UNIT_TYPES, WATER_BILLING_METHODS } from '../../utils/labels'
+import {
+  ELECTRICITY_BILLING,
+  UNIT_STATUSES,
+  UNIT_TYPES,
+  WATER_BILLING_METHODS,
+} from '../../utils/labels'
 import { FormError } from '../common/DataState'
 
 const inputClass =
@@ -40,6 +45,12 @@ function UnitForm({ property, unit, onClose, onSaved }) {
       unit?.water_fixed_monthly_bill ?? (property.water_fixed_fee || '')
     ),
     water_meter_number: unit?.water_meter_number || '',
+    electricity_billing:
+      unit?.electricity_billing_method === 'entered'
+        ? 'entered'
+        : unit?.electricity_monthly_charge
+          ? 'fixed_monthly'
+          : 'none',
     electricity_monthly_charge: unit?.electricity_monthly_charge
       ? String(unit.electricity_monthly_charge)
       : '',
@@ -73,8 +84,13 @@ function UnitForm({ property, unit, onClose, onSaved }) {
       water_rate_per_unit: metered ? Number(form.water_rate_per_unit) : null,
       water_meter_number: metered ? form.water_meter_number.trim() : null,
       water_fixed_monthly_bill: fixed ? Number(form.water_fixed_monthly_bill) : null,
-      // Empty means electricity is not billed for this unit.
-      electricity_monthly_charge: Number(form.electricity_monthly_charge) || null,
+      // "Not billed" is a fixed monthly amount of nothing.
+      electricity_billing_method:
+        form.electricity_billing === 'entered' ? 'entered' : 'fixed_monthly',
+      electricity_monthly_charge:
+        form.electricity_billing === 'fixed_monthly'
+          ? Number(form.electricity_monthly_charge) || null
+          : null,
       electricity_deposit: Number(form.electricity_deposit) || null,
       // The status of an occupied unit only changes when its tenant moves out.
       ...(occupied ? {} : { status: form.status }),
@@ -208,15 +224,26 @@ function UnitForm({ property, unit, onClose, onSaved }) {
               onChange={setField('water_deposit')}
             />
 
-            <Field
-              label="Electricity (KES / month, optional)"
-              placeholder="e.g. 2000"
-              type="number"
-              min="0"
-              step="any"
-              value={form.electricity_monthly_charge}
-              onChange={setField('electricity_monthly_charge')}
+            <SelectField
+              label="Electricity billing"
+              value={form.electricity_billing}
+              onChange={setField('electricity_billing')}
+              options={ELECTRICITY_BILLING}
             />
+
+            {form.electricity_billing === 'fixed_monthly' ? (
+              <Field
+                label="Electricity (KES / month)"
+                placeholder="e.g. 2000"
+                type="number"
+                min="1"
+                step="any"
+                value={form.electricity_monthly_charge}
+                onChange={setField('electricity_monthly_charge')}
+                required
+              />
+            ) : null}
+
             <Field
               label="Electricity deposit (KES, optional)"
               placeholder="e.g. 2000"
@@ -228,11 +255,13 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             />
 
             <p className="-mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)] sm:col-span-2">
-              Leave the electricity fields empty if electricity is not billed
-              for this unit. The monthly amount is added to the tenant's bill
-              on the 1st of every month, together with rent. Each deposit you
-              set is charged once, in full, when a tenant moves in; a deposit
-              left empty is not charged.
+              {form.electricity_billing === 'fixed_monthly'
+                ? "The fixed amount is added to the tenant's bill on the 1st of every month, together with rent."
+                : form.electricity_billing === 'entered'
+                  ? 'You type what this unit owes each month with "Enter electricity bills" on the Units page, and the tenant is billed exactly that.'
+                  : 'Electricity is not billed for this unit.'}{' '}
+              Each deposit you set is charged once, in full, when a tenant
+              moves in; a deposit left empty is not charged.
             </p>
 
             <div className="sm:col-span-2">

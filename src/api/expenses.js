@@ -13,9 +13,18 @@ export function exportExpenses(filters) {
 }
 
 // Income excludes deposits. filters: { property_id?, from_date?, to_date? }
-// -> { rent_collected, water_collected, electricity_collected, total_expenses, net_profit }
+// -> { rent_collected, water_collected, electricity_collected, service_collected,
+//      repairs_collected, total_expenses, net_profit }
 export async function getExpenseSummary(filters) {
   const { data } = await api.get('/api/expenses/summary', filters)
+
+  return data
+}
+
+// What was spent per category against what tenants were charged for it and have paid.
+// -> { categories: [{ category, spent, charged, paid, outstanding, owner_cost }], totals }
+export async function getExpenseReconciliation(filters) {
+  const { data } = await api.get('/api/expenses/reconciliation', filters)
 
   return data
 }

@@ -26,9 +26,47 @@ export async function updateTenant(tenantId, body) {
   return data
 }
 
-// body: { move_out_date, deposit_refund_decision?, move_out_reason? }
+// body: { move_out_date, move_out_reason? }. Deposits are reconciled afterwards, below.
 export async function moveOutTenant(tenantId, body) {
   const { data } = await api.post(`/api/tenants/${tenantId}/move-out`, body)
+
+  return data
+}
+
+/*
+  Deposit reconciliation for a tenant who has moved out.
+  -> { status: 'open', groups, credit_held } until confirmed,
+     { status: 'confirmed', settlement } afterwards.
+  Each group is one deposit: { key, deposit_charged, held, items, unpaid, covered, left, shortfall }.
+*/
+export async function getDepositReconciliation(tenantId) {
+  const { data } = await api.get(`/api/tenants/${tenantId}/deposit-reconciliation`)
+
+  return data
+}
+
+// deductions: [{ description, amount }]. Nothing is saved.
+// -> the groups plus { deposits_held, credit_held, unpaid_total, refund_due, tenant_owes }
+export async function calculateDepositReconciliation(tenantId, deductions) {
+  const { data } = await api.post(`/api/tenants/${tenantId}/deposit-reconciliation/calculate`, {
+    deductions,
+  })
+
+  return data
+}
+
+// Final: uses the deposits for the unpaid bills and deductions and fixes the refund or debt.
+export async function confirmDepositReconciliation(tenantId, deductions) {
+  const { data } = await api.post(`/api/tenants/${tenantId}/deposit-reconciliation/confirm`, {
+    deductions,
+  })
+
+  return data
+}
+
+// body: { paid_on, method, reference? }
+export async function recordDepositRefund(tenantId, body) {
+  const { data } = await api.post(`/api/tenants/${tenantId}/deposit-reconciliation/refund`, body)
 
   return data
 }

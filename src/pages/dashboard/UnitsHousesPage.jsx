@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { archiveUnit, listUnits } from '../../api/units'
 import { DataState, EmptyState } from '../../components/common/DataState'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
+import ElectricityBillsModal from '../../components/dashboard/ElectricityBillsModal'
 import UnitFormModal from '../../components/dashboard/UnitFormModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
@@ -47,6 +48,7 @@ function UnitsHousesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState(null)
   const [deletingUnit, setDeletingUnit] = useState(null)
+  const [electricityOpen, setElectricityOpen] = useState(false)
 
   // The selected property lives in the URL (/units?property=1) so it survives a refresh.
   const properties = propertiesState.data || []
@@ -105,6 +107,16 @@ function UnitsHousesPage() {
                 <option key={property.id} value={property.id}>{property.name}</option>
               ))}
             </select>
+
+            {/* Only for properties with a unit whose electricity is typed in each month. */}
+            {units.some((unit) => unit.electricity_billing_method === 'entered') ? (
+              <button
+                onClick={() => setElectricityOpen(true)}
+                className="rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+              >
+                Enter electricity bills
+              </button>
+            ) : null}
 
             <button
               onClick={() => setAddOpen(true)}
@@ -199,6 +211,13 @@ function UnitsHousesPage() {
         property={selectedProperty}
         unit={editingUnit}
         onClose={() => setEditingUnit(null)}
+        onSaved={handleUnitsChanged}
+      />
+
+      <ElectricityBillsModal
+        open={electricityOpen}
+        property={selectedProperty}
+        onClose={() => setElectricityOpen(false)}
         onSaved={handleUnitsChanged}
       />
 
