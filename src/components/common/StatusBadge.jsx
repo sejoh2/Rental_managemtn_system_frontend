@@ -1,8 +1,8 @@
 const tones = {
-  success: 'bg-[#E3F1E8] text-[#2E7D4F]',
-  danger: 'bg-[#FBE4E2] text-[#B3261E]',
-  info: 'bg-[#E6EDF4] text-[#3C5C82]',
-  warning: 'bg-[#FBF0DA] text-[#B8790E]',
+  success: 'bg-[var(--success-soft)] text-[var(--success)]',
+  danger: 'bg-[var(--danger-soft)] text-[var(--danger)]',
+  info: 'bg-[var(--info-soft)] text-[var(--info)]',
+  warning: 'bg-[var(--warning-soft)] text-[var(--warning)]',
   neutral: 'bg-[var(--line-soft)] text-[var(--ink-soft)]',
 }
 

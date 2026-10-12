@@ -106,7 +106,7 @@ function WaterBillingPage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Money
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -124,7 +124,7 @@ function WaterBillingPage() {
             <select
               value={property.id}
               onChange={(event) => setParam('property', event.target.value)}
-              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
             >
               {properties.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
@@ -137,12 +137,12 @@ function WaterBillingPage() {
               max={toDateInput().slice(0, 7)}
               onChange={(event) => event.target.value && setParam('month', event.target.value)}
               aria-label="Billing month"
-              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
             />
 
             <button
               onClick={() => setRulesOpen(true)}
-              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
             >
               <Settings size={15} />
               Billing rules
@@ -164,7 +164,7 @@ function WaterBillingPage() {
         loadingLabel="Loading properties..."
         isEmpty={(data) => !data.length}
         empty={
-          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+          <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
             <EmptyState
               title="Add a property first"
               message="Water is billed per property. Once you have a property you can enter its meter readings here."
@@ -187,7 +187,7 @@ function WaterBillingPage() {
               ))}
             </div>
 
-            <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+            <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
               <div className="border-b border-[var(--line)] px-[18px] py-4">
                 <h3 className="text-[12px] font-bold">Readings for {formatMonth(billingPeriod)}</h3>
               </div>
@@ -230,7 +230,7 @@ function WaterBillingPage() {
                             <tr key={reading.id} className="border-b border-[var(--line-soft)] last:border-b-0">
                               <td className="px-[18px] py-[18px] text-[12px] font-bold">
                                 {reading.tenant_id ? (
-                                  <Link to={`/tenants/${reading.tenant_id}`} className="hover:text-[var(--accent)]">
+                                  <Link to={`/tenants/${reading.tenant_id}`} className="hover:text-[var(--accent-ink)]">
                                     {reading.tenant_name}
                                   </Link>
                                 ) : (
@@ -257,7 +257,7 @@ function WaterBillingPage() {
                                     target="_blank"
                                     rel="noreferrer"
                                     title="Open meter photo"
-                                    className="hover:text-[var(--accent)]"
+                                    className="hover:text-[var(--accent-ink)]"
                                   >
                                     <Camera size={19} />
                                   </a>
@@ -272,7 +272,7 @@ function WaterBillingPage() {
                                 {reading.status === 'flagged' ? (
                                   <button
                                     onClick={() => setResolving(reading)}
-                                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
                                   >
                                     Correct reading
                                   </button>
@@ -375,8 +375,8 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
     return (
       <ModalShell title="Reading saved, but flagged" onClose={onClose}>
         <ModalBody>
-          <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B3261E]">
+          <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[var(--danger)]">
               {formatNumber(flagged.current_reading)} is lower than the previous reading of{' '}
               {formatNumber(flagged.previous_reading)}
             </h3>
@@ -516,8 +516,8 @@ function ResolveReadingModal({ reading, onClose, onDone }) {
     <ModalShell title={`Correct reading - House ${reading.unit_number}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B3261E]">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[var(--danger)]">
               Entered {formatNumber(reading.current_reading)}, but the previous reading was{' '}
               {formatNumber(reading.previous_reading)}
             </h3>
@@ -560,7 +560,7 @@ function ResolveReadingModal({ reading, onClose, onDone }) {
             onClick={() => run('reject')}
             disabled={Boolean(working)}
             title="Discard this reading so a new one can be entered for the month"
-            className="mr-auto rounded-[8px] border border-[#B3261E] bg-white px-5 py-[10px] text-[12px] font-bold text-[#B3261E] disabled:opacity-50"
+            className="mr-auto rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-5 py-[10px] text-[12px] font-bold text-[var(--danger)] disabled:opacity-50"
           >
             {working === 'reject' ? 'Rejecting...' : 'Reject reading'}
           </button>

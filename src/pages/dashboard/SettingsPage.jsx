@@ -24,11 +24,13 @@ import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
 import WaterRulesModal from '../../components/dashboard/WaterRulesModal'
 import { useAuth } from '../../context/AuthContext'
 import { useProperties } from '../../context/PropertiesContext'
+import { useTheme } from '../../context/ThemeContext'
 import { useApi } from '../../hooks/useApi'
 import { formatDateTime, formatPhone, humanize, ordinal } from '../../utils/format'
 import {
   RENT_DUE_DAYS,
   SERVICE_CHARGE_ACCOUNTS,
+  THEME_MODES,
   optionLabel,
   paymentAccountTypeLabel,
   waterBillingLabel,
@@ -40,12 +42,13 @@ const tabs = [
   ['water', 'Water rules'],
   ['users', 'Users & roles'],
   ['notifications', 'Notifications'],
+  ['appearance', 'Appearance'],
 ]
 
-const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
+const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass =
   'flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4'
-const smallButtonClass = 'rounded-[8px] border border-[var(--line)] bg-white px-4 py-2 text-[11px] font-bold'
+const smallButtonClass = 'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[11px] font-bold'
 const headRowClass =
   'bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]'
 
@@ -68,7 +71,7 @@ function waterBillingDayLabel(property) {
 function SectionTitle({ title, helper }) {
   return (
     <div className="mb-[14px] flex flex-wrap items-center gap-3">
-      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">{title}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">{title}</span>
       <span className="h-px flex-1 bg-[var(--line)]" />
       {helper ? <p className="basis-full text-[10px] text-[var(--ink-faint)]">{helper}</p> : null}
     </div>
@@ -111,7 +114,7 @@ function SettingsPage({ onAddProperty }) {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             System
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -130,7 +133,7 @@ function SettingsPage({ onAddProperty }) {
               value={selectedProperty.id}
               onChange={(event) => setParam('property', event.target.value)}
               aria-label="Property"
-              className="h-10 rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] font-bold outline-none"
+              className="h-10 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] font-bold outline-none"
             >
               {properties.map((property) => (
                 <option key={property.id} value={property.id}>{property.name}</option>
@@ -140,7 +143,7 @@ function SettingsPage({ onAddProperty }) {
 
           <button
             onClick={() => setManagePropertiesOpen(true)}
-            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
           >
             <Building2 size={15} />
             Manage properties
@@ -155,7 +158,7 @@ function SettingsPage({ onAddProperty }) {
             onClick={() => setParam('tab', key)}
             className={`pb-[10px] text-[12px] font-bold ${
               activeTab === key
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
                 : 'text-[var(--ink-faint)]'
             }`}
           >
@@ -167,6 +170,7 @@ function SettingsPage({ onAddProperty }) {
       {activeTab === 'account' ? <AccountTab /> : null}
       {activeTab === 'users' ? <UsersRolesTab /> : null}
       {activeTab === 'notifications' ? <NotificationsTab /> : null}
+      {activeTab === 'appearance' ? <AppearanceTab /> : null}
 
       {perProperty ? (
         <DataState
@@ -226,7 +230,7 @@ function AccountTab() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-      <section className="rounded-[10px] border border-[var(--line)] bg-white p-[18px]">
+      <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-[18px]">
         <DataState state={settingsState} loadingLabel="Loading your account...">
           {(settings) => (
             <AccountForm
@@ -382,7 +386,7 @@ function AccountForm({ settings, onSaved }) {
         <button type="submit" disabled={saving} className={primaryButtonClass}>
           {saving ? 'Saving...' : 'Save changes'}
         </button>
-        {saved ? <span className="text-[11px] font-bold text-[#2E7D4F]">Saved</span> : null}
+        {saved ? <span className="text-[11px] font-bold text-[var(--success)]">Saved</span> : null}
       </div>
     </form>
   )
@@ -585,7 +589,7 @@ function UsersRolesTab() {
                         </StatusBadge>
                       </td>
                       <td className="px-[18px] py-[13px]">
-                        <Link to="/caretakers" className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold">
+                        <Link to="/caretakers" className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold">
                           Manage
                         </Link>
                       </td>
@@ -640,7 +644,7 @@ function NotificationsTab() {
   const settingsState = useApi('settings', getSettings)
 
   return (
-    <section className="rounded-[10px] border border-[var(--line)] bg-white p-[18px]">
+    <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-[18px]">
       <DataState state={settingsState} loadingLabel="Loading preferences...">
         {(settings) => (
           <NotificationsForm notifications={settings.notifications} onSaved={settingsState.reload} />
@@ -728,9 +732,48 @@ function NotificationsForm({ notifications, onSaved }) {
         <button type="submit" disabled={saving} className={primaryButtonClass}>
           {saving ? 'Saving...' : 'Save preferences'}
         </button>
-        {saved ? <span className="text-[11px] font-bold text-[#2E7D4F]">Saved</span> : null}
+        {saved ? <span className="text-[11px] font-bold text-[var(--success)]">Saved</span> : null}
       </div>
     </form>
+  )
+}
+
+const themeHints = {
+  light: 'White pages and a white side menu.',
+  dark: 'Dark pages and a dark side menu.',
+  system: 'Light or dark, whichever this phone or computer is set to.',
+}
+
+// Saved in this browser as soon as it is clicked, so there is no Save button.
+function AppearanceTab() {
+  const { mode, shown, setMode } = useTheme()
+
+  return (
+    <div>
+      <SectionTitle
+        title="Light or dark"
+        helper="This is your own choice on this device. It is not shared with other users, and another phone or computer keeps its own."
+      />
+
+      {THEME_MODES.map(([value, label]) => (
+        <label key={value} className="mb-[12px] flex items-start gap-3 text-[12px] font-medium">
+          <input
+            type="radio"
+            name="appearance"
+            checked={mode === value}
+            onChange={() => setMode(value)}
+            className="mt-[2px] h-[13px] w-[13px]"
+          />
+          <span>
+            {label}
+            <span className="mt-[2px] block text-[10px] font-normal text-[var(--ink-faint)]">
+              {themeHints[value]}
+              {value === 'system' && mode === 'system' ? ` Showing ${shown} now.` : ''}
+            </span>
+          </span>
+        </label>
+      ))}
+    </div>
   )
 }
 

@@ -221,7 +221,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] bg-[var(--surface)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
           <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
             Edit property - {property.name}
@@ -309,7 +309,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
               />
 
               {currentCaretaker && caretaker.mode === 'none' ? (
-                <p className="mt-2 text-[11px] leading-[1.5] text-[#B3261E]">
+                <p className="mt-2 text-[11px] leading-[1.5] text-[var(--danger)]">
                   {currentCaretaker.full_name} will lose access to this
                   property as soon as you save.
                 </p>
@@ -318,7 +318,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
               {currentCaretaker &&
               caretaker.mode !== 'none' &&
               caretaker.caretakerId !== String(currentCaretaker.caretaker_id) ? (
-                <p className="mt-2 text-[11px] leading-[1.5] text-[#B8790E]">
+                <p className="mt-2 text-[11px] leading-[1.5] text-[var(--warning)]">
                   This replaces {currentCaretaker.full_name}, who will lose
                   access to this property as soon as you save.
                 </p>
@@ -387,7 +387,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-5 py-[10px] text-[12px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
             >
               Cancel
             </button>
@@ -409,7 +409,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
 function SectionTitle({ title }) {
   return (
     <div className="mb-[14px] flex items-center gap-3">
-      <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+      <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
         {title}
       </div>
       <div className="h-px flex-1 bg-[var(--line)]" />
@@ -419,7 +419,7 @@ function SectionTitle({ title }) {
 
 function CurrentAccount({ title, account, onChange, removable, removing, onToggleRemove }) {
   return (
-    <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+    <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
       <div>
         <h4 className="text-[13px] font-bold">{title}</h4>
         <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">
@@ -433,7 +433,7 @@ function CurrentAccount({ title, account, onChange, removable, removing, onToggl
         </p>
 
         {removing ? (
-          <p className="mt-[4px] text-[10px] font-bold text-[#B3261E]">
+          <p className="mt-[4px] text-[10px] font-bold text-[var(--danger)]">
             Will be removed when you save. These payments will then go
             through the rent account.
           </p>
@@ -445,7 +445,7 @@ function CurrentAccount({ title, account, onChange, removable, removing, onToggl
           <button
             type="button"
             onClick={onToggleRemove}
-            className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E] transition hover:bg-[#FBE4E2]"
+            className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
           >
             {removing ? 'Undo' : 'Remove'}
           </button>
@@ -455,7 +455,7 @@ function CurrentAccount({ title, account, onChange, removable, removing, onToggl
           <button
             type="button"
             onClick={onChange}
-            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
+            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
           >
             {account ? 'Change account' : 'Add account'}
           </button>
@@ -474,7 +474,7 @@ function Field({ label, ...inputProps }) {
       <input
         type="text"
         {...inputProps}
-        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
       />
     </div>
   )
@@ -489,7 +489,7 @@ function SelectField({ label, options, value, onChange }) {
       <select
         value={value}
         onChange={onChange}
-        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+        className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
       >
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>

@@ -42,13 +42,13 @@ import { isCurrentTenant, tenantStatus } from '../../utils/tenantStatus'
 
 const tabs = ['Overview', 'Payment history', 'Water bills', 'Documents']
 
-const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
+const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass =
   'flex items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4'
 const headRowClass =
   'bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]'
 const smallButtonClass =
-  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold'
+  'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold'
 
 function TenantProfilePage() {
   const { tenantId } = useParams()
@@ -58,7 +58,7 @@ function TenantProfilePage() {
     <>
       <Link
         to="/tenants"
-        className="mb-5 inline-flex items-center gap-2 text-[11px] font-bold text-[var(--ink-soft)] hover:text-[var(--accent)]"
+        className="mb-5 inline-flex items-center gap-2 text-[11px] font-bold text-[var(--ink-soft)] hover:text-[var(--accent-ink)]"
       >
         <ArrowLeft size={14} />
         Back to tenants
@@ -113,7 +113,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[18px] font-bold text-[var(--accent)]">
+          <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[18px] font-bold text-[var(--accent-ink)]">
             {initials(tenant.full_name)}
           </div>
 
@@ -140,7 +140,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
         <div className="flex flex-wrap gap-[10px]">
           <button
             onClick={() => setOpenModal('agreement')}
-            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
           >
             <FileText size={15} />
             View agreement
@@ -150,21 +150,21 @@ function TenantProfile({ tenant, onTenantChanged }) {
             <>
               <button
                 onClick={() => setOpenModal('edit')}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
               >
                 Edit details
               </button>
 
               <button
                 onClick={tenant.status === 'notice_given' ? cancelNotice : () => setOpenModal('notice')}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
               >
                 {tenant.status === 'notice_given' ? 'Cancel notice' : 'Mark notice given'}
               </button>
 
               <button
                 onClick={() => setOpenModal('moveOut')}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold text-[#B3261E]"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold text-[var(--danger)]"
               >
                 Move out / archive
               </button>
@@ -186,8 +186,8 @@ function TenantProfile({ tenant, onTenantChanged }) {
             onClick={() => setActiveTab(tab)}
             className={`pb-[12px] text-[11px] font-bold ${
               activeTab === tab
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {tab}
@@ -342,7 +342,7 @@ function ChargesSummary({ charges, tenant }) {
         </div>
 
         {tenant.balance > 0 && tenant.credit_balance > 0 ? (
-          <p className="mt-3 text-[11px] leading-[1.5] text-[#B8790E]">
+          <p className="mt-3 text-[11px] leading-[1.5] text-[var(--warning)]">
             This tenant owes money and also holds credit. The credit was
             paid into a different account (for example water), so it can
             only settle that kind of bill. If the payment was meant for
@@ -774,8 +774,8 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
     <ModalShell title="Move out / archive tenant" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[15px] font-bold text-[#B3261E]">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[15px] font-bold text-[var(--danger)]">
               This will archive {tenant.full_name} and mark House {tenant.unit_number} vacant
             </h3>
             <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -799,7 +799,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
             />
           </div>
 
-          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[13px] font-bold text-[var(--ink)]">Deposits</h3>
             <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               Nothing is refunded or deducted at this step. After the
@@ -811,7 +811,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
           </div>
 
           {estimate ? (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
               <h3 className="text-[13px] font-bold text-[var(--ink)]">Final month</h3>
               <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
                 {estimate.prorated
@@ -836,7 +836,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
+            className="rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
           >
             {saving ? 'Moving out...' : 'Confirm move-out'}
           </button>
@@ -970,7 +970,7 @@ function DetailRow({ label, value, danger, warning }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[var(--line-soft)] py-[9px]">
       <span className="text-[12px] text-[var(--ink-soft)]">{label}</span>
-      <span className={`font-mono text-right text-[12px] font-bold ${danger ? 'text-[#B3261E]' : warning ? 'text-[#B8790E]' : ''}`}>
+      <span className={`font-mono text-right text-[12px] font-bold ${danger ? 'text-[var(--danger)]' : warning ? 'text-[var(--warning)]' : ''}`}>
         {value}
       </span>
     </div>
@@ -980,7 +980,7 @@ function DetailRow({ label, value, danger, warning }) {
 function SectionLine({ title }) {
   return (
     <div className="mb-[10px] flex items-center gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
         {title}
       </span>
       <span className="h-px flex-1 bg-[var(--line)]" />
@@ -990,13 +990,13 @@ function SectionLine({ title }) {
 
 function IdentityCard({ title, value, badge, blue }) {
   return (
-    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
       <div className="flex justify-between gap-4">
         <div>
           <h4 className="text-[13px] font-bold">{title}</h4>
           <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">{value}</p>
         </div>
-        <span className={`h-fit rounded-full px-[9px] py-[3px] text-[9px] font-bold ${blue ? 'bg-[#E6EDF4] text-[#3C5C82]' : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'}`}>
+        <span className={`h-fit rounded-full px-[9px] py-[3px] text-[9px] font-bold ${blue ? 'bg-[var(--info-soft)] text-[var(--info)]' : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'}`}>
           {badge}
         </span>
       </div>

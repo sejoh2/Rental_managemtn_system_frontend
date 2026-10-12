@@ -93,7 +93,7 @@ function MaintenancePage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Operations
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -108,7 +108,7 @@ function MaintenancePage() {
           <select
             value={propertyId}
             onChange={(event) => setParam('property', event.target.value)}
-            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
           >
             <option value="">All properties</option>
             {properties.map((property) => (
@@ -134,8 +134,8 @@ function MaintenancePage() {
             onClick={() => setParam('status', value)}
             className={`pb-[12px] text-[11px] font-bold transition ${
               status === value
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {label}
@@ -151,7 +151,7 @@ function MaintenancePage() {
         loadingLabel="Loading maintenance requests..."
         isEmpty={() => !shown.length}
         empty={
-          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+          <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
             <EmptyState
               title={status ? `Nothing ${optionLabel(MAINTENANCE_STATUSES, status).toLowerCase()}` : 'No maintenance requests'}
               message="Report an issue to track it until it is resolved. When it is resolved with a cost, the cost is recorded as an expense."
@@ -164,7 +164,7 @@ function MaintenancePage() {
             {shown.map((request) => (
               <article
                 key={request.id}
-                className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-5 py-4 transition hover:-translate-y-[1px] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]"
+                className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-5 py-4 transition hover:-translate-y-[1px] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -188,7 +188,7 @@ function MaintenancePage() {
 
                   <button
                     onClick={() => setUpdating(request)}
-                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
                   >
                     {request.status === 'resolved' || request.status === 'cancelled' ? 'View' : 'Update'}
                   </button>
@@ -532,7 +532,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
           </div>
 
           {resolving ? (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
               {canChargeTenant ? (
                 <label className={`flex items-start gap-3 ${costRecorded ? '' : 'cursor-pointer'}`}>
                   <input
@@ -594,7 +594,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
                     type="button"
                     onClick={sendSms}
                     disabled={sendingSms}
-                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
                   >
                     {sendingSms ? 'Sending...' : smsSentAt ? 'Send SMS again' : 'Send SMS'}
                   </button>

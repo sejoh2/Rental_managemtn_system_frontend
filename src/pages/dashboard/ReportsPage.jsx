@@ -13,10 +13,10 @@ import { formatDate, formatKES, formatNumber, formatPercent } from '../../utils/
 import { REPORT_PERIODS } from '../../utils/labels'
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
-const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
+const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass = 'border-b border-[var(--line)] px-[18px] py-4'
 const filterClass =
-  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold'
+  'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold'
 
 function Row({ label, value, strong, danger, note }) {
   return (
@@ -27,7 +27,7 @@ function Row({ label, value, strong, danger, note }) {
           <span className="block text-[10px] font-normal text-[var(--ink-faint)]">{note}</span>
         ) : null}
       </span>
-      <span className={`font-mono ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[#B3261E]' : ''}`}>
+      <span className={`font-mono ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[var(--danger)]' : ''}`}>
         {value}
       </span>
     </div>
@@ -62,7 +62,7 @@ function ReportsPage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Operations
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -144,7 +144,7 @@ function ReportCards({ report }) {
                 background: `conic-gradient(var(--accent) ${occupancy.occupancy_rate}%, var(--line-soft) 0)`,
               }}
             >
-              <div className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-white">
+              <div className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-[var(--surface)]">
                 <span className="text-[18px] font-bold">{formatPercent(occupancy.occupancy_rate)}</span>
               </div>
             </div>
@@ -304,7 +304,7 @@ function StatementGenerator() {
   }
 
   return (
-    <section className="mt-4 rounded-[10px] border border-[var(--line)] bg-white">
+    <section className="mt-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
       <div className={cardHeaderClass}>
         <h3 className="text-[12px] font-bold">Tenant statement generator</h3>
         <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">

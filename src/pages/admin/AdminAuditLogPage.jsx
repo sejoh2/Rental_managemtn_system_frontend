@@ -86,7 +86,7 @@ function AdminAuditLogPage() {
   return (
     <>
       <div className="mb-7">
-        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
           Administration
         </div>
         <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">Audit log</h1>
@@ -97,7 +97,7 @@ function AdminAuditLogPage() {
         </p>
       </div>
 
-      <section className="mb-4 rounded-[10px] border border-[var(--line)] bg-white p-[18px]">
+      <section className="mb-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-[18px]">
         <div className="grid gap-[14px] sm:grid-cols-2 xl:grid-cols-5">
           <div>
             <label className={labelClass}>Owner account</label>
@@ -170,14 +170,14 @@ function AdminAuditLogPage() {
           <button
             type="button"
             onClick={() => setSearchParams({})}
-            className="mt-3 text-[11px] font-bold text-[var(--accent)] hover:underline"
+            className="mt-3 text-[11px] font-bold text-[var(--accent-ink)] hover:underline"
           >
             Clear filters
           </button>
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
           <h3 className="text-[12px] font-bold">Activity</h3>
           <span className="text-[10px] text-[var(--ink-faint)]">
@@ -259,7 +259,7 @@ function AdminAuditLogPage() {
               type="button"
               disabled={page <= 1}
               onClick={() => setFilter('page', page > 2 ? String(page - 1) : '')}
-              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
             >
               Previous
             </button>
@@ -270,7 +270,7 @@ function AdminAuditLogPage() {
               type="button"
               disabled={page >= lastPage}
               onClick={() => setFilter('page', String(page + 1))}
-              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
             >
               Next
             </button>

@@ -3,12 +3,13 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Bell, Menu, Plus, Search } from 'lucide-react'
 import { getAttention, searchEverything } from '../../api/dashboard'
 import { useProperties } from '../../context/PropertiesContext'
+import ThemeToggle from '../common/ThemeToggle'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatKES, formatPhone } from '../../utils/format'
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
 const panelClass =
-  'absolute z-40 mt-2 overflow-hidden rounded-[8px] border border-[var(--line)] bg-white shadow-[0_10px_24px_rgba(32,28,24,0.12)]'
+  'absolute z-40 mt-2 overflow-hidden rounded-[8px] border border-[var(--line)] bg-[var(--surface)] shadow-[0_10px_24px_rgba(32,28,24,0.12)]'
 
 const groupLabelClass =
   'px-3 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.05em] text-[var(--ink-faint)]'
@@ -19,7 +20,7 @@ function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
   const onDashboard = useLocation().pathname.startsWith('/dashboard')
 
   return (
-    <header className="sticky top-[34px] z-30 flex h-[64px] items-center gap-4 border-b border-[var(--line)] bg-white px-4 sm:px-6">
+    <header className="sticky top-[34px] z-30 flex h-[64px] items-center gap-4 border-b border-[var(--line)] bg-[var(--surface)] px-4 sm:px-6">
       <button
         type="button"
         onClick={onOpenSidebar}
@@ -39,6 +40,7 @@ function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
       {onDashboard ? <DashboardPropertySelect /> : null}
 
       <div className="ml-auto flex items-center gap-[10px]">
+        <ThemeToggle />
         <AttentionBell />
 
         <button
@@ -107,7 +109,7 @@ function TopbarSearch() {
       {open && text.trim().length >= 2 ? (
         <div className={`${panelClass} left-0 right-0 max-h-[340px] overflow-y-auto pb-1`}>
           {resultsState.error ? (
-            <div className="px-3 py-3 text-[11px] text-[#B3261E]">{resultsState.error.message}</div>
+            <div className="px-3 py-3 text-[11px] text-[var(--danger)]">{resultsState.error.message}</div>
           ) : !results ? (
             <div className="px-3 py-3 text-[11px] text-[var(--ink-faint)]">Searching...</div>
           ) : nothing ? (
@@ -212,7 +214,7 @@ function AttentionBell() {
       <button
         onClick={toggle}
         aria-label="Needs attention"
-        className="relative flex h-9 w-9 items-center justify-center rounded-[8px] border border-[var(--line)] bg-white text-[var(--ink-soft)]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-[8px] border border-[var(--line)] bg-[var(--surface)] text-[var(--ink-soft)]"
       >
         <Bell size={17} />
         {attention?.total ? (
@@ -246,7 +248,7 @@ function AttentionBell() {
                   <span>
                     {count} {count === 1 ? label : plural || `${label}s`}
                   </span>
-                  <span className="text-[11px] font-bold text-[var(--accent)]">View</span>
+                  <span className="text-[11px] font-bold text-[var(--accent-ink)]">View</span>
                 </Link>
               ))
             ) : (

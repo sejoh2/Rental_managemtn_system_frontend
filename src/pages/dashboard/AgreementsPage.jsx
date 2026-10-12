@@ -43,7 +43,7 @@ const placeholders = [
 ]
 
 const smallButtonClass =
-  'inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50'
+  'inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50'
 
 function AgreementsPage() {
   const agreementsState = useApi('agreements', () => listAgreements())
@@ -73,7 +73,7 @@ function AgreementsPage() {
     <>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Property
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -86,7 +86,7 @@ function AgreementsPage() {
 
         <button
           onClick={() => setTemplateOpen(true)}
-          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
         >
           <FileText size={15} />
           Manage templates
@@ -100,7 +100,7 @@ function AgreementsPage() {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">All agreements</h3>
             <span className="text-[10px] text-[var(--ink-faint)]">
@@ -148,7 +148,7 @@ function AgreementsPage() {
                             <Link
                               to={`/tenants/${item.tenant_id}`}
                               onClick={(event) => event.stopPropagation()}
-                              className="hover:text-[var(--accent)]"
+                              className="hover:text-[var(--accent-ink)]"
                             >
                               {item.tenant_name}
                             </Link>
@@ -228,7 +228,7 @@ function AgreementsPage() {
           </DataState>
         </section>
 
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">
               Agreement preview{selected ? ` - ${selected.tenant_name}` : ''}
@@ -436,7 +436,7 @@ function TemplateForm({ target, template, usingDefault, onClose, onChanged }) {
     <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
       <ModalBody>
         {target ? (
-          <div className="mb-[16px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-3">
+          <div className="mb-[16px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3">
             <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               {usingDefault
                 ? 'This property uses the default template. Saving here gives it its own.'
@@ -453,7 +453,7 @@ function TemplateForm({ target, template, usingDefault, onClose, onChanged }) {
                     'This property now uses the default template.'
                   )
                 }
-                className="shrink-0 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                className="shrink-0 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
               >
                 Use default template
               </button>
@@ -468,7 +468,7 @@ function TemplateForm({ target, template, usingDefault, onClose, onChanged }) {
           rows={13}
           required
           minLength={40}
-          className="font-mono w-full rounded-[8px] border border-[var(--line)] bg-white p-3 text-[11px] leading-[1.7] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+          className="font-mono w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-[11px] leading-[1.7] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
         />
 
         <p className="mt-2 text-[10px] leading-[1.4] text-[var(--ink-faint)]">
@@ -489,7 +489,7 @@ function TemplateForm({ target, template, usingDefault, onClose, onChanged }) {
         </div>
 
         {savedMessage ? (
-          <p className="mt-[14px] text-[11px] font-bold text-[#2E7D4F]">{savedMessage}</p>
+          <p className="mt-[14px] text-[11px] font-bold text-[var(--success)]">{savedMessage}</p>
         ) : null}
 
         {error ? (

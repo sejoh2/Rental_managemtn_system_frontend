@@ -25,7 +25,7 @@ import CaretakerField from './CaretakerField';
 import PaymentAccountCard from './PaymentAccountCard';
 
 const inputClass =
-  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]';
+  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]';
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]';
 
@@ -204,7 +204,7 @@ function AddPropertyForm({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="flex max-h-[90vh] w-full max-w-[720px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+      <div className="flex max-h-[90vh] w-full max-w-[720px] flex-col overflow-hidden rounded-[14px] bg-[var(--surface)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
           <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
             Add property
@@ -222,8 +222,8 @@ function AddPropertyForm({ onClose }) {
         {partialResult ? (
           <>
             <div className="flex-1 overflow-y-auto px-[22px] py-[22px]">
-              <div className="mb-[14px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#2E7D4F] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#2E7D4F]">
+              <div className="mb-[14px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--success)] bg-[var(--surface)] px-4 py-4">
+                <h3 className="text-[14px] font-bold text-[var(--success)]">
                   {partialResult.property.name} was added
                 </h3>
                 <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -231,8 +231,8 @@ function AddPropertyForm({ onClose }) {
                 </p>
               </div>
 
-              <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B8790E] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#B8790E]">
+              <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-4">
+                <h3 className="text-[14px] font-bold text-[var(--warning)]">
                   The caretaker could not be assigned
                 </h3>
                 <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -419,7 +419,7 @@ function AddPropertyForm({ onClose }) {
                 ) : (
                   <div
                     key={accountFor}
-                    className="mb-4 flex items-center justify-between gap-4 rounded-[10px] border border-[var(--line)] bg-white p-4"
+                    className="mb-4 flex items-center justify-between gap-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-4"
                   >
                     <div>
                       <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
@@ -433,7 +433,7 @@ function AddPropertyForm({ onClose }) {
                     <button
                       type="button"
                       onClick={() => setSeparateAccount((current) => ({ ...current, [accountFor]: true }))}
-                      className="shrink-0 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
+                      className="shrink-0 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
                     >
                       Add {accountFor === 'service' ? 'service charges' : accountFor} account
                     </button>
@@ -533,7 +533,7 @@ function AddPropertyForm({ onClose }) {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-5 py-[10px] text-[12px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
               >
                 Cancel
               </button>
@@ -555,7 +555,7 @@ function AddPropertyForm({ onClose }) {
 function SectionTitle({ title, className = '' }) {
   return (
     <div className={`mb-[14px] flex items-center gap-3 ${className}`}>
-      <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+      <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
         {title}
       </div>
       <div className="h-px flex-1 bg-[var(--line)]" />

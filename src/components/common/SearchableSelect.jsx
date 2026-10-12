@@ -69,7 +69,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder = 'Sear
       )}
 
       {open ? (
-        <div className="absolute left-0 right-0 z-10 mt-1 max-h-[240px] overflow-y-auto rounded-[8px] border border-[var(--line)] bg-white py-1 shadow-[0_10px_24px_rgba(32,28,24,0.12)]">
+        <div className="absolute left-0 right-0 z-10 mt-1 max-h-[240px] overflow-y-auto rounded-[8px] border border-[var(--line)] bg-[var(--surface)] py-1 shadow-[0_10px_24px_rgba(32,28,24,0.12)]">
           {matches.length ? (
             matches.map((option, index) => (
               <div key={option.value}>
@@ -87,7 +87,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder = 'Sear
                     choose(option)
                   }}
                   className={`block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--line-soft)] ${
-                    option.value === value ? 'font-bold text-[var(--accent)]' : 'text-[var(--ink)]'
+                    option.value === value ? 'font-bold text-[var(--accent-ink)]' : 'text-[var(--ink)]'
                   }`}
                 >
                   {option.label}

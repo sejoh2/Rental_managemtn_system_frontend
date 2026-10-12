@@ -11,7 +11,7 @@ import {
 import { FormError } from '../common/DataState'
 
 const inputClass =
-  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
+  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]'
 
@@ -113,7 +113,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] bg-[var(--surface)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
           <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
             {editing ? `Edit unit - ${unit.unit_number}` : `Add unit / house - ${property.name}`}
@@ -287,7 +287,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             </div>
 
             {occupied && Number(form.monthly_rent) !== unit.monthly_rent ? (
-              <p className="text-[11px] leading-[1.5] text-[#B8790E] sm:col-span-2">
+              <p className="text-[11px] leading-[1.5] text-[var(--warning)] sm:col-span-2">
                 {unit.current_tenant?.full_name || 'The current tenant'} will be
                 charged the new rent from now on. Rent that has already been
                 billed stays at {formatKES(unit.monthly_rent)}.
@@ -305,7 +305,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
             >
               Cancel
             </button>

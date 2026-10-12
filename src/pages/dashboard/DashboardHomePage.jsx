@@ -17,7 +17,7 @@ import {
 } from '../../utils/format'
 import { PAYMENT_METHODS } from '../../utils/payments'
 
-const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
+const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass =
   'flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4'
 
@@ -54,12 +54,12 @@ function DashboardHomePage({ onAddProperty, onExportReport }) {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Overview
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
             {greeting()}
-            {user.first_name ? `, ${user.first_name}` : ''} 👋
+            {user.first_name ? `, ${user.first_name}` : ''}
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
             {property
@@ -71,7 +71,7 @@ function DashboardHomePage({ onAddProperty, onExportReport }) {
         <div className="flex flex-wrap gap-[10px]">
           <button
             onClick={onExportReport}
-            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
           >
             <Download size={15} />
             Export report
@@ -188,12 +188,12 @@ function HomeFigures({ home, scope }) {
 function SectionLabel({ title, pill, blue }) {
   return (
     <div className="mb-[14px] flex items-center gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
         {title}
       </span>
       <span
         className={`rounded-full px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.04em] ${
-          blue ? 'bg-[#E6EDF4] text-[#3C5C82]' : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'
+          blue ? 'bg-[var(--info-soft)] text-[var(--info)]' : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'
         }`}
       >
         {pill}
@@ -231,7 +231,7 @@ function RentChart({ months, scope }) {
               </span>
               <div
                 className={`w-[30px] rounded-t-[4px] ${
-                  index === months.length - 1 ? 'bg-[var(--accent)]' : 'bg-[#EFC29F]'
+                  index === months.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--accent-muted)]'
                 }`}
                 style={{ height: month.amount ? Math.max((month.amount / highest) * 118, 3) : 0 }}
               />
@@ -252,7 +252,7 @@ function UnmatchedPayments({ unmatched }) {
       <div className={cardHeaderClass}>
         <h3 className="text-[13px] font-bold">Unmatched payments</h3>
         {unmatched.count ? (
-          <span className="rounded-full bg-[#FBF0DA] px-[9px] py-[3px] text-[10px] font-bold text-[var(--warning)]">
+          <span className="rounded-full bg-[var(--warning-soft)] px-[9px] py-[3px] text-[10px] font-bold text-[var(--warning)]">
             {unmatched.count} to review
           </span>
         ) : null}
@@ -292,7 +292,7 @@ function UnmatchedPayments({ unmatched }) {
       <div className="bg-[var(--bg)] px-[18px] py-3">
         <Link
           to="/payments"
-          className="block w-full rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-center text-[12px] font-bold"
+          className="block w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center text-[12px] font-bold"
         >
           {unmatched.count ? 'Review all' : 'Open payments'}
         </Link>

@@ -16,6 +16,11 @@ export async function fetchCurrentUser() {
   return user
 }
 
+// Only while user.needs_name is true. -> { user }
+export function saveMyName(fullName) {
+  return api.patch('/api/auth/me/name', { full_name: fullName })
+}
+
 export function logout() {
   return request('/api/auth/logout', {
     method: 'POST',

@@ -26,9 +26,9 @@ import { formatPhone } from '../../utils/format'
 import { PERMISSION_LEVELS } from '../../utils/labels'
 
 const smallButtonClass =
-  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+  'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
 
-const sectionTitleClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]'
+const sectionTitleClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]'
 
 /*
   The API returns one row per caretaker-and-property, past ones included.
@@ -114,7 +114,7 @@ function CaretakersPage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Operations
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -135,7 +135,7 @@ function CaretakersPage() {
         </button>
       </div>
 
-      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <DataState
           state={caretakersState}
           loadingLabel="Loading caretakers..."
@@ -241,8 +241,8 @@ function ReplaceWarning({ property, caretakerId }) {
   if (!current || current.caretaker_id === caretakerId) return null
 
   return (
-    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B8790E] bg-white px-4 py-4">
-      <h3 className="text-[13px] font-bold text-[#B8790E]">This will replace the current caretaker</h3>
+    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-4">
+      <h3 className="text-[13px] font-bold text-[var(--warning)]">This will replace the current caretaker</h3>
       <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
         Every property has one caretaker. {current.full_name} will lose access
         to {property.name} as soon as you save.
@@ -539,7 +539,7 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
                   <button
                     type="button"
                     onClick={() => setRemoving(assignment)}
-                    className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E]"
+                    className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
                   >
                     Remove
                   </button>
@@ -551,7 +551,7 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
           )}
 
           {otherProperties.length ? (
-            <div className="mt-[14px] rounded-[8px] border border-[var(--line)] bg-white px-4 py-4">
+            <div className="mt-[14px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
               <div className="mb-3 text-[12px] font-bold">Assign to another property</div>
 
               <div className="flex flex-wrap items-center gap-3">

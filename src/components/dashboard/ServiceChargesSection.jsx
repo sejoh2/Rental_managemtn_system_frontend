@@ -62,7 +62,7 @@ function ServiceChargesSection({ property }) {
   }
 
   return (
-    <section className="mt-6 overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+    <section className="mt-6 overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4">
         <div>
           <h3 className="text-[12px] font-bold">{property.name} - service charges</h3>
@@ -76,7 +76,7 @@ function ServiceChargesSection({ property }) {
 
         <button
           onClick={() => setEditing({})}
-          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
         >
           <Plus size={13} />
           Add service charge
@@ -84,7 +84,7 @@ function ServiceChargesSection({ property }) {
       </div>
 
       {lastAdded?.property_id === property.id ? (
-        <p className="border-b border-[var(--line-soft)] px-[18px] py-[10px] text-[11px] leading-[1.5] text-[#2E7D4F]">
+        <p className="border-b border-[var(--line-soft)] px-[18px] py-[10px] text-[11px] leading-[1.5] text-[var(--success)]">
           {lastAdded.name} was added.{' '}
           {lastAdded.billing.tenants_billed
             ? `${lastAdded.billing.tenants_billed} ${lastAdded.billing.tenants_billed === 1 ? 'tenant was' : 'tenants were'} billed ${formatKES(lastAdded.billing.total_billed)} in total.`
@@ -130,13 +130,13 @@ function ServiceChargesSection({ property }) {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => setEditing({ charge })}
-                          className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                          className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setRemoving(charge)}
-                          className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-[11px] font-bold text-red-600"
+                          className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
                         >
                           Remove
                         </button>
@@ -300,7 +300,7 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
           </p>
 
           <div className="mb-[10px] mt-[22px] flex items-center gap-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
               Amount per unit
             </div>
             <div className="h-px flex-1 bg-[var(--line)]" />
@@ -356,7 +356,7 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
               were already billed is not changed.
             </p>
           ) : (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
               {form.frequency === 'monthly' ? (
                 <>
                   <strong>When you add this charge:</strong>{' '}

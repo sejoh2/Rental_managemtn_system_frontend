@@ -26,7 +26,7 @@ const groupLabels = {
   electricity: ['Electricity deposit', 'Covers unpaid electricity bills.'],
 }
 
-const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-white'
+const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass =
   'flex items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4'
 
@@ -34,7 +34,7 @@ function Row({ label, value, strong, danger }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[var(--line-soft)] py-[9px] text-[12px] last:border-b-0">
       <span className={strong ? 'font-bold' : 'text-[var(--ink-soft)]'}>{label}</span>
-      <span className={`font-mono ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[#B3261E]' : ''}`}>
+      <span className={`font-mono ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[var(--danger)]' : ''}`}>
         {value}
       </span>
     </div>
@@ -74,7 +74,7 @@ function DepositGroup({ group }) {
       </div>
 
       {group.deposit_charged > group.held ? (
-        <p className="mt-2 text-[10px] leading-[1.5] text-[#B8790E]">
+        <p className="mt-2 text-[10px] leading-[1.5] text-[var(--warning)]">
           Only {formatKES(group.held)} of the {formatKES(group.deposit_charged)} deposit was
           ever paid, so only that amount is held.
         </p>
@@ -194,7 +194,7 @@ function OpenReconciliation({ tenant, data, onChanged }) {
           <button
             type="button"
             onClick={() => changeDeductions([...deductions, { description: '', amount: '' }])}
-            className="inline-flex shrink-0 items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+            className="inline-flex shrink-0 items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
           >
             <Plus size={13} />
             Add deduction
@@ -232,7 +232,7 @@ function OpenReconciliation({ tenant, data, onChanged }) {
         ))}
 
         {incomplete ? (
-          <p className="mt-2 text-[10px] text-[#B8790E]">
+          <p className="mt-2 text-[10px] text-[var(--warning)]">
             Give every deduction a description and an amount, or remove it.
           </p>
         ) : null}
@@ -240,7 +240,7 @@ function OpenReconciliation({ tenant, data, onChanged }) {
 
       <div className="px-[18px] py-4">
         {result ? (
-          <div className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-3">
+          <div className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3">
             <Row label="Deposits held" value={formatKES(result.deposits_held)} />
             {result.credit_held > 0 ? (
               <Row label="Credit held" value={formatKES(result.credit_held)} />
@@ -361,7 +361,7 @@ function Settled({ tenant, settlement, onChanged }) {
         ) : null}
 
         {settlement.refund_paid_on ? (
-          <p className="mt-3 text-[11px] leading-[1.5] text-[#2E7D4F]">
+          <p className="mt-3 text-[11px] leading-[1.5] text-[var(--success)]">
             Refund of {formatKES(settlement.refund_due)} paid on{' '}
             {formatDate(settlement.refund_paid_on)} by{' '}
             {optionLabel(REFUND_METHODS, settlement.refund_method).toLowerCase()}

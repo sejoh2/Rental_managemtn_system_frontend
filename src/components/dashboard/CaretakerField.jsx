@@ -2,11 +2,11 @@ import { formatPhone } from '../../utils/format'
 import { PERMISSION_LEVELS } from '../../utils/labels'
 
 const inputClass =
-  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
+  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]'
 
-const linkClass = 'text-[11px] font-bold text-[var(--accent)] hover:underline'
+const linkClass = 'text-[11px] font-bold text-[var(--accent-ink)] hover:underline'
 
 /*
   Picks a property's caretaker: none, one of the owner's existing
@@ -24,7 +24,7 @@ function CaretakerField({
 }) {
   if (caretaker.mode === 'new') {
     return (
-      <div className="rounded-[10px] border border-[var(--line)] bg-white p-4">
+      <div className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[13px] font-bold text-[var(--ink)]">New caretaker</div>
           <button

@@ -12,7 +12,7 @@ export function LoadingState({ label = 'Loading...' }) {
 export function ErrorState({ error, onRetry }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-[18px] py-10 text-center">
-      <div className="flex items-center gap-2 text-[12px] font-bold text-[#B3261E]">
+      <div className="flex items-center gap-2 text-[12px] font-bold text-[var(--danger)]">
         <AlertCircle size={15} />
         {error?.message || 'Something went wrong.'}
       </div>
@@ -21,7 +21,7 @@ export function ErrorState({ error, onRetry }) {
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+          className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
         >
           Try again
         </button>
@@ -63,7 +63,7 @@ export function FormError({ error }) {
   if (!error) return null
 
   return (
-    <div className="flex items-start gap-2 rounded-[8px] border border-[#F3C9C5] bg-[#FBE4E2] px-3 py-[10px] text-[11px] font-bold leading-[1.5] text-[#B3261E]">
+    <div className="flex items-start gap-2 rounded-[8px] border border-[var(--danger-line)] bg-[var(--danger-soft)] px-3 py-[10px] text-[11px] font-bold leading-[1.5] text-[var(--danger)]">
       <AlertCircle size={14} className="mt-[1px] shrink-0" />
       <span>{error.message || String(error)}</span>
     </div>

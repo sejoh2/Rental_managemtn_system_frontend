@@ -1,7 +1,7 @@
 # Kodi: frontend–backend integration handoff
 
 Read this before doing anything. It replaces the earlier conversations, which are too long to load.
-Last updated 2026-10-12, at the end of the session that finished steps 9 to 15.
+Last updated 2026-10-12, after the session that added light and dark mode and the reminder rule.
 
 **First thing to do in a new chat.** The user asked for this explicitly: after reading this file, write one numbered list of everything that is pending, then go through it with the user one item at a time. Build the list from three places in this file: the checks the user still has to do (section 8), the tasks the user has asked for and that are not done (section 2, "Requested and not done"), and the open items (section 7). Ask the user which item to start with. Do not start building before that.
 
@@ -71,33 +71,14 @@ So the new chat knows what was requested and how each request ended.
 | 14 | Asked whether SMS centre messages go out when testing | Explained: no, `SMS_MODE=console`; told how to switch to live. Not changed |
 | 15 | Remove the page-name pill at the right of the top strip | Done (owner dashboard and admin area) |
 | 16 | Asked what "1 property · 1 account" in the sidebar means | Explained; "1 account" was fixed text. Replaced with the live unit count: "1 property · 1 unit" |
-| 17 | Light mode and dark mode under Settings | **Not started.** See below |
+| 17 | Light mode and dark mode under Settings | Built in the next session (section 5, "Light and dark mode"); not yet checked by the user |
+| 18 | A tenant who owes nothing should not get a due date reminder | Built in the next session (section 5, SMS); not yet checked by the user |
+| 19 | Remove the waving-hand emoji from the dashboard greeting; no emoji anywhere | Done. Both repos were scanned and there is no other emoji. Do not add any |
+| 20 | Ask for the person's name at sign-in instead of showing the backend default "New User" | Built (section 5, "Name at first sign-in"); not yet checked by the user |
 
 ### Requested and not done
 
-1. **Light mode and dark mode** (details in the next heading).
-2. **Blank due date in reminders** (found by the assistant, not yet raised as a decision; details at the end of the next heading).
-
-### Next task the user asked for: light mode and dark mode
-
-Asked on 2026-10-12, at the very end of the session; not started. In the user's words: a light mode and dark mode under Settings; light mode is white "even the side nav", dark mode is dark. Today the app is one fixed look: light pages with a dark sidebar and a near-black top strip.
-
-Follow the working agreement: list the gaps and get answers first. Questions worth asking, each with a scenario:
-
-- Where the switch lives (Settings > Account, or a new Appearance tab) and whether there is also a quick toggle in the top bar.
-- Whether there is a third "follow my device" option, and which mode is the default.
-- Whether the choice is saved per device (browser storage, no backend change) or per account (a new `owner_settings` column, so it follows the user to another device, and is audited).
-- Whether it applies to the sign-in and admin screens too.
-- Whether the brand orange (`--accent`) stays the same in both modes.
-
-What the code looks like, so the work can be sized:
-
-- Colours are CSS variables in `src/index.css` (`--bg`, `--surface`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--line-soft`, `--sidebar`, `--sidebar-line`, `--sidebar-ink`, `--sidebar-ink-soft`, `--accent`, `--accent-hover`, `--accent-soft`). The sidebar already has its own variables, so a white sidebar in light mode is a variable change. The top strip (`.proto-strip`) has a hard-coded background.
-- But 38 `.jsx` files bypass the variables: `bg-white` is used 151 times (cards, modals, inputs, buttons) and about 100 hard-coded hex colours are used for status tones (for example `#E3F1E8` / `#2E7D4F` green, `#FBE4E2` / `#B3261E` red, `#FBF0DA` / `#B8790E` amber, `#E6EDF4` / `#3C5C82` blue). A dark mode needs these moved onto variables (for example `bg-[var(--surface)]` and new `--success`, `--success-soft`, `--danger`, ... variables), which is a mechanical change across almost every page and should be done in one pass, then checked page by page by the user.
-- Shared class constants in `components/common/Modal.jsx`, `StatusBadge.jsx` and `StatCard.jsx` cover many of the uses; start there.
-- PDFs and CSV exports are built by the backend and are not affected.
-
-One small thing seen in the user's last screenshot, not yet fixed: a "Balance reminder" sent to a tenant who owes nothing reads "your balance ... is KES 0. Kindly pay by ." because `{due_date}` is empty when there is no unpaid bill. Ask whether such a tenant should be skipped, or the text adjusted.
+Nothing. Both items from the previous handoff (light and dark mode, and the blank due date in reminders) were built on 2026-10-12 in the session after this file was first written. They are uncommitted in both repos until the user commits them, and the user has not tested them yet (section 8).
 
 ## 3. How the user wants to work
 
@@ -166,6 +147,7 @@ Things that bit during the session:
 - A scheduled broadcast stores only its selection; recipients and balances are worked out when it is sent.
 - Broadcasts go to tenants who are active or on notice. "Send to" is a searchable dropdown of groups, properties and single tenants.
 - Each owner gets four starter templates the first time their templates are listed.
+- **Payment reminders skip tenants who owe nothing.** A message that uses `{balance}`, `{amount}`, `{due_date}` or `{days_overdue}` is a payment reminder; any other message goes to everyone selected. The rule is `leave_out_settled` in `sms_service.js`, applied when a broadcast is sent now and again when a scheduled one goes out. Sent now to people who all owe nothing (including one tenant chosen by name) it is refused with 422. The New broadcast modal shows who is left out and disables Send.
 - "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part. `SMS_COST_PER_MESSAGE` is 0.80.
 - Two owner notifications act when switched on in Settings: an SMS to the owner when a water reading is flagged (off by default), and one SMS per property per month to its caretaker on the water billing day, after 8 AM, if readings are missing (on by default). The other four switches are shown as "Not active yet". There is no email sending.
 - To send for real, set `SMS_MODE=live` and restart the backend. The user was told that sign-in codes then go by SMS, that the sender ID must be approved by Africa's Talking (`AFRICASTALKING_SENDER_ID` is empty; Test Appartment's is "Kodi"), and that messages cost money. Do not change it without being asked.
@@ -175,6 +157,22 @@ Things that bit during the session:
 - Reports: property and period filters in the URL; arrears show current tenants and former tenants separately; archived properties are left out; exports hold totals and a line per tenant, as PDF or CSV built from the same sections; periods are Kenyan time.
 - The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
 - Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
+
+### Name at first sign-in
+
+- An account created by OTP is "New User" in the database (the column defaults). `public_user` now returns `needs_name: true` for such an account (`needs_name` in `security/token_service.js`); no rows or defaults were changed.
+- While `needs_name` is true, `App.jsx` shows `pages/auth/NamePage.jsx` instead of the dashboard, admin area or no-access page: one required field, "Full names". It appears once, after the code, for any role.
+- `PATCH /api/auth/me/name` `{ full_name }` saves it: the first word is the first name and the rest is the last name; one word leaves the last name empty. Letters, spaces, dots, hyphens and apostrophes only. Allowed only while `needs_name` is true (409 afterwards); an owner changes their name later in Settings > Account. Audited as `PROFILE_NAME_SET`.
+- The test owner (user id 3) was still "New User" when this was built, so they are asked on the next page load.
+
+### Light and dark mode
+
+- Three choices: Light, Dark, Follow device (the default). Light is white including the side menu and top strip; dark is the earlier dark sidebar with dark pages.
+- Saved per device, in the browser, one choice per account (`kodi-theme-<role>-<id>` in localStorage), so the owner and the admin each keep their own. No backend change and no audit entry. The sign-in page shows the choice last used on that device. A caretaker app would keep its own.
+- The switch is in Settings > Appearance (`?tab=appearance`) and as a one-click button in the owner top bar and the admin header (`components/common/ThemeToggle.jsx`).
+- How it works: `ThemeProvider` sets `data-theme` on `<html>`; `src/index.css` holds both sets of variables; a small script in `index.html` sets it before the first paint.
+- Every colour in the `.jsx` files is now a variable. Do not add `bg-white` or hex colours: use `--surface`, `--success`, `--danger`, `--warning`, `--info` (each with a `-soft` background), `--danger-solid` for filled red buttons, and `--accent-ink` for orange text (`--accent` is for fills and borders and is the same orange in both modes). `text-white` is only for text on `--accent` or `--danger-solid`.
+- The sign-in picture panel stays dark in both modes.
 
 ## 6. Code map
 
@@ -284,6 +282,21 @@ None of this was clicked through by the assistant. The user received detailed st
 - Payment accounts and Water rules per property.
 - Users & roles; Notifications (two working switches); Manage properties.
 - The flagged-reading SMS, with its switch on.
+
+**Light and dark mode**
+- Settings > Appearance: Light, Dark, Follow device; the sun/moon button in the top bar.
+- Every page and every modal in dark mode, looking for text that is hard to read or a panel that stayed white.
+- Light mode: white side menu and top strip.
+- As admin: the button in the admin header, and that it does not change the owner's choice.
+
+**Name at first sign-in**
+- Refresh the app as the owner still called "New User": the "What is your name?" screen appears instead of the dashboard.
+- One name, two names, a name with a digit (refused), then Continue; the greeting has no emoji and uses the first name.
+- Sign out and in again: the screen does not come back.
+
+**Payment reminders**
+- New broadcast with "Balance reminder" to John while he owes nothing: Send is disabled and the reason is shown.
+- The same with "General notice": it can be sent.
 
 **Admin** (as admin)
 - The audit log shows the new actions under the owner's account: service charges, electricity bills, maintenance, expenses, repair charge and its SMS, deposit reconciled and refund paid, caretaker changes, SMS actions, report exported, statement downloaded, settings changes.

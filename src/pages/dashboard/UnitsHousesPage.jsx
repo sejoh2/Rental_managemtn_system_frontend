@@ -22,11 +22,11 @@ const unitFilters = [
 ]
 
 const unitStatusColors = {
-  occupied: 'bg-[#2E7D4F]',
-  arrears: 'bg-[#B3261E]',
-  vacant: 'bg-[#A39B8D]',
-  reserved: 'bg-[#3C5C82]',
-  maintenance: 'bg-[#B8790E]',
+  occupied: 'bg-[var(--success)]',
+  arrears: 'bg-[var(--danger)]',
+  vacant: 'bg-[var(--ink-faint)]',
+  reserved: 'bg-[var(--info)]',
+  maintenance: 'bg-[var(--warning)]',
 }
 
 const unitLegend = [
@@ -78,7 +78,7 @@ function UnitsHousesPage() {
     <>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Property
           </div>
 
@@ -101,7 +101,7 @@ function UnitsHousesPage() {
                 setSearchParams({ property: event.target.value })
                 setActiveFilter('all')
               }}
-              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
             >
               {properties.map((property) => (
                 <option key={property.id} value={property.id}>{property.name}</option>
@@ -112,7 +112,7 @@ function UnitsHousesPage() {
             {units.some((unit) => unit.electricity_billing_method === 'entered') ? (
               <button
                 onClick={() => setElectricityOpen(true)}
-                className="rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
               >
                 Enter electricity bills
               </button>
@@ -134,7 +134,7 @@ function UnitsHousesPage() {
         loadingLabel="Loading properties..."
         isEmpty={(data) => !data.length}
         empty={
-          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+          <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
             <EmptyState
               title="Add a property first"
               message="Units belong to a property. Once you have a property you can add its houses here."
@@ -161,7 +161,7 @@ function UnitsHousesPage() {
                       className={`rounded-full border px-3 py-[7px] text-[11px] font-medium transition ${
                         activeFilter === filter.key
                           ? 'border-transparent bg-[var(--accent-soft)] text-[var(--accent-hover)]'
-                          : 'border-[var(--line)] bg-white text-[var(--ink-soft)] hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--ink-soft)] hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
                       }`}
                     >
                       {filter.label} ({units.filter(filter.matches).length})
@@ -181,7 +181,7 @@ function UnitsHousesPage() {
 
                   <button
                     onClick={() => setAddOpen(true)}
-                    className="flex min-h-[200px] flex-col items-center justify-between rounded-[8px] border border-dashed border-[var(--line)] bg-white px-4 py-4 text-[var(--ink-faint)] transition hover:border-[var(--accent-soft-line)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                    className="flex min-h-[200px] flex-col items-center justify-between rounded-[8px] border border-dashed border-[var(--line)] bg-[var(--surface)] px-4 py-4 text-[var(--ink-faint)] transition hover:border-[var(--accent-soft-line)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-ink)]"
                   >
                     <Plus size={22} />
                     <span className="text-[11px] font-bold">Add unit</span>
@@ -237,7 +237,7 @@ function UnitTile({ unit, onEdit, onDelete }) {
   const status = displayStatus(unit)
 
   return (
-    <article className="relative rounded-[8px] border border-[var(--line)] bg-white px-3 py-9 transition hover:-translate-y-[1px] hover:border-[var(--ink-faint)] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]">
+    <article className="relative rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-9 transition hover:-translate-y-[1px] hover:border-[var(--ink-faint)] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]">
       <span
         className={`absolute right-[10px] top-[10px] h-2 w-2 rounded-full ${
           unitStatusColors[status]
@@ -265,14 +265,14 @@ function UnitTile({ unit, onEdit, onDelete }) {
       <div className="mt-[12px] grid grid-cols-2 gap-[8px]">
         <button
           onClick={onEdit}
-          className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-left text-[11px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
+          className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-left text-[11px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
         >
           Edit
         </button>
 
         <button
           onClick={onDelete}
-          className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-left text-[11px] font-bold text-red-600 transition hover:bg-red-50"
+          className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-left text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
         >
           Delete
         </button>

@@ -108,13 +108,13 @@ function OtpVerificationForm({
         <button
           type="button"
           onClick={onChangeNumber}
-          className="mb-[18px] inline-flex items-center gap-[6px] text-[10px] font-bold text-[var(--ink-soft)] transition hover:text-[var(--accent)]"
+          className="mb-[18px] inline-flex items-center gap-[6px] text-[10px] font-bold text-[var(--ink-soft)] transition hover:text-[var(--accent-ink)]"
         >
           <span className="text-[14px] leading-none">‹</span>
           Change number
         </button>
 
-        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
           Verify
         </div>
 
@@ -146,7 +146,7 @@ function OtpVerificationForm({
                 autoFocus={index === 0}
                 maxLength={1}
                 aria-label={`OTP digit ${index + 1}`}
-                className="font-mono h-[54px] w-full rounded-[9px] border border-[var(--line)] bg-white text-center text-[18px] font-semibold text-[var(--ink)] shadow-[0_1px_0_rgba(32,28,24,0.02)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                className="font-mono h-[54px] w-full rounded-[9px] border border-[var(--line)] bg-[var(--surface)] text-center text-[18px] font-semibold text-[var(--ink)] shadow-[0_1px_0_rgba(32,28,24,0.02)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
               />
             ))}
           </div>
@@ -162,7 +162,7 @@ function OtpVerificationForm({
               type="button"
               onClick={handleResend}
               disabled={secondsLeft > 0 || resending}
-              className="font-bold text-[var(--accent)] transition hover:text-[var(--accent-hover)] disabled:cursor-not-allowed disabled:text-[var(--ink-faint)]"
+              className="font-bold text-[var(--accent-ink)] transition hover:text-[var(--accent-hover)] disabled:cursor-not-allowed disabled:text-[var(--ink-faint)]"
             >
               {resending
                 ? 'Sending...'

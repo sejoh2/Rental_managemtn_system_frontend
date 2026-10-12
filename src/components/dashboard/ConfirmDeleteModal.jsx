@@ -28,7 +28,7 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 py-8">
-      <div className="w-full max-w-[460px] overflow-hidden rounded-[14px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+      <div className="w-full max-w-[460px] overflow-hidden rounded-[14px] bg-[var(--surface)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[22px] py-[18px]">
           <h2 className="font-display text-[15px] font-semibold text-[var(--ink)]">
             {title}
@@ -44,8 +44,8 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
         </div>
 
         <div className="px-[22px] py-[22px]">
-          <div className="rounded-[8px] border border-red-200 border-l-2 border-l-red-500 bg-white px-4 py-4">
-            <h3 className="text-[13px] font-bold text-red-700">
+          <div className="rounded-[8px] border border-[var(--danger-line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[13px] font-bold text-[var(--danger)]">
               This action will archive the record
             </h3>
             <p className="mt-[6px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -64,7 +64,7 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[8px] border border-[var(--line)] bg-white px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
+            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-5 py-[10px] text-[12px] font-bold text-[var(--ink)]"
           >
             Cancel
           </button>
@@ -73,7 +73,7 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
             type="button"
             onClick={handleConfirm}
             disabled={working}
-            className="rounded-[8px] border border-red-600 bg-red-600 px-5 py-[10px] text-[12px] font-bold text-white transition hover:border-red-700 hover:bg-red-700 disabled:opacity-50"
+            className="rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white transition hover:border-[var(--danger-solid-hover)] hover:bg-[var(--danger-solid-hover)] disabled:opacity-50"
           >
             {working ? 'Working...' : confirmLabel}
           </button>

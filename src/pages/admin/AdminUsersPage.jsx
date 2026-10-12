@@ -25,7 +25,7 @@ const roleFilters = [
 const roleTones = { admin: 'info', owner: 'success', caretaker: 'warning', user: 'neutral' }
 
 const smallButtonClass =
-  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+  'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
 
 // What each confirmation says and does.
 const actions = {
@@ -68,7 +68,7 @@ function AdminUsersPage() {
   return (
     <>
       <div className="mb-7">
-        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
           Administration
         </div>
         <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">Users</h1>
@@ -86,8 +86,8 @@ function AdminUsersPage() {
             onClick={() => setRoleFilter(key)}
             className={`pb-[12px] text-[11px] font-bold transition ${
               roleFilter === key
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {label}
@@ -98,7 +98,7 @@ function AdminUsersPage() {
         ))}
       </div>
 
-      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <DataState
           state={usersState}
           loadingLabel="Loading users..."
@@ -173,7 +173,7 @@ function AdminUsersPage() {
                             {isSelf || user.role === 'admin' ? null : active ? (
                               <button
                                 onClick={() => setPending({ action: 'deactivate', user })}
-                                className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E] transition hover:bg-[#FBE4E2]"
+                                className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
                               >
                                 Deactivate
                               </button>
@@ -231,8 +231,8 @@ function ConfirmUserActionModal({ action, user, onClose, onDone }) {
     <ModalShell title={`${action.title} - ${userName(user)}`} onClose={onClose}>
       <ModalBody>
         <div
-          className={`rounded-[8px] border border-[var(--line)] border-l-2 bg-white px-4 py-4 ${
-            action.danger ? 'border-l-[#B3261E]' : 'border-l-[var(--accent-soft-line)]'
+          className={`rounded-[8px] border border-[var(--line)] border-l-2 bg-[var(--surface)] px-4 py-4 ${
+            action.danger ? 'border-l-[var(--danger)]' : 'border-l-[var(--accent-soft-line)]'
           }`}
         >
           <h3 className="text-[13px] font-bold">
@@ -260,7 +260,7 @@ function ConfirmUserActionModal({ action, user, onClose, onDone }) {
           disabled={working}
           className={
             action.danger
-              ? 'rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50'
+              ? 'rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50'
               : primaryButtonClass
           }
         >

@@ -1,7 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/*
+  Light mode. The mode is set on <html data-theme="light|dark"> by
+  ThemeProvider (and by the script in index.html before the first paint).
+*/
 :root {
+  color-scheme: light;
   --bg: #F7F4EF;
   --surface: #FFFFFF;
   --ink: #201C18;
@@ -9,16 +14,77 @@
   --ink-faint: #A39B8D;
   --line: #E7E0D5;
   --line-soft: #F0EAE0;
-  --sidebar: #1C1712;
-  --sidebar-line: #332C24;
-  --sidebar-ink: #EDE7DC;
-  --sidebar-ink-soft: #948B7C;
+  --sidebar: #FFFFFF;
+  --sidebar-line: #E7E0D5;
+  --sidebar-hover: #F0EAE0;
+  --sidebar-ink: #201C18;
+  --sidebar-ink-strong: #201C18;
+  --sidebar-ink-soft: #6F675E;
+  --strip: #FFFFFF;
+  --strip-line: #E7E0D5;
+  --strip-ink: #6F675E;
+  --strip-ink-strong: #201C18;
   --accent: #C1440E;
   --accent-hover: #A6390B;
   --accent-soft: #FBE7DA;
+  /* Orange used for text; lighter in dark mode so it stays readable. */
+  --accent-ink: #C1440E;
+  --accent-muted: #EFC29F;
+  --success: #2E7D4F;
+  --success-soft: #E3F1E8;
+  --danger: #B3261E;
+  --danger-soft: #FBE4E2;
+  --danger-line: #F3C9C5;
+  /* Filled red buttons, with white text in both modes. */
+  --danger-solid: #B3261E;
+  --danger-solid-hover: #8F1E18;
+  --warning: #B8790E;
+  --warning-soft: #FBF0DA;
+  --info: #3C5C82;
+  --info-soft: #E6EDF4;
+  --thumb-from: #EFE6DA;
+  --thumb-to: #E4D6C2;
+  /* The sign-in picture panel is dark in both modes. */
+  --brand-panel: #1C1712;
+  --brand-panel-soft: #948B7C;
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'Manrope', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #14110E;
+  --surface: #1F1B16;
+  --ink: #F1EBE0;
+  --ink-soft: #B9B0A2;
+  --ink-faint: #8D8477;
+  --line: #352E26;
+  --line-soft: #2A241E;
+  --sidebar: #1C1712;
+  --sidebar-line: #332C24;
+  --sidebar-hover: #26201A;
+  --sidebar-ink: #EDE7DC;
+  --sidebar-ink-strong: #FFFFFF;
+  --sidebar-ink-soft: #948B7C;
+  --strip: #12100D;
+  --strip-line: #12100D;
+  --strip-ink: #B8AF9F;
+  --strip-ink-strong: #FFFFFF;
+  --accent-soft: #3B2215;
+  --accent-ink: #EE8650;
+  --accent-muted: #6B3A1E;
+  --success: #6CC495;
+  --success-soft: #17301F;
+  --danger: #F2837A;
+  --danger-soft: #3A1B18;
+  --danger-line: #5C2A26;
+  --warning: #E3AE4C;
+  --warning-soft: #382B10;
+  --info: #94B5DE;
+  --info-soft: #1B2A3B;
+  --thumb-from: #2B241D;
+  --thumb-to: #352B21;
 }
 
 * {
@@ -71,15 +137,16 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #12100D;
-  color: #B8AF9F;
+  border-bottom: 1px solid var(--strip-line);
+  background: var(--strip);
+  color: var(--strip-ink);
   padding: 0 14px;
   font-family: var(--font-mono);
   font-size: 11px;
 }
 
 .proto-strip b {
-  color: #fff;
+  color: var(--strip-ink-strong);
 }
 
 .proto-pill {
@@ -100,7 +167,7 @@ button {
   background:
     radial-gradient(circle at 20% 20%, rgba(193, 68, 14, 0.35), transparent 45%),
     radial-gradient(circle at 80% 75%, rgba(193, 68, 14, 0.18), transparent 50%),
-    var(--sidebar);
+    var(--brand-panel);
   color: #fff;
   padding: 48px;
 }
@@ -134,7 +201,7 @@ button {
 .property-thumb {
   height: 102px;
   position: relative;
-  background: linear-gradient(135deg, #EFE6DA, #E4D6C2);
+  background: linear-gradient(135deg, var(--thumb-from), var(--thumb-to));
 }
 
 .property-thumb::after {

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { LoadingState } from './components/common/DataState'
 import { useAuth } from './context/AuthContext'
 import AdminPage from './pages/admin/AdminPage'
+import NamePage from './pages/auth/NamePage'
 import NoAccessPage from './pages/auth/NoAccessPage'
 import SignInPage from './pages/auth/SignInPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
@@ -38,6 +39,9 @@ function App() {
         element={
           !signedIn ? (
             <Navigate to="/login" replace state={{ from: location.pathname }} />
+          ) : user.needs_name ? (
+            // An account created by OTP has no name until the person gives one.
+            <NamePage />
           ) : user.role === 'owner' ? (
             <DashboardPage />
           ) : user.role === 'admin' ? (

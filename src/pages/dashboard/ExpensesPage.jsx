@@ -99,7 +99,7 @@ function ExpensesPage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Money
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -114,7 +114,7 @@ function ExpensesPage() {
           <select
             value={propertyId}
             onChange={(event) => setParam('property', event.target.value)}
-            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
           >
             <option value="">All properties</option>
             {properties.map((property) => (
@@ -126,7 +126,7 @@ function ExpensesPage() {
             value={category}
             onChange={(event) => setParam('category', event.target.value)}
             aria-label="Category"
-            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
           >
             <option value="">All categories</option>
             {EXPENSE_CATEGORIES.map(([value, label]) => (
@@ -140,13 +140,13 @@ function ExpensesPage() {
             max={toDateInput().slice(0, 7)}
             onChange={(event) => event.target.value && setParam('month', event.target.value)}
             aria-label="Month"
-            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
           />
 
           <button
             onClick={exportCsv}
             disabled={exporting || !expensesState.data?.length}
-            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
           >
             <Download size={15} />
             {exporting ? 'Exporting...' : 'Export CSV'}
@@ -170,7 +170,7 @@ function ExpensesPage() {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <DataState
             state={expensesState}
             loadingLabel="Loading expenses..."
@@ -224,7 +224,7 @@ function ExpensesPage() {
                             {voided ? null : (
                               <button
                                 onClick={() => setVoiding(item)}
-                                className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
                               >
                                 Void
                               </button>
@@ -240,7 +240,7 @@ function ExpensesPage() {
           </DataState>
         </section>
 
-        <section className="h-fit overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="h-fit overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">{formatMonth(`${month}-01`)}</h3>
           </div>
@@ -257,14 +257,14 @@ function ExpensesPage() {
 
                 <div className="flex items-center justify-between py-[10px] text-[12px]">
                   <span className="text-[var(--ink-soft)]">Total expenses</span>
-                  <span className="font-mono font-semibold text-[#B3261E]">
+                  <span className="font-mono font-semibold text-[var(--danger)]">
                     - {formatNumber(summary.total_expenses)}
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between border-t border-[var(--line)] pt-5">
                   <span className="text-[12px] font-bold">Net profit</span>
-                  <span className={`font-mono text-[16px] font-semibold ${summary.net_profit < 0 ? 'text-[#B3261E]' : ''}`}>
+                  <span className={`font-mono text-[16px] font-semibold ${summary.net_profit < 0 ? 'text-[var(--danger)]' : ''}`}>
                     {formatKES(summary.net_profit)}
                   </span>
                 </div>
@@ -281,7 +281,7 @@ function ExpensesPage() {
         </section>
       </div>
 
-      <section className="mt-4 overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="mt-4 overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <div className="border-b border-[var(--line)] px-[18px] py-4">
           <h3 className="text-[12px] font-bold">
             Recovered from tenants - {formatMonth(`${month}-01`)}
@@ -332,7 +332,7 @@ function ExpensesPage() {
                       <td className="font-mono px-[18px] py-[13px]">{formatKES(row.spent)}</td>
                       <td className="font-mono px-[18px] py-[13px]">{formatKES(row.charged)}</td>
                       <td className="font-mono px-[18px] py-[13px]">{formatKES(row.paid)}</td>
-                      <td className={`font-mono px-[18px] py-[13px] ${row.outstanding > 0 ? 'text-[#B8790E]' : ''}`}>
+                      <td className={`font-mono px-[18px] py-[13px] ${row.outstanding > 0 ? 'text-[var(--warning)]' : ''}`}>
                         {formatKES(row.outstanding)}
                       </td>
                       <td className="font-mono px-[18px] py-[13px]">
@@ -495,8 +495,8 @@ function VoidExpenseModal({ expense, onClose, onDone }) {
     <ModalShell title="Void expense" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B3261E]">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[var(--danger)]">
               {formatKES(expense.amount)} · {optionLabel(EXPENSE_CATEGORIES, expense.category)} ·{' '}
               {expense.property_name}
             </h3>
@@ -530,7 +530,7 @@ function VoidExpenseModal({ expense, onClose, onDone }) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
+            className="rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
           >
             {saving ? 'Voiding...' : 'Void expense'}
           </button>

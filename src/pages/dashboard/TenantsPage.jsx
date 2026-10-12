@@ -41,7 +41,7 @@ function TenantsPage({ onAddTenant }) {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Property
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -74,8 +74,8 @@ function TenantsPage({ onAddTenant }) {
             onClick={() => setActiveFilter(filter.key)}
             className={`pb-[12px] text-[11px] font-bold transition ${
               activeFilter === filter.key
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {filter.label}
@@ -84,7 +84,7 @@ function TenantsPage({ onAddTenant }) {
         ))}
       </div>
 
-      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <DataState
           state={tenantsState}
           loadingLabel="Loading tenants..."
@@ -129,7 +129,7 @@ function TenantsPage({ onAddTenant }) {
                           <Link
                             to={`/tenants/${tenant.id}`}
                             onClick={(event) => event.stopPropagation()}
-                            className="text-[12px] font-bold hover:text-[var(--accent)]"
+                            className="text-[12px] font-bold hover:text-[var(--accent-ink)]"
                           >
                             {tenant.full_name}
                           </Link>
@@ -147,7 +147,7 @@ function TenantsPage({ onAddTenant }) {
 
                         <td
                           className={`font-mono px-[18px] py-[18px] text-[12px] ${
-                            balance.tone === 'danger' ? 'text-[#B3261E]' : 'text-[#2E7D4F]'
+                            balance.tone === 'danger' ? 'text-[var(--danger)]' : 'text-[var(--success)]'
                           }`}
                         >
                           {balance.text}

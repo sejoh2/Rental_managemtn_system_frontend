@@ -44,7 +44,7 @@ function PropertiesPage({ onAddProperty }) {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Property
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -71,7 +71,7 @@ function PropertiesPage({ onAddProperty }) {
         loadingLabel="Loading properties..."
         isEmpty={(data) => !data.length}
         empty={
-          <section className="rounded-[10px] border border-[var(--line)] bg-white">
+          <section className="rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
             <EmptyState
               title="No properties yet"
               message="Add your first property to start managing its units, tenants and payments."
@@ -100,7 +100,7 @@ function PropertiesPage({ onAddProperty }) {
               ))}
             </div>
 
-            <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+            <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4">
                 <h3 className="text-[12px] font-bold">
                   {selectedProperty.name} - details
@@ -109,14 +109,14 @@ function PropertiesPage({ onAddProperty }) {
                 <div className="flex flex-wrap gap-[8px]">
                   <button
                     onClick={() => setEditingProperty(selectedProperty)}
-                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
                   >
                     Edit property
                   </button>
 
                   <button
                     onClick={() => setDeletingProperty(selectedProperty)}
-                    className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-[11px] font-bold text-red-600"
+                    className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
                   >
                     Delete property
                   </button>
@@ -151,7 +151,7 @@ function PropertiesPage({ onAddProperty }) {
 
                 <div>
                   <div className="mb-[14px] flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
                       Payment accounts
                     </span>
                     <span className="h-px flex-1 bg-[var(--line)]" />
@@ -202,7 +202,7 @@ function PropertiesPage({ onAddProperty }) {
 function PropertyCard({ property, selected, onDelete }) {
   return (
     <article
-      className={`overflow-hidden rounded-[10px] border bg-white transition ${
+      className={`overflow-hidden rounded-[10px] border bg-[var(--surface)] transition ${
         selected ? 'border-[var(--accent)]' : 'border-[var(--line)] hover:border-[var(--ink-faint)]'
       }`}
     >
@@ -233,7 +233,7 @@ function PropertyCard({ property, selected, onDelete }) {
       <div className="px-4 pb-4">
         <button
           onClick={onDelete}
-          className="mt-[12px] w-full rounded-[8px] border border-red-500 bg-white px-3 py-2 text-left text-[11px] font-bold text-red-600 transition hover:bg-red-50"
+          className="mt-[12px] w-full rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-left text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
         >
           Delete property
         </button>
@@ -256,13 +256,13 @@ function MiniStat({ value, label }) {
 function PaymentAccount({ account, badge, tone }) {
   const badgeClass =
     tone === 'water'
-      ? 'bg-[#E6EDF4] text-[#3C5C82]'
+      ? 'bg-[var(--info-soft)] text-[var(--info)]'
       : 'bg-[var(--accent-soft)] text-[var(--accent-hover)]'
 
   const numberLabel = account?.account_type === 'till' ? 'Till' : 'Paybill'
 
   return (
-    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h4 className="text-[13px] font-bold">

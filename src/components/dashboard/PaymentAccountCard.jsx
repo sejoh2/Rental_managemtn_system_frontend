@@ -4,11 +4,11 @@ import { connectPaymentAccount } from '../../api/properties'
 import { FormError } from '../common/DataState'
 
 const inputClass =
-  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-white px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
+  'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]'
 
-const linkClass = 'text-[11px] font-bold text-[var(--accent)] hover:underline'
+const linkClass = 'text-[11px] font-bold text-[var(--accent-ink)] hover:underline'
 
 const accountTypes = [
   ['paybill', 'M-Pesa PayBill'],
@@ -104,10 +104,10 @@ function PaymentAccountCard({
   }
 
   return (
-    <div className="mb-4 rounded-[10px] border border-[var(--line)] bg-white p-4">
+    <div className="mb-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
-        <span className={`text-[11px] font-bold ${connected ? 'text-[#2E7D4F]' : 'text-[var(--ink-faint)]'}`}>
+        <span className={`text-[11px] font-bold ${connected ? 'text-[var(--success)]' : 'text-[var(--ink-faint)]'}`}>
           {connected ? 'Connected' : 'Not connected'}
         </span>
       </div>
@@ -187,7 +187,7 @@ function PaymentAccountCard({
       {connected ? (
         <div className="mt-3 space-y-1.5">
           {['Credentials valid', 'Authorization successful'].map((label) => (
-            <div key={label} className="flex items-center gap-2 text-[11px] text-[#2E7D4F]">
+            <div key={label} className="flex items-center gap-2 text-[11px] text-[var(--success)]">
               <Check size={12} strokeWidth={2.5} />
               {label}
             </div>
@@ -223,7 +223,7 @@ function PaymentAccountCard({
           {onCancel ? (
             <button
               type="button"
-              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-1.5 text-[11px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
               onClick={onCancel}
               disabled={connecting}
             >
@@ -234,7 +234,7 @@ function PaymentAccountCard({
           {connected ? (
             <button
               type="button"
-              className="rounded-[8px] border border-[#B3261E] px-3 py-1.5 text-[11px] font-bold text-[#B3261E] transition hover:bg-[#FBE4E2]"
+              className="rounded-[8px] border border-[var(--danger)] px-3 py-1.5 text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
               onClick={handleDisconnect}
             >
               Disconnect

@@ -9,7 +9,7 @@ function AuthBrandPanel() {
           <div className="font-display text-[15px] font-semibold leading-none text-white">
             Kodi
           </div>
-          <div className="mt-[6px] text-[9.5px] uppercase tracking-[0.04em] text-[var(--sidebar-ink-soft)]">
+          <div className="mt-[6px] text-[9.5px] uppercase tracking-[0.04em] text-[var(--brand-panel-soft)]">
             Rental Management
           </div>
         </div>
@@ -24,7 +24,7 @@ function AuthBrandPanel() {
           Every unit, tenant and shilling — accounted for automatically.
         </h1>
 
-        <p className="mt-[14px] max-w-[430px] text-[12px] leading-[1.6] text-[var(--sidebar-ink-soft)]">
+        <p className="mt-[14px] max-w-[430px] text-[12px] leading-[1.6] text-[var(--brand-panel-soft)]">
           Kodi replaces the physical rent book with automatic M-Pesa and bank
           matching, water billing, and SMS reminders for property owners.
         </p>
@@ -45,7 +45,7 @@ function FeatureStat({ title, label }) {
       <div className="font-mono text-[18px] font-semibold leading-none text-white">
         {title}
       </div>
-      <div className="mt-[5px] text-[9.5px] uppercase tracking-[0.04em] text-[var(--sidebar-ink-soft)]">
+      <div className="mt-[5px] text-[9.5px] uppercase tracking-[0.04em] text-[var(--brand-panel-soft)]">
         {label}
       </div>
     </div>

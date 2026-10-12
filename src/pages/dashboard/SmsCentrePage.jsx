@@ -36,10 +36,10 @@ import { formatDateTime, formatKES, formatNumber, formatPercent, toDateInput } f
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
 const smallButtonClass =
-  'rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]'
+  'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
 
 const textareaClass =
-  'w-full resize-none rounded-[8px] border border-[var(--line)] bg-white p-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]'
+  'w-full resize-none rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-[12px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]'
 
 const RECIPIENT_GROUPS = [
   ['all_active_tenants', 'All current tenants'],
@@ -62,6 +62,14 @@ function recipientTarget(sendTo) {
 
 const PLACEHOLDERS =
   '{name}, {house}, {property}, {balance}, {month}, {due_date}, {days_overdue}'
+
+// A message using any of these is a payment reminder. The backend does not
+// send one to a tenant who owes nothing.
+const MONEY_PLACEHOLDERS = ['{balance}', '{amount}', '{due_date}', '{days_overdue}']
+
+function isPaymentReminder(message) {
+  return MONEY_PLACEHOLDERS.some((placeholder) => message.includes(placeholder))
+}
 
 // accepted = the SMS provider took the message. Delivery to the handset is not tracked.
 const messageStatuses = {
@@ -170,7 +178,7 @@ function SmsCentrePage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Operations
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -191,7 +199,7 @@ function SmsCentrePage() {
       </div>
 
       {stats?.sms_mode === 'console' ? (
-        <p className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B8790E] bg-white px-4 py-3 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+        <p className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
           <strong>Test mode:</strong> messages are printed in the backend
           terminal and are not sent to any phone. They still appear here as
           accepted.
@@ -215,7 +223,7 @@ function SmsCentrePage() {
       </DataState>
 
       {scheduled.length ? (
-        <section className="mb-4 overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="mb-4 overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">Scheduled broadcasts</h3>
             <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
@@ -240,7 +248,7 @@ function SmsCentrePage() {
                     <td className="px-[18px] py-[13px] text-right">
                       <button
                         onClick={() => setCancelling(item)}
-                        className="rounded-[8px] border border-[#B3261E] bg-white px-3 py-2 text-[11px] font-bold text-[#B3261E]"
+                        className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
                       >
                         Cancel
                       </button>
@@ -254,7 +262,7 @@ function SmsCentrePage() {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">Recent messages</h3>
 
@@ -325,7 +333,7 @@ function SmsCentrePage() {
                               {item.message}
                             </div>
                             {item.provider_error ? (
-                              <div className="mt-[3px] max-w-[320px] text-[10px] text-[#B3261E]">
+                              <div className="mt-[3px] max-w-[320px] text-[10px] text-[var(--danger)]">
                                 {item.provider_error}
                               </div>
                             ) : null}
@@ -353,13 +361,13 @@ function SmsCentrePage() {
           </DataState>
         </section>
 
-        <section className="h-fit overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+        <section className="h-fit overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
             <h3 className="text-[12px] font-bold">Templates</h3>
 
             <button
               onClick={() => setTemplateForm({})}
-              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
             >
               <Plus size={14} />
               Create template
@@ -382,7 +390,7 @@ function SmsCentrePage() {
                 {templates.map((template) => (
                   <div
                     key={template.id}
-                    className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white p-4"
+                    className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] p-4"
                   >
                     <h4 className="text-[13px] font-bold">{template.name}</h4>
                     <p className="font-mono mt-[7px] text-[10px] leading-[1.6] text-[var(--ink-faint)]">
@@ -398,7 +406,7 @@ function SmsCentrePage() {
                       </button>
                       <button
                         onClick={() => setDeletingTemplate(template)}
-                        className="rounded-[8px] border border-red-500 bg-white px-3 py-2 text-[11px] font-bold text-red-600"
+                        className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
                       >
                         Delete
                       </button>
@@ -496,6 +504,27 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
   const parts = smsParts(form.message)
   const later = form.when === 'later'
 
+  // A payment reminder leaves out the selected tenants who owe nothing.
+  const reminder = isPaymentReminder(form.message)
+  const selected = estimate?.recipients || []
+  const reach = reminder ? selected.filter((tenant) => tenant.balance > 0).length : selected.length
+  const leftOut = selected.length - reach
+
+  let reachText = 'Working out who will receive this...'
+
+  if (estimate) {
+    reachText = `${reach} ${reach === 1 ? 'tenant' : 'tenants'}${later ? ' as of now' : ''} - approx. cost ${formatKES(reach * parts * estimate.cost_per_message)} at ${formatKES(estimate.cost_per_message)}/SMS`
+
+    if (leftOut > 0) {
+      reachText +=
+        selected.length === 1
+          ? `. ${selected[0].tenant_name} owes nothing, so this reminder will not be sent to them.`
+          : `. ${leftOut} of the ${selected.length} selected ${leftOut === 1 ? 'owes' : 'owe'} nothing and will not receive this reminder.`
+    }
+  } else if (estimateState.error) {
+    reachText = estimateState.error.message
+  }
+
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
   }
@@ -575,7 +604,10 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
               <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
                 Placeholders filled in per tenant: {PLACEHOLDERS}.{' '}
                 {form.message.length} characters, about {parts} SMS per tenant
-                before the placeholders are filled in.
+                before the placeholders are filled in. A message that uses
+                {' {balance}, {due_date} or {days_overdue} '}
+                is a payment reminder and is not sent to a tenant who owes
+                nothing.
               </p>
             </div>
 
@@ -638,14 +670,10 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
               </div>
             ) : null}
 
-            <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+            <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
               <h3 className="text-[14px] font-bold text-[var(--ink)]">Estimated reach</h3>
               <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-                {estimate
-                  ? `${estimate.recipient_count} ${estimate.recipient_count === 1 ? 'tenant' : 'tenants'}${later ? ' as of now' : ''} - approx. cost ${formatKES(estimate.recipient_count * parts * estimate.cost_per_message)} at ${formatKES(estimate.cost_per_message)}/SMS`
-                  : estimateState.error
-                    ? estimateState.error.message
-                    : 'Working out who will receive this...'}
+                {reachText}
               </p>
             </div>
           </div>
@@ -663,7 +691,7 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
           </button>
           <button
             type="submit"
-            disabled={saving || (!later && estimate?.recipient_count === 0)}
+            disabled={saving || (!later && Boolean(estimate) && reach === 0)}
             className={primaryButtonClass}
           >
             {saving ? 'Sending...' : later ? 'Schedule broadcast' : 'Send broadcast'}

@@ -8,6 +8,13 @@ export const PROPERTY_TYPES = [
   ['single_rooms', 'Single rooms'],
 ]
 
+// Saved in the browser, not in the backend.
+export const THEME_MODES = [
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+  ['system', 'Follow device'],
+]
+
 export const WATER_BILLING_METHODS = [
   ['per_unit_metered', 'Per-unit metered'],
   ['fixed_monthly', 'Fixed payment every month'],

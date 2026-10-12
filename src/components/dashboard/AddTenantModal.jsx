@@ -225,7 +225,7 @@ function MoveInSummary({ property, unit, moveInDate }) {
   const total = rows.reduce((sum, [, amount]) => sum + amount, 0)
 
   return (
-    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
       <h3 className="text-[13px] font-bold text-[var(--ink)]">
         Due at move-in for {unit.unit_number}
       </h3>

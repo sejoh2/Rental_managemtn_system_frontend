@@ -38,7 +38,7 @@ function NoAccessPage() {
 
         <section className="flex min-h-[620px] items-center justify-center px-6 py-12 sm:px-10 lg:min-h-[calc(100vh-34px)]">
           <div className="w-full max-w-[360px]">
-            <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+            <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
               {isCaretaker ? 'Caretaker account' : `${humanize(user.role)} account`}
             </div>
 
@@ -77,7 +77,7 @@ function NoAccessPage() {
             <button
               type="button"
               onClick={signOut}
-              className="mt-[10px] flex w-full items-center justify-center rounded-[8px] border border-[var(--line)] bg-white px-4 py-3 text-[12.5px] font-bold text-[var(--ink)]"
+              className="mt-[10px] flex w-full items-center justify-center rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[12.5px] font-bold text-[var(--ink)]"
             >
               Sign out
             </button>

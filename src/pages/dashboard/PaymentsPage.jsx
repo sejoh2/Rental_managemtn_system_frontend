@@ -74,7 +74,7 @@ function PaymentsPage() {
     <>
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+          <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
             Money
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
@@ -90,7 +90,7 @@ function PaymentsPage() {
           <button
             onClick={exportCsv}
             disabled={!payments.length || exporting}
-            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
           >
             <Download size={15} />
             {exporting ? 'Exporting...' : 'Export CSV'}
@@ -122,13 +122,13 @@ function PaymentsPage() {
             onClick={() => setSearchParams(key === 'all' ? {} : { tab: key })}
             className={`pb-[12px] text-[11px] font-bold ${
               activeTab === key
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--ink-faint)] hover:text-[var(--accent)]'
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent-ink)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {label}
             {key === 'unmatched' && unmatched.length ? (
-              <span className="ml-2 rounded-full bg-[#FBF0DA] px-[9px] py-[3px] text-[9px] text-[#B8790E]">
+              <span className="ml-2 rounded-full bg-[var(--warning-soft)] px-[9px] py-[3px] text-[9px] text-[var(--warning)]">
                 {unmatched.length}
               </span>
             ) : null}
@@ -201,7 +201,7 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
         ))}
       </div>
 
-      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+      <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
         <DataState
           state={paymentsState}
           loadingLabel="Loading payments..."
@@ -235,7 +235,7 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
                       <tr key={payment.id} className="border-b border-[var(--line-soft)] last:border-b-0">
                         <td className="px-[18px] py-[13px] text-[12px] font-bold">
                           {payment.tenant_id ? (
-                            <Link to={`/tenants/${payment.tenant_id}`} className="hover:text-[var(--accent)]">
+                            <Link to={`/tenants/${payment.tenant_id}`} className="hover:text-[var(--accent-ink)]">
                               {payerLabel(payment)}
                             </Link>
                           ) : (
@@ -261,7 +261,7 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
                           {payment.status === 'matched' ? (
                             <button
                               onClick={() => onReverse(payment)}
-                              className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold"
+                              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
                             >
                               {payment.payment_source === 'manual' ? 'Reverse' : 'Unassign'}
                             </button>
@@ -282,7 +282,7 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
 
 function UnmatchedView({ paymentsState, unmatched, onAssign }) {
   return (
-    <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
+    <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
       <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
         <h3 className="text-[12px] font-bold">Needs manual review</h3>
         <span className="text-[10px] text-[var(--ink-faint)]">
@@ -308,7 +308,7 @@ function UnmatchedView({ paymentsState, unmatched, onAssign }) {
             {unmatched.map((payment) => (
               <div
                 key={payment.id}
-                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -378,7 +378,7 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
     <ModalShell title="Assign payment to tenant" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-white px-4 py-4">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-[14px] font-bold">{paymentMethodLabel(payment)} from {payerLabel(payment)}</h3>
@@ -478,8 +478,8 @@ function ReversePaymentModal({ payment, onClose, onDone }) {
     <ModalShell title={manual ? 'Reverse payment' : 'Unassign payment'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[#B3261E] bg-white px-4 py-4">
-            <h3 className="text-[14px] font-bold text-[#B3261E]">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[14px] font-bold text-[var(--danger)]">
               {formatKES(payment.amount)} will be taken off {payment.tenant_name || 'the tenant'}'s account
             </h3>
             <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -515,7 +515,7 @@ function ReversePaymentModal({ payment, onClose, onDone }) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-[8px] border border-[#B3261E] bg-[#B3261E] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
+            className="rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
           >
             {saving ? 'Working...' : manual ? 'Reverse payment' : 'Unassign payment'}
           </button>

@@ -9,7 +9,7 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode, sending, error }) {
   return (
     <section className="flex min-h-[620px] items-center justify-center px-6 py-12 sm:px-10 lg:min-h-[calc(100vh-34px)]">
       <div className="w-full max-w-[360px]">
-        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
+        <div className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">
           Sign in
         </div>
 
@@ -25,7 +25,7 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode, sending, error }) {
         <div className="mb-[26px] rounded-[9px] bg-[var(--line-soft)] p-[3px]">
           <button
             type="button"
-            className="w-full rounded-[7px] bg-white px-3 py-[9px] text-[11.5px] font-bold text-[var(--ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+            className="w-full rounded-[7px] bg-[var(--surface)] px-3 py-[9px] text-[11.5px] font-bold text-[var(--ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
           >
             Owner / Landlord
           </button>
@@ -36,7 +36,7 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode, sending, error }) {
             Phone number
           </label>
 
-          <div className="flex overflow-hidden rounded-[9px] border border-[var(--line)] bg-white">
+          <div className="flex overflow-hidden rounded-[9px] border border-[var(--line)] bg-[var(--surface)]">
             <div className="flex items-center border-r border-[var(--line)] bg-[var(--bg)] px-3 text-[12px] font-bold text-[var(--ink-soft)]">
               KE +254
             </div>
@@ -72,7 +72,7 @@ function PhoneSignInForm({ phone, onPhoneChange, onSendCode, sending, error }) {
 
           <p className="mt-6 text-center text-[11px] text-[var(--ink-faint)]">
             Need access?{' '}
-            <span className="font-bold text-[var(--accent)]">
+            <span className="font-bold text-[var(--accent-ink)]">
               Contact system admin
             </span>
           </p>
