@@ -109,7 +109,7 @@ Other additions: property edit, change or remove a payment account, caretaker cr
 | 8 | Expenses | Done, but see section 6: tenant charges come next |
 | 9 | Maintenance | Done as part of tenant charges (section 6, part C). No assigning to a caretaker from the screen yet |
 | 10 | Caretakers | Built 2026-10-12, awaiting the user's test. See "Caretaker rules" below |
-| 11 | SMS centre | Not started. Uses `src/data/smsCentreData.js` |
+| 11 | SMS centre | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "SMS rules" below |
 | 12 | Reports | Not started. Uses `src/data/reportsData.js`. Must add electricity to income |
 | 13 | Dashboard home | Not started. Uses `src/data/dashboardData.js`. Top-bar property select and search are still static |
 | 14 | Settings | Not started. Hard-coded data inside `SettingsPage.jsx`. Reuse `WaterRulesModal` |
@@ -124,6 +124,18 @@ Caretaker rules (decided by the user on 2026-10-12):
 - Any assigned caretaker may enter electricity bills.
 - The Caretakers page lists one row per caretaker (grouped in the frontend from `GET /api/caretakers`, which returns one row per assignment). The Maintenance update form can assign a request to the property's caretaker.
 - Caretakers still have no screens of their own in this web app (`NoAccessPage`); these are backend permissions for the later caretaker app.
+
+SMS rules (decided by the user on 2026-10-12):
+
+- SMS stays manual: no automatic payment confirmations or rent reminders for now. The Settings toggles `notify_payment_received` and `auto_rent_reminder` still do nothing.
+- A scheduled broadcast stores only its selection. Recipients and balances are worked out when it is sent (`sms_broadcasts.messages_created_at` is null until then).
+- Every owner gets four starter templates the first time their templates are listed (`sms_template_seeds` records that it was done).
+- Broadcasts go to tenants who are active or on notice. `{due_date}` prints as `5 Oct 2026`, `{balance}` as `2,500`; both come from SQL in Kenyan time, which fixed the one-day-early bug.
+- `sms_messages.broadcast_id` is nullable: single system messages (the repair charge notice, via `send_single_sms`) are in the same history and can be retried.
+- **Nothing is sent automatically, including the repair charge notice.** The user changed this on 2026-10-12: the owner or caretaker clicks "Send SMS" on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`, sets `charge_sms_sent_at`, can be repeated). This replaces the earlier "an SMS tells them" rule in section 6.
+- "Send to" in New broadcast is a searchable dropdown (`components/common/SearchableSelect.jsx`) listing groups, each property and every current tenant, so one tenant can be messaged (`recipient_group: specific_tenant`).
+- "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part.
+- All SMS actions were already audited in `sms_controller.js`.
 
 Branch state at handoff: both repos are on `feature/water-expenses`. The last commit covers water billing and expenses. Uncommitted on top of it: backend CSV exports, the expense category filter, the database pool cap, and this file. Maintenance and Caretakers are the next pair and should get a new branch.
 
@@ -204,6 +216,5 @@ Technical notes for the build:
 - **Expenses** have no Edit (void and re-add) and cannot be tied to a unit.
 - **Units:** a house number cannot be reused after its unit is archived; there is no "Single room" type.
 - **Assigning a payment** with "remember this number" and later unassigning it leaves the tenant with the new phone number.
-- **SMS module** formats dates with `toISOString`, so due dates in messages can be one day early. Fix when wiring the SMS centre.
 - **`OTP_EXPIRES_MINUTES`** is 120 in the backend `.env`; the user may have meant 5.
 - **`PUBLIC_API_URL`** must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.

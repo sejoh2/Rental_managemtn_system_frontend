@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { listMaintenance, reportMaintenance, updateMaintenance } from '../../api/maintenance'
+import {
+  listMaintenance,
+  reportMaintenance,
+  sendRepairChargeSms,
+  updateMaintenance,
+} from '../../api/maintenance'
 import { listUnits } from '../../api/units'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
@@ -16,7 +21,7 @@ import {
 import StatusBadge from '../../components/common/StatusBadge'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
-import { formatDate, formatKES } from '../../utils/format'
+import { formatDate, formatDateTime, formatKES } from '../../utils/format'
 import {
   MAINTENANCE_CATEGORIES,
   MAINTENANCE_PRIORITIES,
@@ -368,6 +373,25 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // When the tenant was last sent an SMS about the charge; updated when "Send SMS" is clicked.
+  const [smsSentAt, setSmsSentAt] = useState(request.charge_sms_sent_at)
+  const [sendingSms, setSendingSms] = useState(false)
+
+  async function sendSms() {
+    setSendingSms(true)
+    setError(null)
+
+    try {
+      const updated = await sendRepairChargeSms(request.id)
+
+      setSmsSentAt(updated.charge_sms_sent_at)
+      onDone()
+    } catch (sendError) {
+      setError(sendError)
+    } finally {
+      setSendingSms(false)
+    }
+  }
 
   const resolving = form.status === 'resolved'
   const cost = Number(form.actual_cost) || 0
@@ -542,9 +566,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
                 {costRecorded ? (
                   <>
                     <strong>{formatKES(request.actual_cost)} was recorded as an expense</strong>
-                    {request.tenant_charge_id
-                      ? ' and charged to the tenant, who was told by SMS.'
-                      : '.'}{' '}
+                    {request.tenant_charge_id ? ' and charged to the tenant.' : '.'}{' '}
                     The cost can no longer be changed here.
                   </>
                 ) : cost > 0 ? (
@@ -552,7 +574,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
                     <strong>When you save:</strong> {formatKES(cost)} is recorded as a
                     repairs expense for {request.property_name}.{' '}
                     {canChargeTenant && form.charge_to_tenant
-                      ? `${request.unit_tenant_name} is also charged ${formatKES(cost)} and told by SMS. They can pay it during their stay; anything unpaid is deducted from their deposit at move-out.`
+                      ? `${request.unit_tenant_name} is also charged ${formatKES(cost)}. They can pay it during their stay; anything unpaid is deducted from their deposit at move-out. No SMS is sent automatically: open this request again and click "Send SMS" to tell them.`
                       : 'The tenant is not charged.'}{' '}
                     The cost cannot be changed afterwards.
                   </>
@@ -560,6 +582,24 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
                   'Enter the actual cost to record it as an expense. Without a cost, nothing is recorded in Expenses.'
                 )}
               </p>
+
+              {request.tenant_charge_id ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-soft)] pt-3">
+                  <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                    {smsSentAt
+                      ? `SMS about this charge sent to the tenant on ${formatDateTime(smsSentAt)}.`
+                      : 'The tenant has not been sent an SMS about this charge.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={sendSms}
+                    disabled={sendingSms}
+                    className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                  >
+                    {sendingSms ? 'Sending...' : smsSentAt ? 'Send SMS again' : 'Send SMS'}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
