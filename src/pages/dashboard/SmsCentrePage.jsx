@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import {
@@ -131,6 +131,22 @@ function SmsCentrePage() {
     reloadActivity()
     setTimeout(reloadActivity, 2500)
   }
+
+  // The provider can take several seconds; keep looking while anything is still queued.
+  const waiting = (messagesState.data || []).some((message) => message.status === 'queued')
+  const reloadMessages = messagesState.reload
+  const reloadStats = statsState.reload
+
+  useEffect(() => {
+    if (!waiting) return undefined
+
+    const timer = setInterval(() => {
+      reloadMessages()
+      reloadStats()
+    }, 3000)
+
+    return () => clearInterval(timer)
+  }, [waiting, reloadMessages, reloadStats])
 
   async function retry(message) {
     setActionError(null)
