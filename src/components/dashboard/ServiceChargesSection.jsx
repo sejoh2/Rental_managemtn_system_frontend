@@ -356,7 +356,7 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
               were already billed is not changed.
             </p>
           ) : (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
               {form.frequency === 'monthly' ? (
                 <>
                   <strong>When you add this charge:</strong>{' '}

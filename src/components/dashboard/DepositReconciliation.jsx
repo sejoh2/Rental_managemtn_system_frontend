@@ -240,7 +240,7 @@ function OpenReconciliation({ tenant, data, onChanged }) {
 
       <div className="px-[18px] py-4">
         {result ? (
-          <div className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3">
+          <div className="mb-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
             <Row label="Deposits held" value={formatKES(result.deposits_held)} />
             {result.credit_held > 0 ? (
               <Row label="Credit held" value={formatKES(result.credit_held)} />

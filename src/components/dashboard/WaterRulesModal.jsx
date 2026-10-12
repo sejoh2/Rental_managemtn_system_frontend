@@ -210,7 +210,7 @@ function WaterRulesForm({ property, onClose, onSaved }) {
             </label>
 
             {metered ? (
-              <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+              <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[var(--ink)]">Flag suspicious readings</h3>
                 <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
                   Kodi already flags any reading lower than the previous one so

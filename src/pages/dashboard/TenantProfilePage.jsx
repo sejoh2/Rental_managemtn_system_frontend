@@ -799,7 +799,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
             />
           </div>
 
-          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[13px] font-bold text-[var(--ink)]">Deposits</h3>
             <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               Nothing is refunded or deducted at this step. After the
@@ -811,7 +811,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
           </div>
 
           {estimate ? (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
               <h3 className="text-[13px] font-bold text-[var(--ink)]">Final month</h3>
               <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
                 {estimate.prorated
@@ -990,7 +990,7 @@ function SectionLine({ title }) {
 
 function IdentityCard({ title, value, badge, blue }) {
   return (
-    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
       <div className="flex justify-between gap-4">
         <div>
           <h4 className="text-[13px] font-bold">{title}</h4>

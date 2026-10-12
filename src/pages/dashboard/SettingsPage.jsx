@@ -420,7 +420,7 @@ function PaymentAccountsTab({ property, onSaved }) {
         {accounts.map(([name, account, missing]) => (
           <div
             key={name}
-            className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] px-4 py-4"
+            className="rounded-[8px] border border-[var(--line)] px-4 py-4"
           >
             <div className="flex justify-between gap-3">
               <div>

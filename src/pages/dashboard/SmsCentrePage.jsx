@@ -390,7 +390,7 @@ function SmsCentrePage() {
                 {templates.map((template) => (
                   <div
                     key={template.id}
-                    className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] p-4"
+                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4"
                   >
                     <h4 className="text-[13px] font-bold">{template.name}</h4>
                     <p className="font-mono mt-[7px] text-[10px] leading-[1.6] text-[var(--ink-faint)]">
@@ -670,7 +670,7 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
               </div>
             ) : null}
 
-            <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+            <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
               <h3 className="text-[14px] font-bold text-[var(--ink)]">Estimated reach</h3>
               <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
                 {reachText}

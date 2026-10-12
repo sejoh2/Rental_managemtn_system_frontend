@@ -262,7 +262,7 @@ function PaymentAccount({ account, badge, tone }) {
   const numberLabel = account?.account_type === 'till' ? 'Till' : 'Paybill'
 
   return (
-    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+    <div className="mb-[10px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h4 className="text-[13px] font-bold">

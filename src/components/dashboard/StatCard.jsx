@@ -7,8 +7,6 @@ function StatCard({ label, value, note, tone }) {
 
   return (
     <article className="relative overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)] px-[18px] py-4">
-      <div className="absolute bottom-[14px] left-0 top-[14px] w-[3px] rounded-r bg-[var(--accent)]" />
-
       <div className="text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--ink-soft)]">
         {label}
       </div>

@@ -436,7 +436,7 @@ function TemplateForm({ target, template, usingDefault, onClose, onChanged }) {
     <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
       <ModalBody>
         {target ? (
-          <div className="mb-[16px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-3">
+          <div className="mb-[16px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
             <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               {usingDefault
                 ? 'This property uses the default template. Saving here gives it its own.'

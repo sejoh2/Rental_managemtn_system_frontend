@@ -419,7 +419,7 @@ function SectionTitle({ title }) {
 
 function CurrentAccount({ title, account, onChange, removable, removing, onToggleRemove }) {
   return (
-    <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+    <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
       <div>
         <h4 className="text-[13px] font-bold">{title}</h4>
         <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">

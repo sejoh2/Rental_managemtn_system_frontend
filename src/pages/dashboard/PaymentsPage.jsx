@@ -308,7 +308,7 @@ function UnmatchedView({ paymentsState, unmatched, onAssign }) {
             {unmatched.map((payment) => (
               <div
                 key={payment.id}
-                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -378,7 +378,7 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
     <ModalShell title="Assign payment to tenant" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-[14px] font-bold">{paymentMethodLabel(payment)} from {payerLabel(payment)}</h3>

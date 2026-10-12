@@ -164,7 +164,7 @@ function MaintenancePage() {
             {shown.map((request) => (
               <article
                 key={request.id}
-                className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-5 py-4 transition hover:-translate-y-[1px] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]"
+                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-5 py-4 transition hover:-translate-y-[1px] hover:shadow-[0_10px_24px_rgba(32,28,24,0.06)]"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -532,7 +532,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
           </div>
 
           {resolving ? (
-            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--accent-soft-line)] bg-[var(--surface)] px-4 py-4">
+            <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
               {canChargeTenant ? (
                 <label className={`flex items-start gap-3 ${costRecorded ? '' : 'cursor-pointer'}`}>
                   <input
