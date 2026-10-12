@@ -1,10 +1,16 @@
-import { api } from './client'
+import { api, download } from './client'
 
 // Every payment of the owner, newest first, each with applied_to allocations.
 export async function listPayments() {
   const { data } = await api.get('/api/payments')
 
   return data
+}
+
+// Saves every payment as a CSV file built by the backend; the export is recorded in the audit log.
+// filters: { property_id?, status?, from_date?, to_date? }
+export function exportPayments(filters) {
+  return download('/api/payments/export', { query: filters, filename: 'payments.csv' })
 }
 
 // -> { received_today, received_today_count, auto_match_rate, unmatched_count }

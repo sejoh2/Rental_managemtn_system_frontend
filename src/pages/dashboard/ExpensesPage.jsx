@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus } from 'lucide-react'
-import { createExpense, getExpenseSummary, listExpenses, voidExpense } from '../../api/expenses'
+import { Download, Plus } from 'lucide-react'
+import {
+  createExpense,
+  exportExpenses,
+  getExpenseSummary,
+  listExpenses,
+  voidExpense,
+} from '../../api/expenses'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -31,14 +37,33 @@ function ExpensesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [voiding, setVoiding] = useState(null)
 
-  // Filters live in the URL: /expenses?property=1&month=2026-10
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState(null)
+
+  // Filters live in the URL: /expenses?property=1&month=2026-10&category=security
   const propertyId = searchParams.get('property') || ''
+  const category = searchParams.get('category') || ''
   const month = searchParams.get('month') || toDateInput().slice(0, 7)
   const filters = { property_id: propertyId, ...monthRange(month) }
+  // The category narrows the list and the export; the month summary always covers every category.
+  const listFilters = { ...filters, category }
   const key = `${propertyId || 'all'}-${month}`
 
-  const expensesState = useApi(`expenses-${key}`, () => listExpenses(filters))
+  const expensesState = useApi(`expenses-${key}-${category}`, () => listExpenses(listFilters))
   const summaryState = useApi(`expense-summary-${key}`, () => getExpenseSummary(filters))
+
+  async function exportCsv() {
+    setExporting(true)
+    setExportError(null)
+
+    try {
+      await exportExpenses(listFilters)
+    } catch (error) {
+      setExportError(error)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function setParam(name, value) {
     const next = new URLSearchParams(searchParams)
@@ -90,6 +115,18 @@ function ExpensesPage() {
             ))}
           </select>
 
+          <select
+            value={category}
+            onChange={(event) => setParam('category', event.target.value)}
+            aria-label="Category"
+            className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
+          >
+            <option value="">All categories</option>
+            {EXPENSE_CATEGORIES.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
           <input
             type="month"
             value={month}
@@ -98,6 +135,15 @@ function ExpensesPage() {
             aria-label="Month"
             className="rounded-[8px] border border-[var(--line)] bg-white px-3 py-[10px] text-[12px] font-bold"
           />
+
+          <button
+            onClick={exportCsv}
+            disabled={exporting || !expensesState.data?.length}
+            className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+          >
+            <Download size={15} />
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </button>
 
           <button
             onClick={() => setAddOpen(true)}
@@ -110,6 +156,12 @@ function ExpensesPage() {
         </div>
       </div>
 
+      {exportError ? (
+        <div className="mb-4">
+          <FormError error={exportError} />
+        </div>
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-white">
           <DataState
@@ -118,7 +170,7 @@ function ExpensesPage() {
             isEmpty={(expenses) => !expenses.length}
             empty={
               <EmptyState
-                title={`No expenses in ${formatMonth(`${month}-01`)}`}
+                title={`No ${category ? `${optionLabel(EXPENSE_CATEGORIES, category).toLowerCase()} ` : ''}expenses in ${formatMonth(`${month}-01`)}`}
                 message="Add repairs, security, garbage and other running costs to see the real profit for the month."
               />
             }

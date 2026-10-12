@@ -1,10 +1,15 @@
-import { api } from './client'
+import { api, download } from './client'
 
 // filters: { property_id?, category?, status?, from_date?, to_date? }
 export async function listExpenses(filters) {
   const { data } = await api.get('/api/expenses', filters)
 
   return data
+}
+
+// Saves the matching expenses as a CSV file built by the backend; the export is recorded in the audit log.
+export function exportExpenses(filters) {
+  return download('/api/expenses/export', { query: filters, filename: 'expenses.csv' })
 }
 
 // Income excludes deposits. filters: { property_id?, from_date?, to_date? }

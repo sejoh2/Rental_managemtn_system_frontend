@@ -11,6 +11,7 @@ import {
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
+  SERVICE_CHARGE_ACCOUNTS,
   WATER_BILLING_METHODS,
 } from '../../utils/labels';
 import {
@@ -29,9 +30,11 @@ const inputClass =
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]';
 
 // Water and electricity can each have their own account, or be paid through the rent account.
+// Service charges can also have an account of their own, or be paid into one of the others.
 const optionalAccounts = [
   ['water', 'Water account'],
   ['electricity', 'Electricity account'],
+  ['service', 'Service charges account'],
 ];
 
 function AddPropertyModal({ open, onClose }) {
@@ -59,13 +62,19 @@ function AddPropertyForm({ onClose }) {
     water_billing_method: 'per_unit_metered',
     water_rate_per_unit: '',
     water_fixed_fee: '',
+    service_charge_account: 'rent',
   });
   const [accounts, setAccounts] = useState({
     rent: emptyAccount,
     water: emptyAccount,
     electricity: emptyAccount,
+    service: emptyAccount,
   });
-  const [separateAccount, setSeparateAccount] = useState({ water: true, electricity: false });
+  const [separateAccount, setSeparateAccount] = useState({
+    water: true,
+    electricity: false,
+    service: false,
+  });
   const [caretaker, setCaretaker] = useState(emptyCaretaker);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -75,6 +84,16 @@ function AddPropertyForm({ onClose }) {
   const existingCaretakers = uniqueCaretakers(caretakers.data);
   const rentDueDay =
     form.rent_due_day || String(settings.data?.defaults.default_rent_due_day || 5);
+
+  // Service charges can be paid into the rent account or any separate account being added.
+  const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
+    ([accountFor]) => accountFor === 'rent' || separateAccount[accountFor]
+  );
+  const serviceChargeAccount = serviceChargeAccounts.some(
+    ([accountFor]) => accountFor === form.service_charge_account
+  )
+    ? form.service_charge_account
+    : 'rent';
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -108,7 +127,9 @@ function AddPropertyForm({ onClose }) {
         message:
           notConnected === 'rent'
             ? 'Connect the rent account before adding the property.'
-            : `Connect the ${notConnected} account, or choose to pay ${notConnected} through the rent account.`,
+            : notConnected === 'service'
+              ? 'Connect the service charges account, or remove it.'
+              : `Connect the ${notConnected} account, or choose to pay ${notConnected} through the rent account.`,
       });
       return;
     }
@@ -154,6 +175,8 @@ function AddPropertyForm({ onClose }) {
         electricity_connection_id: separateAccount.electricity
           ? accounts.electricity.connectionId
           : null,
+        service_connection_id: separateAccount.service ? accounts.service.connectionId : null,
+        service_charge_account: serviceChargeAccount,
       });
     } catch (createError) {
       setError(createError);
@@ -387,7 +410,7 @@ function AddPropertyForm({ onClose }) {
                     onChange={(patch) => patchAccount(accountFor, patch)}
                     propertyName={form.name}
                     callbackNote="Payment callbacks are registered with Safaricom when you add the property."
-                    cancelLabel="Use the rent account instead"
+                    cancelLabel={accountFor === 'service' ? 'Remove this account' : 'Use the rent account instead'}
                     onCancel={() => {
                       patchAccount(accountFor, emptyAccount);
                       setSeparateAccount((current) => ({ ...current, [accountFor]: false }));
@@ -401,7 +424,9 @@ function AddPropertyForm({ onClose }) {
                     <div>
                       <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
                       <p className="mt-[4px] text-[11px] text-[var(--ink-faint)]">
-                        No separate account - {accountFor} is paid through the rent account.
+                        {accountFor === 'service'
+                          ? 'No separate account - service charges are paid into the account chosen below.'
+                          : `No separate account - ${accountFor} is paid through the rent account.`}
                       </p>
                     </div>
 
@@ -410,11 +435,31 @@ function AddPropertyForm({ onClose }) {
                       onClick={() => setSeparateAccount((current) => ({ ...current, [accountFor]: true }))}
                       className="shrink-0 rounded-[8px] border border-[var(--line)] bg-white px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent)]"
                     >
-                      Add {accountFor} account
+                      Add {accountFor === 'service' ? 'service charges' : accountFor} account
                     </button>
                   </div>
                 )
               )}
+
+              <div className="mb-4">
+                <label className={labelClass}>Service charges and repairs are paid into</label>
+                <select
+                  value={serviceChargeAccount}
+                  onChange={setField('service_charge_account')}
+                  className={inputClass}
+                >
+                  {serviceChargeAccounts.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                  Service charges are costs you pass on to tenants, such as
+                  garbage or security. You add them on the Properties page
+                  after the property is created. Money paid into the account
+                  chosen here settles that account&apos;s own bills first,
+                  then service charges.
+                </p>
+              </div>
 
               {/* Water Billing Section */}
               <SectionTitle title="Water billing" className="mt-[6px]" />

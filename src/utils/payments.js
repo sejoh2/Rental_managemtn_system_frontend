@@ -13,12 +13,14 @@ export const PAYMENT_ACCOUNTS = [
   ['rent', 'Rent'],
   ['water', 'Water'],
   ['electricity', 'Electricity'],
+  ['service', 'Service charges'],
 ]
 
 export const PAYMENT_ACCOUNT_HINTS = {
-  rent: 'Settles the rent deposit first, then rent. It also covers the water and electricity deposits and bills, but only if this property has no separate account for them.',
-  water: 'Settles the water deposit and water bills only.',
-  electricity: 'Settles the electricity deposit and electricity bills only.',
+  rent: 'Settles the rent deposit first, then rent. It also covers the water and electricity deposits and bills, but only if this property has no separate account for them, and service charges if the property has them paid into the rent account.',
+  water: 'Settles the water deposit and water bills, and service charges if the property has them paid into the water account.',
+  electricity: 'Settles the electricity deposit and electricity bills, and service charges if the property has them paid into the electricity account.',
+  service: 'Settles service charges, such as garbage or security, and repairs charged to the tenant.',
 }
 
 // "M-Pesa · auto-matched", "Cash · recorded manually"

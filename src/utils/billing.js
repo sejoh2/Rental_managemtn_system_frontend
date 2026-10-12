@@ -63,11 +63,13 @@ const chargeNames = {
   electricity_deposit: 'Electricity deposit',
 }
 
-// "Rent - Oct 2026", "Rent deposit"
+// "Rent - Oct 2026", "Rent deposit", "Garbage - Oct 2026", "Gate remote"
 export function chargeLabel(charge) {
-  const name = chargeNames[charge.charge_type] || charge.charge_type
+  // Service charges and repairs carry their own name.
+  const name = charge.description || chargeNames[charge.charge_type] || charge.charge_type
 
-  return charge.charge_type.endsWith('deposit')
+  // Deposits and one-off charges are not billed for a month; the backend dates them 1970.
+  return new Date(charge.billing_period).getFullYear() <= 1970
     ? name
     : `${name} - ${formatMonth(charge.billing_period)}`
 }

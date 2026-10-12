@@ -13,6 +13,7 @@ import {
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
+  SERVICE_CHARGE_ACCOUNTS,
   paymentAccountTypeLabel,
 } from '../../utils/labels'
 import {
@@ -29,6 +30,7 @@ const accountSlots = [
   ['rent', 'Rent account'],
   ['water', 'Water account'],
   ['electricity', 'Electricity account'],
+  ['service', 'Service charges account'],
 ]
 
 function EditPropertyModal({ open, property, ...props }) {
@@ -50,6 +52,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     move_in_billing: property.move_in_billing,
     move_out_billing: property.move_out_billing,
     sms_sender_id: property.sms_sender_id || '',
+    service_charge_account: property.service_charge_account || 'rent',
   })
   const [caretaker, setCaretaker] = useState(
     currentCaretaker
@@ -62,18 +65,37 @@ function EditPropertyForm({ property, onClose, onSaved }) {
       : emptyCaretaker
   )
   // A new account form is shown only for the accounts the owner chose to change.
-  const [changing, setChanging] = useState({ rent: false, water: false, electricity: false })
+  const [changing, setChanging] = useState({
+    rent: false,
+    water: false,
+    electricity: false,
+    service: false,
+  })
   const [accounts, setAccounts] = useState({
     rent: emptyAccount,
     water: emptyAccount,
     electricity: emptyAccount,
+    service: emptyAccount,
   })
   // Optional accounts the owner marked for removal; applied on save.
-  const [removing, setRemoving] = useState({ water: false, electricity: false })
+  const [removing, setRemoving] = useState({ water: false, electricity: false, service: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
   const existingCaretakers = uniqueCaretakers(caretakers.data)
+
+  // Service charges can be paid into any account the property has, or is getting in this save.
+  const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
+    ([accountFor]) =>
+      accountFor === 'rent' ||
+      changing[accountFor] ||
+      (property[`${accountFor}_account`] && !removing[accountFor])
+  )
+  const serviceChargeAccount = serviceChargeAccounts.some(
+    ([accountFor]) => accountFor === form.service_charge_account
+  )
+    ? form.service_charge_account
+    : 'rent'
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -161,7 +183,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
       })
       saved.push('property details')
 
-      for (const accountFor of ['water', 'electricity']) {
+      for (const accountFor of ['water', 'electricity', 'service']) {
         if (removing[accountFor] && !changing[accountFor]) {
           await removePaymentAccount(property.id, accountFor)
           saved.push(`${accountFor} account removal`)
@@ -173,6 +195,12 @@ function EditPropertyForm({ property, onClose, onSaved }) {
         await replacePaymentAccount(property.id, accountFor, accounts[accountFor].connectionId)
         saved.push(`${accountFor} account`)
         setChanging((current) => ({ ...current, [accountFor]: false }))
+      }
+
+      // Saved after the accounts, because the chosen account must already exist.
+      if (serviceChargeAccount !== property.service_charge_account) {
+        await updateProperty(property.id, { service_charge_account: serviceChargeAccount })
+        saved.push('service charge account choice')
       }
 
       await saveCaretaker()
@@ -305,6 +333,20 @@ function EditPropertyForm({ property, onClose, onSaved }) {
               through the rent account unless they have their own.
             </p>
 
+            <SelectField
+              label="Service charges and repairs are paid into"
+              value={serviceChargeAccount}
+              onChange={setField('service_charge_account')}
+              options={serviceChargeAccounts}
+            />
+
+            <p className="-mt-2 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+              Money paid into this account settles that account&apos;s own
+              bills first, then service charges such as garbage or security.
+              To use a separate account just for them, add a service charges
+              account below and choose it here.
+            </p>
+
             {accountSlots.map(([accountFor, title]) =>
               changing[accountFor] ? (
                 <PaymentAccountCard
@@ -385,7 +427,9 @@ function CurrentAccount({ title, account, onChange, removable, removing, onToggl
             ? `${paymentAccountTypeLabel(account)} ${account.business_number} - ${humanize(account.environment)}`
             : title === 'Rent account'
               ? 'Not connected'
-              : 'No separate account - paid through the rent account'}
+              : title === 'Service charges account'
+                ? 'No separate account'
+                : 'No separate account - paid through the rent account'}
         </p>
 
         {removing ? (

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
-import { listPayments, matchPayment, reversePayment } from '../../api/payments'
+import { exportPayments, listPayments, matchPayment, reversePayment } from '../../api/payments'
 import { listTenants } from '../../api/tenants'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
@@ -19,14 +19,12 @@ import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import StatCard from '../../components/dashboard/StatCard'
 import { usePaymentStats } from '../../context/PaymentStatsContext'
 import { useApi } from '../../hooks/useApi'
-import { downloadCsv } from '../../utils/csv'
 import {
   formatDateTime,
   formatKES,
   formatPercent,
   formatPhone,
   humanize,
-  toDateInput,
 } from '../../utils/format'
 import { appliedToLabel, paymentMethodLabel, paymentStatus } from '../../utils/payments'
 import { isCurrentTenant } from '../../utils/tenantStatus'
@@ -46,6 +44,8 @@ function PaymentsPage() {
   const [assigning, setAssigning] = useState(null)
   const [reversing, setReversing] = useState(null)
   const [recordOpen, setRecordOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState(null)
 
   // The tab lives in the URL so other pages can link straight to /payments?tab=unmatched.
   const activeTab = searchParams.get('tab') === 'unmatched' ? 'unmatched' : 'all'
@@ -57,22 +57,17 @@ function PaymentsPage() {
     statsState.reload()
   }
 
-  function exportCsv() {
-    downloadCsv(
-      `payments-${toDateInput()}.csv`,
-      ['Date', 'Tenant / payer', 'Unit', 'Amount (KES)', 'Method', 'For', 'Applied to', 'Reference', 'Status'],
-      payments.map((payment) => [
-        formatDateTime(payment.received_at),
-        payment.tenant_name || formatPhone(payment.payer_phone, ''),
-        payment.unit_number || '',
-        payment.amount,
-        paymentMethodLabel(payment),
-        humanize(payment.account_for, ''),
-        appliedToLabel(payment),
-        payment.provider_transaction_id || payment.reference || '',
-        paymentStatus(payment).label,
-      ])
-    )
+  async function exportCsv() {
+    setExporting(true)
+    setExportError(null)
+
+    try {
+      await exportPayments()
+    } catch (error) {
+      setExportError(error)
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -94,11 +89,11 @@ function PaymentsPage() {
         <div className="flex flex-wrap gap-[10px]">
           <button
             onClick={exportCsv}
-            disabled={!payments.length}
+            disabled={!payments.length || exporting}
             className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-white px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
           >
             <Download size={15} />
-            Export CSV
+            {exporting ? 'Exporting...' : 'Export CSV'}
           </button>
 
           <button
@@ -110,6 +105,12 @@ function PaymentsPage() {
           </button>
         </div>
       </div>
+
+      {exportError ? (
+        <div className="mb-4">
+          <FormError error={exportError} />
+        </div>
+      ) : null}
 
       <div className="mb-[18px] flex gap-7 border-b border-[var(--line)]">
         {[

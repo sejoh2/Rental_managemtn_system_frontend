@@ -5,12 +5,14 @@ import { archiveProperty } from '../../api/properties'
 import { DataState, EmptyState } from '../../components/common/DataState'
 import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
+import ServiceChargesSection from '../../components/dashboard/ServiceChargesSection'
 import { useProperties } from '../../context/PropertiesContext'
 import { formatKESCompact, humanize } from '../../utils/format'
 import {
   MOVE_IN_BILLING,
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
+  SERVICE_CHARGE_ACCOUNTS,
   optionLabel,
   paymentAccountTypeLabel,
   rentDueDayLabel,
@@ -131,6 +133,10 @@ function PropertiesPage({ onAddProperty }) {
                     ['Mid-month move-out', optionLabel(MOVE_OUT_BILLING, selectedProperty.move_out_billing)],
                     ['Assigned caretaker', selectedProperty.caretaker?.full_name || 'Not assigned'],
                     ['Water billing', waterBillingLabel(selectedProperty)],
+                    [
+                      'Service charges paid into',
+                      optionLabel(SERVICE_CHARGE_ACCOUNTS, selectedProperty.service_charge_account),
+                    ],
                     ['SMS sender ID', selectedProperty.sms_sender_id || '-'],
                   ].map(([label, value]) => (
                     <div
@@ -158,9 +164,18 @@ function PropertiesPage({ onAddProperty }) {
                     badge="Electricity"
                     tone="water"
                   />
+                  {selectedProperty.service_account ? (
+                    <PaymentAccount
+                      account={selectedProperty.service_account}
+                      badge="Service charges"
+                      tone="water"
+                    />
+                  ) : null}
                 </div>
               </div>
             </section>
+
+            <ServiceChargesSection key={selectedProperty.id} property={selectedProperty} />
           </>
         )}
       </DataState>

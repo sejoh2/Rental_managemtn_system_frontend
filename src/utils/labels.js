@@ -64,6 +64,19 @@ export const EXPENSE_CATEGORIES = [
   ['other', 'Other'],
 ]
 
+export const SERVICE_CHARGE_FREQUENCIES = [
+  ['monthly', 'Every month, with rent'],
+  ['once', 'One-off - billed once per tenant'],
+]
+
+// Where tenants pay service charges and repairs, by the property's service_charge_account.
+export const SERVICE_CHARGE_ACCOUNTS = [
+  ['rent', 'Rent account'],
+  ['water', 'Water account'],
+  ['electricity', 'Electricity account'],
+  ['service', 'Their own account'],
+]
+
 export const PERMISSION_LEVELS = [
   ['level_1', 'Level 1 - View tenants, submit readings & reports'],
   ['level_2', 'Level 2 - Also add / edit tenants'],
