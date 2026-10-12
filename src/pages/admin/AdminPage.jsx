@@ -29,8 +29,6 @@ function AdminPage() {
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
         <span>KODI - System Administration</span>
-
-        <span className="proto-pill">{meta.title}</span>
       </div>
 
       <div className="flex min-h-screen pt-[34px]">

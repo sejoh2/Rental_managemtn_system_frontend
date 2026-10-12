@@ -1,7 +1,7 @@
 # Kodi: frontend–backend integration handoff
 
-Read this before doing anything. It replaces the earlier conversation, which is too long to load.
-Last updated 2026-10-12.
+Read this before doing anything. It replaces the earlier conversations, which are too long to load.
+Last updated 2026-10-12, at the end of the session that finished steps 9 to 15.
 
 ## 1. What this project is
 
@@ -10,58 +10,157 @@ Kodi is a rental management system for Kenyan property owners.
 | | Path | Stack |
 |---|---|---|
 | Frontend | `C:\Users\Other\Documents\My_Apps\Rental_managemtn_system_frontend` | React 19, Vite, Tailwind 4, react-router-dom 7, lucide-react |
-| Backend | `C:\Users\Other\Documents\My_Apps\Rental_management_system_backend` | Express 5, PostgreSQL (`pg`), zod, CommonJS |
+| Backend | `C:\Users\Other\Documents\My_Apps\Rental_management_system_backend` | Express 5, PostgreSQL (`pg`), zod, pdfkit, CommonJS |
 
-- Backend runs on `http://localhost:8080` (`npm run dev`, nodemon, restarts on every file save). API docs at `/api-docs`, source in `docs/openapi.yaml`. Keep that file updated with every backend change.
+- Backend runs on `http://localhost:8080` (`npm run dev`, nodemon, restarts on every file save). API docs at `/api-docs`, source in `docs/openapi.yaml`. Keep that file updated with every backend change; it is parsed at startup, so a YAML mistake (for example a duplicate key) stops the server.
 - Frontend runs on `http://localhost:5173` (`npm run dev`). API base URL is `VITE_API_URL` in `.env`.
 - The database is a real hosted PostgreSQL (Aiven) with the owner's test data. It allows 15 connections; the backend pool is capped at 8 (`DB_POOL_MAX`).
-- Sign-in is by phone and OTP. In dev the code is printed in the backend terminal (`SMS_MODE=console`), so you cannot sign in yourself. Owner test account is user id 3 ("New User"); property id 1 "Test Appartment"; unit id 2 "A1"; tenant id 1 "John Otieno".
+- Sign-in is by phone and OTP. `SMS_MODE=console` in the backend `.env`, so codes and every SMS are printed in the backend terminal and nothing reaches a phone. You cannot sign in yourself, so you cannot click through the screens.
+- Test data: owner is user id 3 ("New User"); property id 1 "Test Appartment" (rent and water accounts, `move_in_billing` and `move_out_billing` both `prorated`, rent due day 5); unit id 2 "A1" (metered water); tenant id 1 "John Otieno", moved in 2026-10-04, rent KES 11,000, rent deposit 11,000, water deposit 2,000, all paid, and he holds some credit. There were no caretakers when last checked.
 - Tables are created and upgraded at backend startup by the `*_tables.js` files. Upgrades must be idempotent (`ADD COLUMN IF NOT EXISTS`, drop and re-add constraints).
 
-## 2. How the user wants to work
+## 2. Where things stand
+
+Every screen in the owner web app now uses the backend. All fifteen steps are built. `src/data/` (mock data) is deleted and no `window.alert` placeholders remain.
+
+| # | Step | Status |
+|---|---|---|
+| 0–8 | Foundation, auth, properties, units, tenants, agreements, payments, admin area, water billing, expenses | Done and tested by the user in earlier sessions |
+| — | Tenant charges: service charges, entered electricity, repair charges, expense reconciliation, deposit reconciliation | Built this session |
+| 9 | Maintenance | Built this session |
+| 10 | Caretakers | Built this session |
+| 11 | SMS centre | Built this session |
+| 12 | Reports | Built this session |
+| 13 | Dashboard home (and the top bar: search, property filter, bell) | Built this session |
+| 14 | Settings | Built this session |
+| 15 | Cleanup | Done |
+
+**What "built this session" means for testing.** Each piece was tested on the backend against the real database, inside a transaction that was rolled back (or read-only), and lint and the production build pass. None of it was clicked through in a browser by the assistant. The user was given click-by-click test steps for each piece and committed and pushed each one, but has not reported test results. Expect the next messages to be bug reports or change requests from that testing.
+
+**Branches.** Both repos are on `feature/dashboard-settings`, pushed. Earlier work is on `feature/tenant-charges` and `feature/sms-reports`, also pushed. Uncommitted in the frontend at handoff: the removal of the page-name pill from the top strip, and this file. The backend is clean.
+
+**The step list is finished.** What is left is in section 7.
+
+### Next task the user asked for: light mode and dark mode
+
+Asked on 2026-10-12, at the very end of the session; not started. In the user's words: a light mode and dark mode under Settings; light mode is white "even the side nav", dark mode is dark. Today the app is one fixed look: light pages with a dark sidebar and a near-black top strip.
+
+Follow the working agreement: list the gaps and get answers first. Questions worth asking, each with a scenario:
+
+- Where the switch lives (Settings > Account, or a new Appearance tab) and whether there is also a quick toggle in the top bar.
+- Whether there is a third "follow my device" option, and which mode is the default.
+- Whether the choice is saved per device (browser storage, no backend change) or per account (a new `owner_settings` column, so it follows the user to another device, and is audited).
+- Whether it applies to the sign-in and admin screens too.
+- Whether the brand orange (`--accent`) stays the same in both modes.
+
+What the code looks like, so the work can be sized:
+
+- Colours are CSS variables in `src/index.css` (`--bg`, `--surface`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--line-soft`, `--sidebar`, `--sidebar-line`, `--sidebar-ink`, `--sidebar-ink-soft`, `--accent`, `--accent-hover`, `--accent-soft`). The sidebar already has its own variables, so a white sidebar in light mode is a variable change. The top strip (`.proto-strip`) has a hard-coded background.
+- But 38 `.jsx` files bypass the variables: `bg-white` is used 151 times (cards, modals, inputs, buttons) and about 100 hard-coded hex colours are used for status tones (for example `#E3F1E8` / `#2E7D4F` green, `#FBE4E2` / `#B3261E` red, `#FBF0DA` / `#B8790E` amber, `#E6EDF4` / `#3C5C82` blue). A dark mode needs these moved onto variables (for example `bg-[var(--surface)]` and new `--success`, `--success-soft`, `--danger`, ... variables), which is a mechanical change across almost every page and should be done in one pass, then checked page by page by the user.
+- Shared class constants in `components/common/Modal.jsx`, `StatusBadge.jsx` and `StatCard.jsx` cover many of the uses; start there.
+- PDFs and CSV exports are built by the backend and are not affected.
+
+One small thing seen in the user's last screenshot, not yet fixed: a "Balance reminder" sent to a tenant who owes nothing reads "your balance ... is KES 0. Kindly pay by ." because `{due_date}` is empty when there is no unpaid bill. Ask whether such a tenant should be skipped, or the text adjusted.
+
+## 3. How the user wants to work
 
 These were stated by the user and must be followed.
 
-1. Work one step at a time, in the order of the step list in section 5. The user says which step is next.
-2. Before building a step, list its gaps and mismatches and get answers. If the backend is missing something, say so and build the backend part first.
-3. After every implementation, say what changed, and give numbered steps for where to test it in the browser.
-4. Keep the existing visual design. Reuse the existing classes, CSS variables and components. No new styling language.
+1. Work one step at a time. The user says which step is next.
+2. Before building, list the gaps and mismatches between the design and the backend, and get answers. If the backend is missing something, say so and build the backend part first.
+3. After every implementation, say what was added, where to test it, what to expect, and what each click or option means, as numbered steps for the browser.
+4. Keep the existing visual design. Reuse the existing classes, CSS variables and components. No new styling language. (The IDE reports Tailwind "can be written as" suggestions on every edit; ignore them, the codebase uses the long form throughout.)
 5. Navigation uses real routes and links, with state such as the selected property, month, tab and filters kept in the URL.
-6. Two steps share one branch, named for the pair, for example `feature/water-expenses`, in both repos. The user commits and pushes manually: give the commands, never push. Tell the user when a pair is finished.
+6. Two steps share one branch, named for the pair, in both repos. The user commits and pushes manually: give the commands, never commit or push. When asked, create the new branch locally in both repos (only when both are clean). Tell the user when a pair is finished.
 7. Every action that changes data must be written to the audit log, so the admin can see who did what in which owner account.
-8. Exports are built by the backend, are audited, and neutralise spreadsheet formulas. See `src/utils/csv.js` in the backend.
-9. Explain money rules with a concrete scenario and numbers. The user decides money rules; do not guess them.
+8. Exports are built by the backend, are audited, and neutralise spreadsheet formulas (`src/utils/csv.js` in the backend).
+9. The user decides money rules and behaviour choices. Do not guess them. Ask with a concrete scenario and numbers; the `AskUserQuestion` tool with a recommended option worked well and the user answers readily. A plain abstract question was not understood; a scenario was.
 10. No loading shimmers. Use the existing loading, error and empty states.
+11. SMS is manual. Nothing is sent to a tenant automatically. See section 5.
 
-Practical rules learned the hard way:
+## 4. How to change the backend safely
 
-- Do not change the user's real data. Test backend logic inside a transaction that is always rolled back. `scratchpad/test_billing.js` in the earlier session showed the pattern: swap `db.query` and `db.get_client` for a client wrapper that turns `BEGIN`/`COMMIT`/`ROLLBACK` into savepoints, run the services, then `ROLLBACK`.
-- The backend dev server is usually running under nodemon, so every saved backend file restarts it and runs the table upgrades on the real database. To test first, copy `src`, `docs`, `app.js`, `server.js` and `.env` to a scratch folder with a junction to `node_modules`, apply the edits there with a patch script, run the rolled-back test there, then run the same patch script on the real backend. Delete the scratch copy afterwards because it holds `.env`.
-- Bash heredocs containing apostrophes fail in this environment. Write multi-line edit scripts to a file with the Write tool, then run the file.
-- Apply multi-file backend edits in one script that writes all files at the end, so nodemon never restarts on a half-applied change.
+The backend dev server is usually running under nodemon, so every saved backend file restarts it and runs the table upgrades on the real database. The method used all session:
+
+1. Copy `src`, `docs`, `app.js`, `server.js`, `package.json` and `.env` to a `staging` folder in the scratchpad, with a directory junction to the backend's `node_modules` (`cmd /c mklink /J`).
+2. Write the edits as a Node patch script: a `rep(file, from, to, count)` helper that throws unless the text matches exactly `count` times, a `replace_function(file, name, newText)` helper for whole top-level functions, and one loop at the end that writes every file. New files are written to a separate folder and copied in.
+3. Run the patch on staging, run `node --check` on the changed files, load `app.js` (this parses `openapi.yaml`), then run a test script in staging.
+4. Only then copy the new files and run the same patch on the real backend, wait about 15 seconds and check `http://localhost:8080/health`.
+5. Remove the junction (`cmd /c rmdir`) and delete staging, because it holds `.env`.
+
+The test script pattern: take one client from the pool, `BEGIN`, replace `db.query` and `db.get_client` with a wrapper that turns `BEGIN`/`COMMIT`/`ROLLBACK` into savepoints and makes `release` a no-op, call the `init_*_tables` functions and the services, print results, then `ROLLBACK` and check that nothing was kept. Set `process.env.SMS_MODE = "console"` in any test that can send SMS.
+
+Things that bit during the session:
+
+- Inside the test transaction `CURRENT_TIMESTAMP` is frozen at its start. Code that compares an app-side `new Date()` with it can behave differently from production.
+- A parameter used twice with different inferred types fails ("inconsistent types deduced"); cast it, for example `$4::VARCHAR`.
+- A parameter in a `SELECT` list of an `INSERT ... SELECT` needs a cast, for example `$1::BIGINT`.
 - PostgreSQL `DATE` columns come back as JS `Date` at local midnight. Never call `toISOString().slice(0, 10)` on them; use `TO_CHAR(col, 'YYYY-MM-DD')` in SQL. "Today" and month boundaries use `AT TIME ZONE 'Africa/Nairobi'`.
-- Routers mounted on `/api` must attach their guard per route (`const guard = [authenticate, require_role(...)]`), never with `router.use`, or they block requests meant for other routers.
+- Routers mounted on `/api` must attach their guard per route (`const guard = [authenticate, require_role(...)]`), never with `router.use`.
+- Bash heredocs containing apostrophes fail here. Write scripts to a file with the Write tool, then run the file. PowerShell is the primary shell.
+- `git grep` returns exit code 1 when it finds nothing; that is not an error.
 - The machine is low on memory; avoid running many Node processes at once.
 
-## 3. Frontend structure
+## 5. Rules decided by the user
+
+### Billing and charges
+
+- A job runs at startup and hourly. On the 1st (Nairobi time) it bills every active or notice-given tenant for the month: rent, fixed electricity, fixed water and monthly service charges. It never back-bills.
+- Per property: `rent_due_day` (1–28), `move_in_billing` (`prorated` | `full_month` | `free_until_next_month`), `move_out_billing` (`prorated` | `full_month`).
+- Pro-rated move-in: amount × (days in month − move-in day) ÷ days in month; the 1st is a full month. Pro-rated move-out: amount × move-out day ÷ days in month. Deposits are never pro-rated.
+- Charge types: `rent_deposit`, `water_deposit`, `electricity_deposit`, `rent`, `water`, `electricity`, `service`, `repair`, `deduction`. `tenant_charges` is unique on `(tenant_id, charge_type, billing_period, source_id)` and carries a `description`. Deposits and one-off charges use billing period `1970-01-01`.
+- Payment accounts per property: rent is required; water, electricity and "service" are optional, M-Pesa paybill or till only. Money paid into an account settles that account's own charges first. The rent account also settles water or electricity when the property has no separate account for them. Deposits are always settled first.
+- **Service charges** (`src/service_charges/`): per property, with one amount and optional per-unit amounts (zero means not charged). A monthly one added mid-month bills current tenants for the rest of the month under `move_in_billing` (KES 300 on the 12th of a 31-day month = 184), then in full on the 1st; move-out follows `move_out_billing`. A one-off one bills each current tenant once in full, and each new tenant at move-in. The owner chooses which account they and repairs are paid into (`properties.service_charge_account`).
+- **Electricity** per unit: not billed, fixed monthly, or `entered`, where the owner (or an assigned caretaker) types the amount per unit each month (`src/electricity/`). Entered bills are never pro-rated.
+- **Repairs**: resolving a maintenance request with an actual cost always records a `repairs_maintenance` expense. If "charge to tenant" is ticked it also creates a `repair` charge on the tenant living in the unit. The cost is fixed once recorded. The tenant can pay during the stay; what is unpaid is deducted at move-out.
+- **Move-out** no longer asks for a refund decision. Afterwards the tenant profile shows a deposit reconciliation (`src/deposits/`): each deposit covers its own kind of bill (the rent deposit also covers service charges, repairs and deductions); the owner adds deductions; **Calculate** merges the deposits and any credit into one figure; **Confirm** is final. The refund is recorded once, in full. A tenant who owes more keeps the rest as a debt and can still record payments. Only deposit money actually paid counts as held.
+- **Income** is what payments settled against rent, water, electricity, service charges, repairs and deductions, plus deposit money used for bills at move-out, counted on that day. Deposits themselves are not income. Expenses, Reports and the Dashboard all use this definition and were checked to agree.
+
+### Caretakers
+
+- One caretaker can look after several properties, with a level per property. Each property has one caretaker; assigning replaces the current one.
+- **Suspend** stops sign-in but keeps their properties. **Remove** takes them off one property; off their last one makes the account inactive. Name and phone can be edited; changing the phone signs them out.
+- Level 1 may view tenants of an assigned property; Level 2 may also add and edit them. A caretaker manages maintenance in assigned properties exactly like the owner, including costs and charging a tenant, and may enter electricity bills.
+- Caretakers have no screens in this web app (they see `NoAccessPage`). These are backend permissions for a later caretaker app. Nothing is sent to a caretaker when they are added; there are no invitations.
+
+### SMS
+
+- **Nothing is sent to a tenant automatically.** Broadcasts are started by the owner. The repair charge notice is sent with a "Send SMS" button on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`), and can be sent again.
+- A scheduled broadcast stores only its selection; recipients and balances are worked out when it is sent.
+- Broadcasts go to tenants who are active or on notice. "Send to" is a searchable dropdown of groups, properties and single tenants.
+- Each owner gets four starter templates the first time their templates are listed.
+- "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part. `SMS_COST_PER_MESSAGE` is 0.80.
+- Two owner notifications act when switched on in Settings: an SMS to the owner when a water reading is flagged (off by default), and one SMS per property per month to its caretaker on the water billing day, after 8 AM, if readings are missing (on by default). The other four switches are shown as "Not active yet". There is no email sending.
+- To send for real, set `SMS_MODE=live` and restart the backend. The user was told that sign-in codes then go by SMS, that the sender ID must be approved by Africa's Talking (`AFRICASTALKING_SENDER_ID` is empty; Test Appartment's is "Kodi"), and that messages cost money. Do not change it without being asked.
+
+### Reports, Dashboard, Settings
+
+- Reports: property and period filters in the URL; arrears show current tenants and former tenants separately; archived properties are left out; exports hold totals and a line per tenant, as PDF or CSV built from the same sections; periods are Kenyan time.
+- The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
+- Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
+
+## 6. Code map
+
+Backend `src/`: one folder per module, each with `*_tables.js`, `*_validator.js`, `*_service.js`, `*_controller.js`, `*_routes.js` (the newer small modules put validation and handlers in the routes file). Added this session: `service_charges/`, `electricity/`, `deposits/`, `dashboard/`, `water/water_notification_service.js`, `reports/report_file_service.js` (rewritten). Key functions: `billing_service.js` (`bill_service_charges`, `run_monthly_billing`, `adjust_move_out_charges`, `get_payable_charge_types`, `apply_tenant_credits`), `maintenance_service.js` (`record_repair_cost`, `send_repair_charge_sms`), `sms_service.js` (`send_single_sms`, `create_messages`, `prepare_scheduled_messages`), `report_service.js` (`get_collection_summary`, `get_report_details`), `deposit_service.js` (`build_groups`, `confirm_reconciliation`).
+
+Frontend `src/`:
 
 ```
-src/
-  api/          client.js (request, refresh on 401, download) + one file per module
-  hooks/        useApi.js  ->  { data, loading, error, reload } keyed by a string
-  context/      Auth, Properties, PaymentStats (context file + provider file each)
-  components/
-    common/     DataState.jsx (Loading/Error/Empty/DataState/FormError),
-                Modal.jsx (ModalShell, ModalBody, ModalFooter, Field, SelectField, class constants),
-                StatusBadge.jsx
-    dashboard/  sidebar, stat card, shared modals and form pieces
-    auth/
-  pages/
-    auth/       SignInPage, NoAccessPage
-    admin/      AdminPage, AdminUsersPage, AdminAuditLogPage
-    dashboard/  one file per page, routed from DashboardPage.jsx
-  utils/        format.js, labels.js, billing.js, payments.js, tenantStatus.js, propertyForm.js
-  data/         mock data still used by unwired pages (see section 5)
+api/          client.js (request, refresh on 401, download) + one file per module
+hooks/        useApi.js  ->  { data, loading, error, reload } keyed by a string; pass null to skip
+context/      Auth (has refreshUser), Properties, PaymentStats
+components/
+  common/     DataState.jsx (Loading/Error/Empty/DataState/FormError),
+              Modal.jsx (ModalShell, ModalBody, ModalFooter, Field, SelectField, class constants),
+              StatusBadge.jsx, SearchableSelect.jsx
+  dashboard/  Topbar.jsx (search, property filter, bell), DashboardSidebar, StatCard,
+              ExportReportModal, EditPropertyModal, AddPropertyModal, WaterRulesModal,
+              ServiceChargesSection, ElectricityBillsModal, DepositReconciliation, ...
+pages/
+  auth/       SignInPage, NoAccessPage
+  admin/      AdminPage, AdminUsersPage, AdminAuditLogPage
+  dashboard/  DashboardPage.jsx (shell and routes), DashboardHomePage.jsx, one file per page
+utils/        format.js, labels.js, billing.js, payments.js, tenantStatus.js, propertyForm.js
 ```
 
 Conventions:
@@ -72,171 +171,23 @@ Conventions:
 - `npm run lint` and `npx vite build` must both pass with zero errors before handing work back.
 - Role routing is in `App.jsx`: owner gets the dashboard, admin gets the admin area, anyone else gets `NoAccessPage`.
 
-## 4. Backend rules already built
+## 7. What is left
 
-Billing (`src/billing/billing_service.js`):
+Not built, by agreement or by postponement:
 
-- A job runs at startup and hourly. On the 1st (Nairobi time) it bills every active or notice-given tenant for the current month: rent, the unit's fixed electricity amount, and fixed water. It never back-bills earlier months. A tenant has one charge of each type per month, so it is safe to run twice.
-- Per property: `rent_due_day` (integer 1–28), `move_in_billing` (`prorated` | `full_month` | `free_until_next_month`), `move_out_billing` (`prorated` | `full_month`).
-- Pro-rated move-in: amount × (days in month − move-in day) ÷ days in month. Moving in on the 1st is a full month. Pro-rated move-out: amount × move-out day ÷ days in month. Deposits are never pro-rated.
-- Move-out voids later charges, reduces the move-out month when pro-rated, and returns anything overpaid as tenant credit.
-- Credits are applied automatically to new charges and after a reversal.
-- Metered water is billed when a reading is submitted (units × unit rate). A reading lower than the previous one is flagged and unbilled until the owner corrects or rejects it.
+- **Caretaker app.** The backend permissions exist; there are no caretaker screens.
+- **Document uploads** (tenant documents, expense receipts, meter photos), planned with Supabase.
+- **Automatic tenant SMS** (payment confirmations, rent reminders). The user chose manual for now; the two matching Settings switches are inactive.
+- **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
+- **"If a reading is missed"** (carry forward, estimate, do not bill) is saved per property but nothing acts on it.
 
-Charges and payments:
+Known gaps in what is built:
 
-- Charge types: `rent_deposit`, `water_deposit`, `electricity_deposit`, `rent`, `water`, `electricity`, `service`, `repair`.
-- `tenant_charges` has `UNIQUE (tenant_id, charge_type, billing_period, source_id)`. Deposits and one-off charges use billing period `1970-01-01`.
-- Payment accounts per property: rent is required; water and electricity are optional. Money paid into the water account settles water deposit and water bills only; electricity likewise. The rent account settles rent deposit then rent, and also water or electricity deposits and bills only when the property has no separate account for them (`get_payable_charge_types`).
-- A reversed manual payment stays on record as `reversed`. A reversed M-Pesa payment returns to `unmatched`.
-- Unit fields set by the owner: `water_deposit`, `electricity_monthly_charge`, `electricity_deposit` (all optional, zero or empty means not charged).
-
-Other additions: property edit, change or remove a payment account, caretaker created at assignment even if they never signed in, agreement regenerate and unmark signed, all-tenants endpoint with balances, admin audit log endpoint with owner account on every entry, CSV exports for payments and expenses, income totals that exclude deposits.
-
-## 5. Step status
-
-| # | Step | Status |
-|---|---|---|
-| 0 | Foundation, routing | Done |
-| 1 | Auth | Done |
-| 2 | Properties | Done |
-| 3 | Units / Houses | Done |
-| 4 | Tenants | Done, except document uploads |
-| 5 | Agreements | Done |
-| 6 | Payments | Done |
-| — | Admin area (users, audit log) | Done |
-| 7 | Water billing | Done |
-| 8 | Expenses | Done, but see section 6: tenant charges come next |
-| 9 | Maintenance | Done as part of tenant charges (section 6, part C). No assigning to a caretaker from the screen yet |
-| 10 | Caretakers | Built 2026-10-12, awaiting the user's test. See "Caretaker rules" below |
-| 11 | SMS centre | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "SMS rules" below |
-| 12 | Reports | Built 2026-10-12 on `feature/sms-reports`, awaiting the user's test. See "Reports rules" below |
-| 13 | Dashboard home | Built 2026-10-12 on `feature/dashboard-settings`, awaiting the user's test. See "Dashboard and Settings rules" below |
-| 14 | Settings | Built 2026-10-12 on `feature/dashboard-settings`, awaiting the user's test |
-| 15 | Cleanup | Done: `src/data/` is deleted, no `window.alert` placeholders remain, lint and build pass |
-
-Dashboard and Settings rules (decided by the user on 2026-10-12):
-
-- The top-bar property dropdown filters the Dashboard only (`/dashboard?property=1`) and is hidden on other pages, which have their own property filters.
-- The bell lists what needs attention (unmatched payments, flagged readings, failed SMS, open maintenance) from `GET /api/dashboard/attention`; the dot shows only when the total is above zero.
-- The search box (`GET /api/dashboard/search`) finds tenants by name, phone, ID or house and payments by M-Pesa code or reference.
-- `GET /api/dashboard/home` feeds the whole Dashboard home; its rent and occupancy agree with Reports.
-- Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles and no invitations.
-- Two notification switches act: `alert_suspicious_water` (SMS to the owner when a reading is flagged) and `remind_water_readings` (one SMS per property per month to its caretaker on the water billing day, after 8 AM, if readings are missing; `water_reading_reminders` records it; the scheduler is in `src/water/water_notification_service.js`). The other four switches are shown as "Not active yet". There is no email sending.
-- Settings > Payment accounts and Water rules reuse `EditPropertyModal` and `WaterRulesModal`. Bank accounts are not supported, only M-Pesa paybill or till. The owner's phone number cannot be changed.
-
-Every screen in the owner web app now uses the backend. What remains is in section 7.
-
-Caretaker rules (decided by the user on 2026-10-12):
-
-- One caretaker can look after several properties, with a permission level per property. Each property still has one caretaker; assigning replaces the current one.
-- **Suspend** (`users.status = 'suspended'`) stops sign-in but keeps the properties; **Remove** takes the caretaker off one property, and off their last property makes the account `inactive`. `PATCH /api/caretakers/:id` edits name, phone and suspend/reactivate; changing the phone signs them out.
-- **Level 1** may view the tenants of an assigned property; **Level 2** may also add and edit them. Move-out, payments and the all-tenants list stay owner-only.
-- A caretaker manages maintenance in assigned properties exactly like the owner, including costs and "charge to tenant".
-- Any assigned caretaker may enter electricity bills.
-- The Caretakers page lists one row per caretaker (grouped in the frontend from `GET /api/caretakers`, which returns one row per assignment). The Maintenance update form can assign a request to the property's caretaker.
-- Caretakers still have no screens of their own in this web app (`NoAccessPage`); these are backend permissions for the later caretaker app.
-
-SMS rules (decided by the user on 2026-10-12):
-
-- SMS stays manual: no automatic payment confirmations or rent reminders for now. The Settings toggles `notify_payment_received` and `auto_rent_reminder` still do nothing.
-- A scheduled broadcast stores only its selection. Recipients and balances are worked out when it is sent (`sms_broadcasts.messages_created_at` is null until then).
-- Every owner gets four starter templates the first time their templates are listed (`sms_template_seeds` records that it was done).
-- Broadcasts go to tenants who are active or on notice. `{due_date}` prints as `5 Oct 2026`, `{balance}` as `2,500`; both come from SQL in Kenyan time, which fixed the one-day-early bug.
-- `sms_messages.broadcast_id` is nullable: single system messages (the repair charge notice, via `send_single_sms`) are in the same history and can be retried.
-- **Nothing is sent automatically, including the repair charge notice.** The user changed this on 2026-10-12: the owner or caretaker clicks "Send SMS" on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`, sets `charge_sms_sent_at`, can be repeated). This replaces the earlier "an SMS tells them" rule in section 6.
-- "Send to" in New broadcast is a searchable dropdown (`components/common/SearchableSelect.jsx`) listing groups, each property and every current tenant, so one tenant can be messaged (`recipient_group: specific_tenant`).
-- "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part.
-- All SMS actions were already audited in `sms_controller.js`.
-
-Reports rules (decided by the user on 2026-10-12):
-
-- The Reports page has property and period filters in the URL and an "Income and expenses" card. Income in `report_service.js` (`get_collection_summary`) uses the same definition as the Expenses page; a read-only test confirmed both give the same net figure.
-- Arrears show what current tenants owe and, separately, what former tenants still owe. Archived properties are left out of occupancy and arrears.
-- An exported report holds the totals and a line per tenant (`get_report_details`). `report_file_service.js` builds the PDF and CSV from one list of sections, so they agree. Exports and statement downloads are audited; the CSV goes through `utils/csv.js`.
-- Periods and "received on" dates are Kenyan time (`nairobi_today`).
-- The tenant statement returns `deposit_settlement`, and its PDF shows proper charge names, totals and the reconciliation.
-- One `ExportReportModal` (in `components/dashboard/`) serves both the Reports page and the top bar.
-
-Still open after the tenant-charges list: the caretaker app cannot enter electricity bills from a screen, and a deposit reconciliation cannot be undone.
-
-Branch state at handoff: both repos are on `feature/water-expenses`. The last commit covers water billing and expenses. Uncommitted on top of it: backend CSV exports, the expense category filter, the database pool cap, and this file. Maintenance and Caretakers are the next pair and should get a new branch.
-
-## 6. Current task: tenant charges, service charges and deposit reconciliation
-
-Decided by the user on 2026-10-12. Built in five parts; the status of each is in the table.
-
-| Part | What | Status |
-|---|---|---|
-| A | Service charges per property, billed to tenants, with a choice of account | Built, awaiting the user's test |
-| B | Electricity: fixed monthly amount, or an amount the owner types each month per unit | Built, awaiting the user's test |
-| C | Repairs: "charge to tenant" tick on resolving a maintenance request, expense created, SMS to the tenant. The Maintenance page (step 9) was wired for this | Built, awaiting the user's test |
-| D | Expenses reconciliation: spent against charged to tenants and paid, per category | Built, awaiting the user's test |
-| E | Move-out reconciliation: each deposit covers its own bills, extra deductions, a Calculate button, refund or debt | Built, awaiting the user's test |
-
-All five were tested on the backend inside a rolled-back transaction. None has been clicked through in a browser by the assistant, because sign-in needs the OTP.
-
-Rules decided:
-
-- **Service charge added mid-month:** tenants already living there are billed for the rest of that month under the property's `move_in_billing` rule, then in full on the 1st. Move-out follows `move_out_billing`. Example: KES 300 added on the 12th of a 31-day month bills 300 × (31 − 12) ÷ 31 = KES 184.
-- **One-off service charge:** billed once, in full, to every tenant living there when it is added, and to each new tenant when they move in.
-- **Amounts** are per unit: the charge has one amount, and any unit can have its own. Zero means the unit is not charged.
-- **Account:** per property, the owner chooses where service charges and repairs are paid: the rent, water or electricity account, or a separate "service" account (`properties.service_charge_account`). They are settled after that account's own charges.
-- **Repairs:** the tenant sees the charge straight away and can pay it during the stay; an SMS tells them. Only what is unpaid is deducted at move-out.
-- **Deposits at move-out:** each deposit covers its own kind of bill (the rent deposit also covers service charges, repairs and extra deductions). They are kept separate until the owner clicks Calculate in the move-out reconciliation, which merges them into one final figure: refund to the tenant, or amount the tenant owes. Extra deductions (for example repainting) are typed in by the owner there. A tenant who owes more than the deposits keeps the rest as a debt.
-- **Electricity "amount entered":** the owner types the KES amount per unit each month; no meter readings.
-
-How part A is built:
-
-- Backend module `src/service_charges/` (tables `service_charges`, `service_charge_units`), routes `GET/POST /api/properties/:id/service-charges`, `PATCH/DELETE /api/service-charges/:id`.
-- `tenant_charges` gained `description` and `source_id`; uniqueness is now `(tenant_id, charge_type, billing_period, source_id)`. Charge types `service` and `repair` exist. One-off charges use billing period `1970-01-01`, like deposits.
-- `billing_service.js`: `bill_service_charges` (new charge or new tenant), a second insert in the monthly run, and service charges in `adjust_move_out_charges`.
-- Frontend: `ServiceChargesSection` on the Properties page; the account choice in the Add and Edit property forms.
-- A service charge already billed cannot be voided from the screen.
-
-More rules decided on 2026-10-12 for parts B to E:
-
-- **Deposits are always settled first** by any money that comes in (the existing payment order). If a deposit was still not fully paid at move-out, only the paid part counts as held and the unpaid part is cancelled.
-- **Credit held** by the tenant is added to the final figure at Calculate.
-- **The refund** is recorded once, in full.
-- **Repair cost** is fixed once it is recorded as an expense; it cannot be edited from Maintenance afterwards.
-
-How parts B to E are built:
-
-- **B.** `units.electricity_billing_method` is `fixed_monthly` or `entered`. Module `src/electricity/`: `GET/PUT /api/properties/:id/electricity-bills` (period `YYYY-MM`). Entered bills are never pro-rated at move-out. Frontend: the unit form's "Electricity billing" choice and `ElectricityBillsModal`, opened from the Units page.
-- **C.** `maintenance_requests` gained `charge_to_tenant`, `expense_id`, `tenant_charge_id`, `charged_tenant_id`. `record_repair_cost` in `maintenance_service.js` runs when a request is resolved with an actual cost: it always creates a `repairs_maintenance` expense, and with the tick a `repair` tenant charge (source id = request id) plus an SMS sent directly through `sms_provider` (it is not stored in `sms_messages`, which needs a broadcast). Frontend: `MaintenancePage.jsx` is wired (list, report, update); `src/data/maintenanceData.js` is deleted.
-- **D.** `GET /api/expenses/reconciliation`, and the summary now includes `service_collected` and `repairs_collected` (repairs plus move-out deductions). Deposit money used at move-out counts as income on the confirmation day.
-- **E.** Module `src/deposits/` (tables `deposit_settlements`, `deposit_applications`): `GET /api/tenants/:id/deposit-reconciliation`, `POST .../calculate`, `.../confirm`, `.../refund`. Deductions become `deduction` tenant charges. The move-out form no longer asks for a refund decision. A moved-out tenant can still record payments. Frontend: `DepositReconciliation` on the tenant profile.
-
-Still open after these parts:
-
-- The caretaker app cannot enter electricity bills yet (owner only).
-- A deposit reconciliation cannot be undone once confirmed.
-
-Earlier context, kept for reference:
-
-- **Repairs:** when a maintenance request on an occupied unit is resolved with a cost, the owner ticks "charge to tenant" each time. It is not automatic. If ticked, the cost is charged to that tenant. Either way the cost is an expense for the property. A repair outside a unit is a property expense only.
-- **Service charges** (security, garbage, electricity and similar): whether tenants pay them depends on how each property is configured. Amounts are entered by the owner and can differ per unit. Some are billed every month; some are billed once.
-- **Reconciliation in Expenses:** owners usually pay these costs first out of pocket, then recover them from that month's tenant income. Expenses should show what was spent against what tenants were charged and have paid for it.
-- **Move-out:** tenant-chargeable repairs and any other unpaid amounts are deducted from the tenant's deposit at move-out. Today the move-out form only records "full, partial or no refund" as a note; nothing is calculated.
-
-One question I asked that the user did not understand and wants a scenario for: "Should a new service charge apply to tenants already living there?" Scenario to give: the owner adds a KES 300 garbage fee to a property in mid-October. Three tenants already live there. Option 1: all three are billed KES 300 from 1 November onward. Option 2: only tenants who move in after the fee was added are billed, and the existing three never are. Ask which they want.
-
-Technical notes for the build:
-
-- The unique constraint `(tenant_id, charge_type, billing_period)` blocks two repair charges, or two different service charges, for one tenant in one month. Ad-hoc and service charges need a description and a source reference (maintenance request id or service charge id), and the uniqueness rule must be widened to include it.
-- New charge types are needed, for example `service` and `repair`. Update the check constraint, `charge_priority_order_sql` and `get_payable_charge_types` in `billing_service.js`, `chargeLabel` in the frontend `utils/billing.js`, and the income totals in `expense_service.js` and `report_service.js`.
-- Recurring service charges belong in the monthly billing job, following the property's move-in and move-out rules. One-off charges are billed once.
-- Deposit reconciliation at move-out: deposits paid, less unpaid charges, less deductions, gives the refund due. Record the refund as money paid out and show it on the tenant statement.
-- Present the full plan with a worked example and get the user's confirmation before writing money logic, as was done for monthly billing.
-
-## 7. Open items
-
-- **"If a reading is missed"** (carry forward, estimate, do not bill) is saved per property but nothing acts on it. The user has not decided whether to build the automatic behaviour.
-- **Document uploads** (tenant documents, expense receipts, meter photos) will use Supabase, later.
-- **Caretaker mobile app** comes later. The backend already lets a caretaker enter and view meter readings for an assigned property.
-- **Expenses** have no Edit (void and re-add) and cannot be tied to a unit.
-- **Units:** a house number cannot be reused after its unit is archived; there is no "Single room" type.
-- **Assigning a payment** with "remember this number" and later unassigning it leaves the tenant with the new phone number.
-- **`OTP_EXPIRES_MINUTES`** is 120 in the backend `.env`; the user may have meant 5.
-- **`PUBLIC_API_URL`** must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.
+- A service charge already billed, and a confirmed deposit reconciliation, cannot be undone from the screen.
+- Expenses cannot be edited (void and re-add), and a hand-entered expense cannot be tied to a unit.
+- A scheduled SMS broadcast cannot be edited (cancel and recreate).
+- A search result for a payment opens the Payments page, not that payment.
+- A house number cannot be reused after its unit is archived; there is no "Single room" unit type.
+- Assigning a payment with "remember this number" and later unassigning it leaves the tenant with the new phone number.
+- `OTP_EXPIRES_MINUTES` is 120 in the backend `.env`; the user may have meant 5.
+- `PUBLIC_API_URL` must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.

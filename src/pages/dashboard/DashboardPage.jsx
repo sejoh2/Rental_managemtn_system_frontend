@@ -27,72 +27,58 @@ const pageMeta = {
   dashboard: {
     title: 'Dashboard',
     subtitle: 'Overview of all properties',
-    pill: 'Dashboard',
   },
   properties: {
     title: 'Properties',
     subtitle: 'Your properties',
-    pill: 'Properties',
   },
   units: {
     title: 'Units / Houses',
     subtitle: 'Houses in each property',
-    pill: 'Units / Houses',
   },
   agreements: {
     title: 'Agreements',
     subtitle: 'Auto-generated tenancy contracts',
-    pill: 'Agreements',
   },
   payments: {
     title: 'Payments',
     subtitle: 'Rent, water & electricity received',
-    pill: 'Payments',
   },
   'water-billing': {
     title: 'Water billing',
     subtitle: 'Metered per unit',
-    pill: 'Water billing',
   },
   expenses: {
     title: 'Expenses',
     subtitle: 'Track running costs',
-    pill: 'Expenses',
   },
   tenants: {
     title: 'Tenants',
     subtitle: 'Everyone renting from you',
-    pill: 'Tenants',
   },
   tenantProfile: {
     title: 'Tenant profile',
     subtitle: 'Balance, payments and agreement',
-    pill: 'Tenant profile',
   },
   maintenance: {
     title: 'Maintenance',
     subtitle: 'Caretaker & tenant reports',
-    pill: 'Maintenance',
   },
   caretakers: {
     title: 'Caretakers',
     subtitle: 'Manage access & permissions',
-    pill: 'Caretakers',
   },
   'sms-centre': {
     title: 'SMS centre',
     subtitle: 'Reminders & announcements',
-    pill: 'SMS centre',
   },
   reports: {
     title: 'Reports',
     subtitle: 'Collection, arrears & occupancy',
-    pill: 'Reports',
   },
   settings: {
     title: 'Settings',
     subtitle: 'Account & system configuration',
-    pill: 'Settings',
   },
 }
 
@@ -151,8 +137,6 @@ function DashboardShell() {
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
         <span>KODI - Owner Web Dashboard</span>
-
-        <span className="proto-pill">{meta.pill}</span>
       </div>
 
       <div className="flex min-h-screen pt-[34px]">
