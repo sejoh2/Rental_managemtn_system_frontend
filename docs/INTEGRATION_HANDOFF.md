@@ -150,6 +150,9 @@ Things that bit during the session:
 - **Payment reminders skip tenants who owe nothing.** A message that uses `{balance}`, `{amount}`, `{due_date}` or `{days_overdue}` is a payment reminder; any other message goes to everyone selected. The rule is `leave_out_settled` in `sms_service.js`, applied when a broadcast is sent now and again when a scheduled one goes out. Sent now to people who all owe nothing (including one tenant chosen by name) it is refused with 422. The New broadcast modal shows who is left out and disables Send.
 - "Accepted" means the provider took the message; there are no delivery reports. Cost is estimated per 160/153-character part. `SMS_COST_PER_MESSAGE` is 0.80.
 - Two owner notifications act when switched on in Settings: an SMS to the owner when a water reading is flagged (off by default), and one SMS per property per month to its caretaker on the water billing day, after 8 AM, if readings are missing (on by default). The other four switches are shown as "Not active yet". There is no email sending.
+- **Sender per property.** Add property and Edit property have an "SMS sender" choice (`components/dashboard/SmsSenderField.jsx`): "Default (Africa's Talking)", saved as no sender ID so messages go from Africa's Talking's own number, or "My own sender ID" with a text box. There is no backend change; an empty `sms_sender_id` was already the default.
+- **A refused message is Failed, not Accepted.** Africa's Talking answers OK even when it turns a message down, so `check_provider_response` in `utils/sms_provider.js` reads the answer and throws with the reason (unapproved sender ID, no airtime, blocked number). The SMS centre keeps refreshing every 3 seconds while a message is queued.
+- The user switched to `SMS_MODE=live` on 2026-10-12. The first live message was refused because the sender ID "Kodi" on Test Appartment is not approved; message 13 still reads "Accepted" from before the fix.
 - To send for real, set `SMS_MODE=live` and restart the backend. The user was told that sign-in codes then go by SMS, that the sender ID must be approved by Africa's Talking (`AFRICASTALKING_SENDER_ID` is empty; Test Appartment's is "Kodi"), and that messages cost money. Do not change it without being asked.
 
 ### Reports, Dashboard, Settings
@@ -214,6 +217,7 @@ Not built, by agreement or by postponement:
 - **Document uploads** (tenant documents, expense receipts, meter photos), planned with Supabase.
 - **Automatic tenant SMS** (payment confirmations, rent reminders). The user chose manual for now; the two matching Settings switches are inactive.
 - **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
+- **Checking an owner's own sender ID.** The user wants an entered sender ID confirmed with Africa's Talking before it is accepted, and postponed it on 2026-10-12. Africa's Talking has no lookup for this; the only check is to send a real SMS with that sender ID (about KES 0.80) and read the answer. The option offered was a test SMS to the owner's own phone on save. Ask again before building.
 - **"If a reading is missed"** (carry forward, estimate, do not bill) is saved per property but nothing acts on it.
 
 Known gaps in what is built:

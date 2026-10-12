@@ -25,6 +25,7 @@ import {
 import { FormError } from '../common/DataState'
 import CaretakerField from './CaretakerField'
 import PaymentAccountCard from './PaymentAccountCard'
+import SmsSenderField from './SmsSenderField'
 
 const accountSlots = [
   ['rent', 'Rent account'],
@@ -290,11 +291,9 @@ function EditPropertyForm({ property, onClose, onSaved }) {
             </p>
 
             <div className="mb-[18px] max-w-[300px]">
-              <Field
-                label="SMS sender ID"
+              <SmsSenderField
                 value={form.sms_sender_id}
-                onChange={setField('sms_sender_id')}
-                placeholder="e.g. KODI-GVA"
+                onChange={(value) => setForm((current) => ({ ...current, sms_sender_id: value }))}
               />
             </div>
 

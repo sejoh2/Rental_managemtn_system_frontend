@@ -23,6 +23,7 @@ import {
 import { FormError } from '../common/DataState';
 import CaretakerField from './CaretakerField';
 import PaymentAccountCard from './PaymentAccountCard';
+import SmsSenderField from './SmsSenderField';
 
 const inputClass =
   'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]';
@@ -327,16 +328,10 @@ function AddPropertyForm({ onClose }) {
                   </select>
                 </div>
 
-                <div>
-                  <label className={labelClass}>SMS sender ID</label>
-                  <input
-                    type="text"
-                    value={form.sms_sender_id}
-                    onChange={setField('sms_sender_id')}
-                    placeholder="e.g. KODI-GVA"
-                    className={inputClass}
-                  />
-                </div>
+                <SmsSenderField
+                  value={form.sms_sender_id}
+                  onChange={(value) => setForm((current) => ({ ...current, sms_sender_id: value }))}
+                />
 
                 <div className="sm:col-span-2">
                   <label className={labelClass}>If a tenant moves in mid-month</label>

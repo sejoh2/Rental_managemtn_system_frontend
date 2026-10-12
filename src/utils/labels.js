@@ -15,6 +15,12 @@ export const THEME_MODES = [
   ['system', 'Follow device'],
 ]
 
+// Default is saved as no sender ID at all.
+export const SMS_SENDER_OPTIONS = [
+  ['default', "Default (Africa's Talking)"],
+  ['custom', 'My own sender ID'],
+]
+
 export const WATER_BILLING_METHODS = [
   ['per_unit_metered', 'Per-unit metered'],
   ['fixed_monthly', 'Fixed payment every month'],

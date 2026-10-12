@@ -137,7 +137,7 @@ function PropertiesPage({ onAddProperty }) {
                       'Service charges paid into',
                       optionLabel(SERVICE_CHARGE_ACCOUNTS, selectedProperty.service_charge_account),
                     ],
-                    ['SMS sender ID', selectedProperty.sms_sender_id || '-'],
+                    ['SMS sender', selectedProperty.sms_sender_id || "Default (Africa's Talking)"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
