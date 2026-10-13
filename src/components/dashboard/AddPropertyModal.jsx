@@ -223,7 +223,7 @@ function AddPropertyForm({ onClose }) {
         {partialResult ? (
           <>
             <div className="flex-1 overflow-y-auto px-[22px] py-[22px]">
-              <div className="mb-[14px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--success)] bg-[var(--surface)] px-4 py-4">
+              <div className="mb-[14px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[var(--success)]">
                   {partialResult.property.name} was added
                 </h3>
@@ -232,7 +232,7 @@ function AddPropertyForm({ onClose }) {
                 </p>
               </div>
 
-              <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-4">
+              <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[var(--warning)]">
                   The caretaker could not be assigned
                 </h3>

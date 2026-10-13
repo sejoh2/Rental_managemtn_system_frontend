@@ -241,7 +241,7 @@ function ReplaceWarning({ property, caretakerId }) {
   if (!current || current.caretaker_id === caretakerId) return null
 
   return (
-    <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-4">
+    <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
       <h3 className="text-[13px] font-bold text-[var(--warning)]">This will replace the current caretaker</h3>
       <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
         Every property has one caretaker. {current.full_name} will lose access

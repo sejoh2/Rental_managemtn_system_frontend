@@ -9,11 +9,12 @@ import {
 import { listUnits } from '../../api/units'
 import { useApi } from '../../hooks/useApi'
 import { moveInEstimate } from '../../utils/billing'
-import { formatKES, formatMonth, toDateInput } from '../../utils/format'
+import { formatKES, formatMonth, ordinal, toDateInput } from '../../utils/format'
 import {
   EXPENSE_CATEGORIES,
   MOVE_IN_BILLING,
   SERVICE_CHARGE_ACCOUNTS,
+  SERVICE_CHARGE_FIRST_BILLING,
   SERVICE_CHARGE_FREQUENCIES,
   optionLabel,
 } from '../../utils/labels'
@@ -184,6 +185,8 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
     category: charge?.category || 'garbage',
     frequency: charge?.frequency || 'monthly',
     amount: charge ? String(charge.amount) : '',
+    // Monthly charges only: when tenants already living here are first billed.
+    first_billing: 'now',
   })
   // unit id -> amount typed for that unit. Blank means the unit pays the amount above.
   const [unitAmounts, setUnitAmounts] = useState(
@@ -220,6 +223,7 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
         : moveInEstimate(property.move_in_billing, today, unitAmount(unit)).amount
     )
   const billedNowTotal = billedNow.reduce((total, amount) => total + amount, 0)
+  const waitForBilling = form.frequency === 'monthly' && form.first_billing === 'next_billing'
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -238,7 +242,11 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
     try {
       const saved = charge
         ? await updateServiceCharge(charge.id, body)
-        : await createServiceCharge(property.id, { ...body, frequency: form.frequency })
+        : await createServiceCharge(property.id, {
+            ...body,
+            frequency: form.frequency,
+            first_billing: waitForBilling ? 'next_billing' : 'now',
+          })
 
       onSaved(saved)
       onClose()
@@ -289,6 +297,17 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
               onChange={setField('amount')}
               required
             />
+
+            {!charge && form.frequency === 'monthly' ? (
+              <div className="sm:col-span-2">
+                <SelectField
+                  label="Tenants living here now are first billed"
+                  value={form.first_billing}
+                  onChange={setField('first_billing')}
+                  options={SERVICE_CHARGE_FIRST_BILLING}
+                />
+              </div>
+            ) : null}
           </div>
 
           <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
@@ -357,7 +376,14 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
             </p>
           ) : (
             <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
-              {form.frequency === 'monthly' ? (
+              {waitForBilling ? (
+                <>
+                  <strong>When you add this charge:</strong> no tenant is
+                  billed now. From the 1st of next month each tenant is
+                  billed the full amount with rent, due on the{' '}
+                  {ordinal(property.rent_due_day)}.
+                </>
+              ) : form.frequency === 'monthly' ? (
                 <>
                   <strong>When you add this charge:</strong>{' '}
                   {billedNow.length
@@ -366,7 +392,8 @@ function ServiceChargeForm({ property, charge, onClose, onSaved }) {
                   This follows the property&apos;s mid-month move-in rule
                   ({optionLabel(MOVE_IN_BILLING, property.move_in_billing).toLowerCase()}).
                   From the 1st of next month each tenant is billed the full
-                  amount with rent.
+                  amount with rent. A tenant who moves in part-way through
+                  a month starts paying it from the next 1st.
                 </>
               ) : (
                 <>

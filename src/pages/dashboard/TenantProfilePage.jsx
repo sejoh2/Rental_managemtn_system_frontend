@@ -794,7 +794,7 @@ function MoveOutModal({ tenant, property, onClose, onDone }) {
     <ModalShell title="Move out / archive tenant" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[15px] font-bold text-[var(--danger)]">
               This will archive {tenant.full_name} and mark House {tenant.unit_number} vacant
             </h3>

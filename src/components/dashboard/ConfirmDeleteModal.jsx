@@ -44,7 +44,7 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
         </div>
 
         <div className="px-[22px] py-[22px]">
-          <div className="rounded-[8px] border border-[var(--danger-line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+          <div className="rounded-[8px] border border-[var(--danger-line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[13px] font-bold text-[var(--danger)]">
               This action will archive the record
             </h3>

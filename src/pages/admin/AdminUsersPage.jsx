@@ -230,11 +230,7 @@ function ConfirmUserActionModal({ action, user, onClose, onDone }) {
   return (
     <ModalShell title={`${action.title} - ${userName(user)}`} onClose={onClose}>
       <ModalBody>
-        <div
-          className={`rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4 ${
-            action.danger ? 'border-l-2 border-l-[var(--danger)]' : ''
-          }`}
-        >
+        <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
           <h3 className="text-[13px] font-bold">
             {userName(user)} · {formatPhone(user.phone)}
           </h3>

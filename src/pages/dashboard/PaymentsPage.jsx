@@ -478,7 +478,7 @@ function ReversePaymentModal({ payment, onClose, onDone }) {
     <ModalShell title={manual ? 'Reverse payment' : 'Unassign payment'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[14px] font-bold text-[var(--danger)]">
               {formatKES(payment.amount)} will be taken off {payment.tenant_name || 'the tenant'}'s account
             </h3>

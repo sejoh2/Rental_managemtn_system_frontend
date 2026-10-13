@@ -215,7 +215,7 @@ function SmsCentrePage() {
       </div>
 
       {stats?.sms_mode === 'console' ? (
-        <p className="mb-4 rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--warning)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+        <p className="mb-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
           <strong>Test mode:</strong> messages are printed in the backend
           terminal and are not sent to any phone. They still appear here as
           accepted.

@@ -375,7 +375,7 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
     return (
       <ModalShell title="Reading saved, but flagged" onClose={onClose}>
         <ModalBody>
-          <div className="rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+          <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[14px] font-bold text-[var(--danger)]">
               {formatNumber(flagged.current_reading)} is lower than the previous reading of{' '}
               {formatNumber(flagged.previous_reading)}
@@ -516,7 +516,7 @@ function ResolveReadingModal({ reading, onClose, onDone }) {
     <ModalShell title={`Correct reading - House ${reading.unit_number}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
-          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] border-l-2 border-l-[var(--danger)] bg-[var(--surface)] px-4 py-4">
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
             <h3 className="text-[14px] font-bold text-[var(--danger)]">
               Entered {formatNumber(reading.current_reading)}, but the previous reading was{' '}
               {formatNumber(reading.previous_reading)}

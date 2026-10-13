@@ -156,6 +156,12 @@ export const SERVICE_CHARGE_FREQUENCIES = [
   ['once', 'One-off - billed once per tenant'],
 ]
 
+// When a new monthly charge first reaches the tenants already living in the property.
+export const SERVICE_CHARGE_FIRST_BILLING = [
+  ['now', 'Now, for the rest of this month'],
+  ['next_billing', 'From the next monthly billing, on the 1st'],
+]
+
 // Where tenants pay service charges and repairs, by the property's service_charge_account.
 export const SERVICE_CHARGE_ACCOUNTS = [
   ['rent', 'Rent account'],
