@@ -5,6 +5,7 @@ import {
   clearTokens,
   getActingOwner,
   hasSession,
+  keepSessionInTabOnly,
   onSessionExpired,
   setActingOwner,
   setTokens,
@@ -30,13 +31,18 @@ function AuthProvider({ children }) {
     if (!hasSession()) return
 
     fetchCurrentUser().then(
-      (user) => setSession({ status: 'signedIn', user }),
+      (user) => {
+        // An admin session left in the browser by an older version moves into this tab only.
+        keepSessionInTabOnly(user.role === 'admin')
+        setSession({ status: 'signedIn', user })
+      },
       () => setSession({ status: 'signedOut', user: null })
     )
   }, [])
 
   const signIn = useCallback(({ user, access_token, refresh_token }) => {
-    setTokens({ access_token, refresh_token })
+    // The admin is signed out when the tab is closed; see api/client.js.
+    setTokens({ access_token, refresh_token }, { tabOnly: user.role === 'admin' })
     setSession({ status: 'signedIn', user })
   }, [])
 

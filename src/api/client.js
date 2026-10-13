@@ -30,26 +30,55 @@ export class ApiError extends Error {
   }
 }
 
+/*
+  Where the session is kept. An owner's session stays in the browser, so
+  they are still signed in when they come back. The system admin's session
+  is kept only in the tab it was opened in: closing the tab, or the browser,
+  signs the admin out, and a new tab asks them to sign in again.
+*/
+function sessionStore() {
+  return sessionStorage.getItem(REFRESH_TOKEN_KEY) ? sessionStorage : localStorage
+}
+
 export function getAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+  return sessionStore().getItem(ACCESS_TOKEN_KEY)
 }
 
 export function getRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
+  return sessionStore().getItem(REFRESH_TOKEN_KEY)
 }
 
 export function hasSession() {
   return Boolean(getRefreshToken())
 }
 
-export function setTokens({ access_token, refresh_token }) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, access_token)
-  localStorage.setItem(REFRESH_TOKEN_KEY, refresh_token)
+function forgetTokens() {
+  for (const store of [localStorage, sessionStorage]) {
+    store.removeItem(ACCESS_TOKEN_KEY)
+    store.removeItem(REFRESH_TOKEN_KEY)
+  }
+}
+
+// tabOnly: true for the admin, false for everyone else. Left out when a session is
+// only being renewed, which keeps it where it already is.
+export function setTokens({ access_token, refresh_token }, { tabOnly } = {}) {
+  const store = tabOnly === undefined ? sessionStore() : tabOnly ? sessionStorage : localStorage
+
+  forgetTokens()
+  store.setItem(ACCESS_TOKEN_KEY, access_token)
+  store.setItem(REFRESH_TOKEN_KEY, refresh_token)
+}
+
+// Moves a restored session to the right place once it is known whose it is.
+export function keepSessionInTabOnly(tabOnly) {
+  const access_token = getAccessToken()
+  const refresh_token = getRefreshToken()
+
+  if (access_token && refresh_token) setTokens({ access_token, refresh_token }, { tabOnly })
 }
 
 export function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  forgetTokens()
   setActingOwner(null)
 }
 
