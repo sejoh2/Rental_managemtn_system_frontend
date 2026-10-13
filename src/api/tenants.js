@@ -26,6 +26,14 @@ export async function updateTenant(tenantId, body) {
   return data
 }
 
+// Puts back a tenant moved out by mistake; their bills return to what they were before.
+// Refused once the deposits are reconciled (reopen that first) or the unit has a new tenant.
+export async function undoMoveOut(tenantId, reason) {
+  const { data } = await api.post(`/api/tenants/${tenantId}/undo-move-out`, { reason })
+
+  return data
+}
+
 // body: { move_out_date, move_out_reason? }. Deposits are reconciled afterwards, below.
 export async function moveOutTenant(tenantId, body) {
   const { data } = await api.post(`/api/tenants/${tenantId}/move-out`, body)

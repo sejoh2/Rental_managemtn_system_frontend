@@ -4,6 +4,7 @@ import { Camera, Plus, Settings } from 'lucide-react'
 import { countFiles } from '../../api/files'
 import { listUnits } from '../../api/units'
 import {
+  cancelWaterReading,
   editWaterReading,
   getPreviousWaterReading,
   getWaterStats,
@@ -34,7 +35,13 @@ import { waterBillingLabel } from '../../utils/labels'
 // -> { label, tone } for a reading's status badge
 function readingStatus(reading) {
   if (reading.status === 'flagged') return { label: 'Flagged: lower reading', tone: 'danger' }
-  if (reading.status === 'rejected') return { label: 'Rejected', tone: 'neutral' }
+  if (reading.status === 'rejected') {
+    // A reading the owner cancelled carries the reason in its notes.
+    return {
+      label: (reading.notes || '').startsWith('Cancelled:') ? 'Cancelled' : 'Rejected',
+      tone: 'neutral',
+    }
+  }
   if (reading.bill_status === 'paid') return { label: 'Paid', tone: 'success' }
   if (reading.bill_status === 'partial') return { label: 'Part paid', tone: 'warning' }
   if (reading.bill_status === 'void') return { label: 'Bill cancelled', tone: 'neutral' }
@@ -52,6 +59,8 @@ function WaterBillingPage() {
   const [photosFor, setPhotosFor] = useState(null)
   // The submitted reading being corrected.
   const [editingReading, setEditingReading] = useState(null)
+  // The submitted reading being cancelled, with its bill.
+  const [cancellingReading, setCancellingReading] = useState(null)
 
   // Property and month live in the URL: /water-billing?property=1&month=2026-10
   const properties = propertiesState.data || []
@@ -301,12 +310,20 @@ function WaterBillingPage() {
                                     Correct reading
                                   </button>
                                 ) : reading.can_edit ? (
-                                  <button
-                                    onClick={() => setEditingReading(reading)}
-                                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
-                                  >
-                                    Edit
-                                  </button>
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => setEditingReading(reading)}
+                                      className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => setCancellingReading(reading)}
+                                      className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
                                 ) : null}
                               </td>
                             </tr>
@@ -355,6 +372,14 @@ function WaterBillingPage() {
         <EditReadingModal
           reading={editingReading}
           onClose={() => setEditingReading(null)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {cancellingReading ? (
+        <CancelReadingModal
+          reading={cancellingReading}
+          onClose={() => setCancellingReading(null)}
           onDone={reloadAll}
         />
       ) : null}
@@ -697,6 +722,7 @@ function EditReadingModal({ reading, onClose, onDone }) {
               onChange={(event) => setCurrent(event.target.value)}
               required
               autoFocus
+              hint="If a later reading exists for this unit, it cannot go above where that one starts."
             />
           </div>
 
@@ -749,6 +775,86 @@ function EditReadingModal({ reading, onClose, onDone }) {
             className={primaryButtonClass}
           >
             {saving ? 'Saving...' : 'Save correction'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
+  )
+}
+
+// Removes a reading that should not have been recorded, together with its bill.
+function CancelReadingModal({ reading, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const paid = reading.bill_status === 'void' ? 0 : reading.bill_amount_paid || 0
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await cancelWaterReading(reading.id, reason.trim())
+
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ModalShell
+      title={`Cancel reading - House ${reading.unit_number}, ${formatMonth(reading.billing_period)}`}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            {reading.tenant_name ? `${reading.tenant_name}'s` : 'This'} reading of{' '}
+            {formatNumber(reading.previous_reading)} to {formatNumber(reading.current_reading)} and its
+            bill of {formatKES(reading.bill_amount)} will be cancelled. The reading stays on this list,
+            marked Cancelled, and you can record a new one for the same month. If only the figures are
+            wrong, use Edit instead.
+          </p>
+
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
+            {paid > 0
+              ? `The tenant has paid ${formatKES(paid)} towards this bill. That money goes back to them as credit and is used for their other bills.`
+              : 'Nothing has been paid towards this bill, so no money moves.'}
+          </div>
+
+          <Field
+            label="Why is it being cancelled"
+            placeholder="e.g. Recorded for the wrong house"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            minLength={3}
+            maxLength={500}
+            autoFocus
+          />
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Keep the reading
+          </button>
+          <button
+            type="submit"
+            disabled={saving || reason.trim().length < 3}
+            className="rounded-[8px] bg-[var(--danger-solid)] px-4 py-[10px] text-[12px] font-bold text-white hover:bg-[var(--danger-solid-hover)] disabled:opacity-60"
+          >
+            {saving ? 'Cancelling...' : 'Cancel reading and bill'}
           </button>
         </ModalFooter>
       </form>

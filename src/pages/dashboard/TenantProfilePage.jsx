@@ -9,6 +9,7 @@ import {
   getTenantStatement,
   listTenantPayments,
   moveOutTenant,
+  undoMoveOut,
   updateTenant,
 } from '../../api/tenants'
 import { listWaterReadings } from '../../api/water'
@@ -79,7 +80,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
   const agreementState = useApi(`tenant-agreement-${tenant.id}`, () => getTenantAgreement(tenant.id))
 
   const [activeTab, setActiveTab] = useState('Overview')
-  // agreement | moveOut | payment | edit | notice
+  // agreement | moveOut | undoMoveOut | payment | edit | notice
   const [openModal, setOpenModal] = useState(null)
   const [actionError, setActionError] = useState(null)
 
@@ -171,6 +172,15 @@ function TenantProfile({ tenant, onTenantChanged }) {
               </button>
             </>
           ) : null}
+
+          {tenant.status === 'moved_out' ? (
+            <button
+              onClick={() => setOpenModal('undoMoveOut')}
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
+            >
+              Undo move-out
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -236,6 +246,10 @@ function TenantProfile({ tenant, onTenantChanged }) {
           onClose={() => setOpenModal(null)}
           onDone={reloadMoney}
         />
+      ) : null}
+
+      {openModal === 'undoMoveOut' ? (
+        <UndoMoveOutModal tenant={tenant} onClose={() => setOpenModal(null)} onDone={reloadMoney} />
       ) : null}
 
       {openModal === 'payment' ? (
@@ -995,6 +1009,62 @@ function NoticeModal({ tenant, onClose, onDone }) {
           </button>
           <button type="submit" disabled={saving} className={primaryButtonClass}>
             {saving ? 'Saving...' : 'Mark notice given'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
+  )
+}
+
+// Puts back a tenant who was moved out by mistake.
+function UndoMoveOutModal({ tenant, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+
+  const { saving, error, submit } = useSubmit(() => undoMoveOut(tenant.id, reason.trim()), {
+    onClose,
+    onDone,
+  })
+
+  return (
+    <ModalShell title="Undo move-out" onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            {tenant.full_name} becomes the tenant of House {tenant.unit_number} again, and their
+            bills go back to what they were just before the move-out: a last month that was reduced
+            is charged in full again, and repairs that were waiting for move-out wait again. Months
+            that passed while they were moved out are not billed afterwards.
+          </p>
+
+          <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            It is not possible once their deposits have been reconciled (reopen the reconciliation
+            first), or once the house has another tenant.
+          </p>
+
+          <Field
+            label="Why is the move-out being undone"
+            placeholder="e.g. Moved out the wrong tenant"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            minLength={3}
+            maxLength={500}
+            autoFocus
+          />
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saving || reason.trim().length < 3} className={primaryButtonClass}>
+            {saving ? 'Undoing...' : 'Undo move-out'}
           </button>
         </ModalFooter>
       </form>

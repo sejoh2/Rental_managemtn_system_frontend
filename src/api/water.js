@@ -44,7 +44,17 @@ export async function submitWaterReading(propertyId, unitId, body) {
   return data
 }
 
-// Corrects a submitted reading and its bill. Only a unit's newest reading (reading.can_edit).
+// Cancels a submitted reading and its bill (reading.can_edit). What was paid returns as credit.
+// A new reading can then be recorded for the same tenant and month.
+// -> { id, status: 'rejected', returned_as_credit }
+export async function cancelWaterReading(readingId, reason) {
+  const { data } = await api.post(`/api/water-readings/${readingId}/cancel`, { reason })
+
+  return data
+}
+
+// Corrects a submitted reading and its bill (reading.can_edit), from any month. The current
+// reading cannot pass where the unit's next reading starts.
 // body: { previous_reading?, current_reading?, notes? } -> the reading, with returned_as_credit
 export async function editWaterReading(readingId, body) {
   const { data } = await api.patch(`/api/water-readings/${readingId}`, body)

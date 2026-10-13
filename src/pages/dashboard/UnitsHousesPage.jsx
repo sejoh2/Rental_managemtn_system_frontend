@@ -9,15 +9,13 @@ import UnitFormModal from '../../components/dashboard/UnitFormModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import { formatKES } from '../../utils/format'
-import { UNIT_TYPES, optionLabel } from '../../utils/labels'
+import { UNIT_TYPES, unitTypeLabel } from '../../utils/labels'
 
 // "arrears" is not a backend status: it is an occupied unit whose tenant owes money.
 const unitFilters = [
   { key: 'all', label: 'All', matches: () => true },
   { key: 'occupied', label: 'Occupied', matches: (unit) => unit.status === 'occupied' },
-  { key: 'vacant', label: 'Vacant', matches: (unit) => unit.status === 'vacant' },
-  { key: 'reserved', label: 'Reserved', matches: (unit) => unit.status === 'reserved' },
-  { key: 'maintenance', label: 'Under maintenance', matches: (unit) => unit.status === 'maintenance' },
+  { key: 'vacant', label: 'Vacant', matches: (unit) => displayStatus(unit) === 'vacant' },
   { key: 'arrears', label: 'In arrears', matches: (unit) => displayStatus(unit) === 'arrears' },
 ]
 
@@ -28,20 +26,29 @@ const unitStatusColors = {
   occupied: 'bg-[var(--success)]',
   arrears: 'bg-[var(--danger)]',
   vacant: 'bg-[var(--ink-faint)]',
-  reserved: 'bg-[var(--info)]',
-  maintenance: 'bg-[var(--warning)]',
 }
 
 const unitLegend = [
   { label: 'Occupied', color: unitStatusColors.occupied },
   { label: 'In arrears', color: unitStatusColors.arrears },
   { label: 'Vacant', color: unitStatusColors.vacant },
-  { label: 'Reserved', color: unitStatusColors.reserved },
-  { label: 'Under maintenance', color: unitStatusColors.maintenance },
 ]
 
+// A unit in use is either occupied or vacant. "Reserved" and "Under maintenance" are no longer
+// offered; a unit still carrying one of them is shown as vacant.
 function displayStatus(unit) {
-  return unit.status === 'occupied' && unit.current_tenant?.balance > 0 ? 'arrears' : unit.status
+  if (unit.status !== 'occupied') return 'vacant'
+
+  return unit.current_tenant?.balance > 0 ? 'arrears' : 'occupied'
+}
+
+// Types the owner typed for this property's units, offered again in the unit form.
+function customUnitTypes(units) {
+  const usual = UNIT_TYPES.map(([value]) => value)
+
+  return [...new Set(units.map((unit) => unit.unit_type))].filter(
+    (type) => type && !usual.includes(type)
+  )
 }
 
 function UnitsHousesPage() {
@@ -247,6 +254,7 @@ function UnitsHousesPage() {
       <UnitFormModal
         open={addOpen}
         property={selectedProperty}
+        customTypes={customUnitTypes(unitsState.data || [])}
         onClose={() => setAddOpen(false)}
         onSaved={handleUnitsChanged}
       />
@@ -255,6 +263,7 @@ function UnitsHousesPage() {
         open={Boolean(editingUnit)}
         property={selectedProperty}
         unit={editingUnit}
+        customTypes={customUnitTypes(unitsState.data || [])}
         onClose={() => setEditingUnit(null)}
         onSaved={handleUnitsChanged}
       />
@@ -292,7 +301,7 @@ function UnitTile({ unit, onEdit, onDelete }) {
       <h3 className="text-[13px] font-bold">{unit.unit_number}</h3>
 
       <p className="mt-[5px] text-[10px] text-[var(--ink-faint)]">
-        {[optionLabel(UNIT_TYPES, unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
+        {[unitTypeLabel(unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
       </p>
 
       <p className="mt-[3px] truncate text-[10px] text-[var(--ink-faint)]">
@@ -333,7 +342,7 @@ function NotInUseTile({ unit, onRestore }) {
       <h3 className="text-[13px] font-bold text-[var(--ink-soft)]">{unit.unit_number}</h3>
 
       <p className="mt-[5px] text-[10px] text-[var(--ink-faint)]">
-        {[optionLabel(UNIT_TYPES, unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
+        {[unitTypeLabel(unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
       </p>
 
       <p className="mt-[3px] text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--ink-faint)]">

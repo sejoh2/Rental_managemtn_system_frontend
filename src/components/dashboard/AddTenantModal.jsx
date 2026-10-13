@@ -47,9 +47,10 @@ function AddTenantForm({ onClose }) {
     properties.find((item) => String(item.id) === form.property_id) || properties[0]
 
   const unitsState = useApi(property ? `units-${property.id}` : null, () => listUnits(property.id))
-  // A tenant can only move into a vacant or reserved unit.
+  // A tenant can only move into a unit that is in use and has no tenant. ("Reserved" and
+  // "Under maintenance" are no longer offered; a unit still carrying one counts as vacant.)
   const availableUnits = (unitsState.data || []).filter((unit) =>
-    ['vacant', 'reserved'].includes(unit.status)
+    ['vacant', 'reserved', 'maintenance'].includes(unit.status)
   )
   const unit = availableUnits.find((item) => String(item.id) === form.unit_id) || availableUnits[0]
 

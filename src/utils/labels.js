@@ -86,12 +86,10 @@ export const UNIT_TYPES = [
   ['other', 'Other'],
 ]
 
-export const UNIT_STATUSES = [
-  ['vacant', 'Vacant'],
-  ['occupied', 'Occupied'],
-  ['reserved', 'Reserved'],
-  ['maintenance', 'Under maintenance'],
-]
+// The usual types. An owner can also type their own, which is stored as they wrote it.
+export function unitTypeLabel(value) {
+  return optionLabel(UNIT_TYPES, value, value || '-')
+}
 
 export const EXPENSE_CATEGORIES = [
   ['repairs_maintenance', 'Repairs & maintenance'],

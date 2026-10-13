@@ -162,8 +162,23 @@ Things that bit during the session:
 - **Each tenant is read once a month** (it used to be once per unit). A unit that changed tenant during the month can be read again for the new tenant; the reading starts from the unit's latest reading, whoever lived there.
 - **Final reading at move-out**: a tick box in Add reading (`final_reading: true`) records one extra reading for a tenant already read that month. It is billed as a separate water charge, "Water, final reading", for the units used since, and must be recorded before the tenant is moved out. One per tenant per month. The reading carries `is_final`.
 - **The previous reading** is filled in from the unit's last recorded reading (`GET .../water-readings/previous`) and shown in the Add reading form. The owner may raise it, for water used while the unit stood empty, but never set it below the last recorded reading (refused with 422; the user's rule, 2026-10-13: "it can go beyond but not below"). When it is raised, the audit entry carries `previous_reading_raised_from`. A unit's first reading must have it typed.
-- **Editing a reading** (`PATCH /api/water-readings/:id`, owner only, "Edit" on the row). Only a unit's newest submitted reading can be edited (`can_edit`), because the next reading starts from it, and not one whose bill was settled from a deposit at move-out. The bill is recalculated at the rate it was billed at. What the tenant paid above the new bill returns to them as credit; a higher bill leaves the difference owed; zero units voids the bill. Audited with the figures before and after. A flagged reading still uses "Correct reading".
+- **Editing a reading** (`PATCH /api/water-readings/:id`, owner only, "Edit" on the row). Any submitted reading can be edited, from any month, paid or unpaid (the user, 2026-10-13: "we can have all of them editable"); `can_edit` is false only for one whose bill was settled from a deposit at move-out, where the reconciliation must be reopened first. To keep later bills right without changing them, the current reading cannot go above where the unit's next reading starts (422, "Edit that reading first"). The bill is recalculated at the rate it was billed at. What the tenant paid above the new bill returns to them as credit; a higher bill leaves the difference owed; zero units voids the bill. Audited with the figures before and after. A flagged reading still uses "Correct reading".
 - The old unique rule on (unit, month) was dropped; the checks are in `submit_meter_reading`. "Missing reading" counts on the dashboard and reminders are still per unit, on purpose, so a tenant who moved in after the month's reading is not flagged as missing.
+
+- **Cancelling a reading** (`POST /api/water-readings/:id/cancel`, owner only, a reason is required, "Cancel" on the row). The bill is voided, what the tenant paid towards it returns as credit, and the reading stays on the list as `rejected` with notes "Cancelled: reason" (shown as "Cancelled"). A new reading can then be recorded for the same tenant and month; the voided bill is opened again with the new amount (`create_water_charge` reopens a void, unpaid bill instead of refusing). Refused when the bill was settled from a deposit.
+
+### Undoing a move-out (built 2026-10-13)
+
+- `POST /api/tenants/:id/undo-move-out` (owner only, a reason is required, audited as `TENANT_MOVE_OUT_UNDONE`); "Undo move-out" on a moved-out tenant's page.
+- At move-out the tenant's bills (id, amount, status) are saved in `tenants.move_out_snapshot` before anything is changed. Undo restores each bill from it: a reduced last month is charged in full again, voided later bills are open again, repairs waiting for move-out are `held` again, then credit is applied. The tenant is `active`, the unit `occupied`.
+- Refused when the deposits are reconciled (reopen first), when the unit has another tenant or is "Not in use", and for a tenant moved out before snapshots existed whose move-out changed a bill.
+- Months that passed while the tenant was moved out are not billed afterwards. Not decided by the user; raise it if it comes up.
+- Tested only where the move-out changed a waiting repair; the property's rule did not reduce the last month in the test data.
+
+### Units (changed 2026-10-13)
+
+- **Unit type** is free text. The form lists the usual types, the types the owner has typed for that property's units, and "Add a new type...". The usual ones are stored by short name, a typed one as written (2 to 50 characters); show it with `unitTypeLabel`. The database rule `units_unit_type_check` is dropped at startup.
+- **"Reserved" and "Under maintenance" are removed from the screens** on the user's instruction ("i think we don't need those"). A unit in use is Vacant or Occupied; the form no longer has a status choice. The backend still accepts the two values; a unit carrying one is shown and treated as vacant, and saving it makes it vacant.
 
 ### Caretakers
 
@@ -293,7 +308,7 @@ Not built, by agreement or by postponement:
 Known gaps in what is built:
 
 - Done 2026-10-13: an expense typed in by hand can be edited (`PATCH /api/expenses/:id`, owner only, audited) and is for one unit or the whole property (`unit_id`); an expense from a maintenance request stays fixed. A scheduled SMS broadcast can be edited until it is sent (`PATCH /api/sms/broadcasts/:id`). Each payment has its own page (`/payments/:id`), opened from the list and from the top-bar search.
-- An archived unit ("Not in use" on the Units page, status `inactive`) is how the user marks a house that is not rented, such as the caretaker's. It stays listed on the Units page with a Restore button (`?include_archived=true`, `POST /api/units/:id/restore`), and is not counted or billed. Its house number still cannot be reused, which the user accepts. There is no "Single room" unit type.
+- An archived unit ("Not in use" on the Units page, status `inactive`) is how the user marks a house that is not rented, such as the caretaker's. It stays listed on the Units page with a Restore button (`?include_archived=true`, `POST /api/units/:id/restore`), and is not counted or billed. Its house number still cannot be reused, which the user accepts.
 - `OTP_EXPIRES_MINUTES` was 120 in the backend `.env`; changed to 5 on 2026-10-13 at the user's request. The `.env` is not in git, so a deployed server needs the same change.
 - `PUBLIC_API_URL` must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.
 

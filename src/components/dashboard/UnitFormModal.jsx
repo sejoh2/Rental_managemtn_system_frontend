@@ -4,7 +4,6 @@ import { createUnit, updateUnit } from '../../api/units'
 import { formatKES } from '../../utils/format'
 import {
   ELECTRICITY_BILLING,
-  UNIT_STATUSES,
   UNIT_TYPES,
   WATER_BILLING_METHODS,
 } from '../../utils/labels'
@@ -15,8 +14,8 @@ const inputClass =
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]'
 
-// Occupied is set by tenant move-in, so it is never offered as a choice.
-const editableStatuses = UNIT_STATUSES.filter(([value]) => value !== 'occupied')
+// The choice in the unit type list that opens a box for typing a new type.
+const NEW_TYPE = '__new_type__'
 
 // Adds a unit to `property`, or edits `unit` when one is passed.
 function UnitFormModal({ open, ...props }) {
@@ -25,7 +24,7 @@ function UnitFormModal({ open, ...props }) {
   return <UnitForm {...props} />
 }
 
-function UnitForm({ property, unit, onClose, onSaved }) {
+function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
   const editing = Boolean(unit)
   const occupied = unit?.status === 'occupied'
 
@@ -55,10 +54,19 @@ function UnitForm({ property, unit, onClose, onSaved }) {
       ? String(unit.electricity_monthly_charge)
       : '',
     electricity_deposit: unit?.electricity_deposit ? String(unit.electricity_deposit) : '',
-    status: unit?.status || 'vacant',
   })
+  // What the owner is typing after choosing "Add a new type".
+  const [newType, setNewType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+
+  // The usual types, then the ones this owner has typed before, then the way to add another.
+  const typeOptions = [
+    ...UNIT_TYPES,
+    ...customTypes.map((type) => [type, type]),
+    [NEW_TYPE, 'Add a new type...'],
+  ]
+  const addingType = form.unit_type === NEW_TYPE
 
   const metered = form.water_billing_method === 'per_unit_metered'
   const fixed = form.water_billing_method === 'fixed_monthly'
@@ -75,7 +83,7 @@ function UnitForm({ property, unit, onClose, onSaved }) {
     const body = {
       unit_number: form.unit_number.trim(),
       block_or_floor: form.block_or_floor.trim() || null,
-      unit_type: form.unit_type,
+      unit_type: addingType ? newType.trim() : form.unit_type,
       monthly_rent: Number(form.monthly_rent),
       rent_deposit: Number(form.rent_deposit) || 0,
       // Empty means this unit has no water deposit.
@@ -92,8 +100,8 @@ function UnitForm({ property, unit, onClose, onSaved }) {
           ? Number(form.electricity_monthly_charge) || null
           : null,
       electricity_deposit: Number(form.electricity_deposit) || null,
-      // The status of an occupied unit only changes when its tenant moves out.
-      ...(occupied ? {} : { status: form.status }),
+      // A unit is occupied only through a tenant; otherwise it is vacant.
+      ...(occupied ? {} : { status: 'vacant' }),
     }
 
     try {
@@ -148,8 +156,26 @@ function UnitForm({ property, unit, onClose, onSaved }) {
               label="Unit type"
               value={form.unit_type}
               onChange={setField('unit_type')}
-              options={UNIT_TYPES}
+              options={typeOptions}
             />
+
+            {addingType ? (
+              <div className="sm:col-span-2">
+                <Field
+                  label="New unit type"
+                  placeholder="e.g. Single room"
+                  value={newType}
+                  onChange={(event) => setNewType(event.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={50}
+                  autoFocus
+                />
+                <p className="mt-2 text-[10px] text-[var(--ink-faint)]">
+                  It is saved with this unit and offered again for the other units of this property.
+                </p>
+              </div>
+            ) : null}
 
             <Field
               label="Monthly rent (KES)"
@@ -267,22 +293,16 @@ function UnitForm({ property, unit, onClose, onSaved }) {
             <div className="sm:col-span-2">
               <label className={labelClass}>Status</label>
 
-              {occupied ? (
-                <div className="flex h-10 items-center rounded-[8px] border border-[var(--line)] bg-[var(--line-soft)] px-3 text-[12px] text-[var(--ink-faint)]">
-                  Occupied{unit.current_tenant ? ` - ${unit.current_tenant.full_name}` : ''}
-                </div>
-              ) : (
-                <select value={form.status} onChange={setField('status')} className={inputClass}>
-                  {editableStatuses.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              )}
+              <div className="flex h-10 items-center rounded-[8px] border border-[var(--line)] bg-[var(--line-soft)] px-3 text-[12px] text-[var(--ink-faint)]">
+                {occupied
+                  ? `Occupied${unit.current_tenant ? ` - ${unit.current_tenant.full_name}` : ''}`
+                  : 'Vacant'}
+              </div>
 
               <p className="mt-2 text-[10px] text-[var(--ink-faint)]">
                 {occupied
                   ? 'The status changes when the tenant moves out.'
-                  : 'A unit becomes "Occupied" automatically once a tenant is added to it.'}
+                  : 'A unit becomes "Occupied" automatically once a tenant is added to it. To stop using a unit, mark it "Not in use" on the units page.'}
               </p>
             </div>
 
