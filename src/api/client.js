@@ -101,10 +101,12 @@ function buildUrl(path, query) {
   return url
 }
 
-async function send(path, { method = 'GET', body, query, auth = true } = {}) {
+// file: a File or Blob sent as it is, instead of a JSON body.
+async function send(path, { method = 'GET', body, file, query, auth = true } = {}) {
   const headers = {}
 
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (file) headers['Content-Type'] = file.type || 'application/octet-stream'
+  else if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (auth && getAccessToken()) headers.Authorization = `Bearer ${getAccessToken()}`
   // An admin inside an owner's account: the backend runs the request as that owner.
   // It ignores this on the admin's own pages and for anyone who is not an admin.
@@ -114,7 +116,7 @@ async function send(path, { method = 'GET', body, query, auth = true } = {}) {
     return await fetch(buildUrl(path, query), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: file || (body === undefined ? undefined : JSON.stringify(body)),
     })
   } catch {
     throw new ApiError(`Cannot reach the server at ${API_URL}. Check that the backend is running.`)
@@ -209,6 +211,11 @@ function filenameFromHeader(header) {
   const match = /filename="?([^";]+)"?/i.exec(header || '')
 
   return match ? match[1] : null
+}
+
+// Sends a file as the request body; what it belongs to goes in the query.
+export function upload(path, file, query) {
+  return request(path, { method: 'POST', file, query })
 }
 
 // Fetches a PDF/CSV with the auth header and hands it to the browser as a file download.

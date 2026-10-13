@@ -22,6 +22,7 @@ import {
   secondaryButtonClass,
 } from '../../components/common/Modal'
 import StatusBadge from '../../components/common/StatusBadge'
+import Attachments from '../../components/common/Attachments'
 import DepositReconciliation from '../../components/dashboard/DepositReconciliation'
 import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import { useProperties } from '../../context/PropertiesContext'
@@ -293,6 +294,21 @@ function TenantOverview({
           action={recordPaymentButton}
           limit={3}
         />
+
+        <section className={cardClass}>
+          <div className={cardHeaderClass}>
+            <h3 className="text-[12px] font-bold">Documents</h3>
+          </div>
+
+          <div className="px-[18px] py-4">
+            <Attachments
+              kind="tenant_document"
+              targetId={tenant.id}
+              labelHint="ID copy"
+              emptyText="No documents yet. Keep a copy of the tenant's ID, the signed agreement or anything else about this tenancy here."
+            />
+          </div>
+        </section>
       </div>
 
       <aside>

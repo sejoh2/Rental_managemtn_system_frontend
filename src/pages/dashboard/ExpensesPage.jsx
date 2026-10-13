@@ -10,7 +10,9 @@ import {
   updateExpense,
   voidExpense,
 } from '../../api/expenses'
+import { countFiles } from '../../api/files'
 import { listUnits } from '../../api/units'
+import { AttachmentsModal } from '../../components/common/Attachments'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -41,6 +43,8 @@ function ExpensesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [voiding, setVoiding] = useState(null)
+  // The expense whose receipts are open.
+  const [receiptsFor, setReceiptsFor] = useState(null)
 
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
@@ -59,6 +63,13 @@ function ExpensesPage() {
   const reconciliationState = useApi(`expense-reconciliation-${key}`, () =>
     getExpenseReconciliation(filters)
   )
+
+  // How many receipts each listed expense has, shown on its Receipt button.
+  const expenseIds = (expensesState.data || []).map((item) => item.id)
+  const receiptCountsState = useApi(expenseIds.length ? `receipt-counts-${expenseIds.join('-')}` : null, () =>
+    countFiles('expense_receipt', expenseIds)
+  )
+  const receiptCounts = receiptCountsState.data || {}
 
   async function exportCsv() {
     setExporting(true)
@@ -236,6 +247,12 @@ function ExpensesPage() {
                           <td className="px-[18px] py-[13px] text-right">
                             {voided ? null : (
                               <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => setReceiptsFor(item)}
+                                  className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                                >
+                                  {receiptCounts[item.id] ? `Receipt (${receiptCounts[item.id]})` : 'Receipt'}
+                                </button>
                                 {/* A repair from a maintenance request is fixed; a tenant may have been charged for it. */}
                                 {item.maintenance_request_id ? null : (
                                   <button
@@ -379,6 +396,18 @@ function ExpensesPage() {
           defaultPropertyId={propertyId}
           onClose={() => setAddOpen(false)}
           onDone={reloadAll}
+        />
+      ) : null}
+
+      {receiptsFor ? (
+        <AttachmentsModal
+          title={`Receipts - ${optionLabel(EXPENSE_CATEGORIES, receiptsFor.category)}, ${formatKES(receiptsFor.amount)}`}
+          kind="expense_receipt"
+          targetId={receiptsFor.id}
+          labelHint="Hardware shop receipt"
+          emptyText="No receipt yet. Upload a photo or a PDF of the receipt or invoice for this expense."
+          onClose={() => setReceiptsFor(null)}
+          onChanged={receiptCountsState.reload}
         />
       ) : null}
 

@@ -155,6 +155,14 @@ Things that bit during the session:
 - **Unassigning an M-Pesa payment forgets a remembered number.** When "remember this number" replaced the tenant's payment number, the old one is kept on the payment (`remembered_previous_phone`) and put back when the payment is unassigned.
 - **"If a reading is missed"** was removed from the screens on the user's instruction: nothing acted on it and it concerns money. The column and its stored value remain in the backend; do not show it again unless the behaviour is built.
 
+### Water readings (changed 2026-10-13)
+
+- Water is set **per unit**: its method (metered, fixed monthly, included in rent), its rate and its meter number. A metered bill is units used x the **unit's** rate. The property's water settings are only the defaults a new unit starts with (and can be pushed to occupied units from Water rules), plus the billing day and the days allowed for a reading.
+- A reading can be recorded when the unit is per-unit metered, a tenant lives in it, and the month is not in the future.
+- **Each tenant is read once a month** (it used to be once per unit). A unit that changed tenant during the month can be read again for the new tenant; the reading starts from the unit's latest reading, whoever lived there.
+- **Final reading at move-out**: a tick box in Add reading (`final_reading: true`) records one extra reading for a tenant already read that month. It is billed as a separate water charge, "Water, final reading", for the units used since, and must be recorded before the tenant is moved out. One per tenant per month. The reading carries `is_final`.
+- The old unique rule on (unit, month) was dropped; the checks are in `submit_meter_reading`. "Missing reading" counts on the dashboard and reminders are still per unit, on purpose, so a tenant who moved in after the month's reading is not flagged as missing.
+
 ### Caretakers
 
 - One caretaker can look after several properties, with a level per property. Each property has one caretaker; assigning replaces the current one.
@@ -201,6 +209,17 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 - **Admin bell** (`GET /api/admin/notifications`): sender IDs waiting, people with no role, and security alarms from the last 24 hours of the audit log: 5+ wrong codes for one number, 8+ codes requested for one number, any wrong code for the admin's number. In-app only; nothing is sent by SMS.
 - **System page** (`GET /api/admin/system`): SMS mode, whether the provider account is set, default sender, sign-in code rules, masked admin phone, the M-Pesa callback host and whether it is HTTPS, whether the API is limited to the web app's address. Never a key, secret, password or database address; keep it that way.
 - **Audit log**: "Export CSV" (up to 5,000 rows with the current filters, itself audited as `AUDIT_LOG_EXPORTED`), and an "In owner's account" badge on entries the admin made inside an account. Each entry opens its own page (`/admin/audit-log/:id`, `GET /api/admin/audit-logs/:id`): who, when, account, record, IP, every recorded detail, and up to 30 other entries about the same record.
+
+### File uploads (built 2026-10-13)
+
+- Storage is Cloudflare R2, private, bucket named by `R2_BUCKET` (currently `rental-files`; keep the name neutral, the system will be renamed). Settings in the backend `.env` only: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. They must never be in the frontend `.env`, which is tracked by git.
+- `src/utils/object_storage.js` signs the three requests itself (AWS Signature V4), so there is no AWS SDK dependency. `src/files/` holds the `files` table, service and routes.
+- Three kinds, each attached to one record of the owner: `tenant_document` (tenant profile, "Documents" card), `expense_receipt` (Expenses, "Receipt" button on a row), `meter_photo` (Water billing, the camera on a reading). The shared screen piece is `components/common/Attachments.jsx`.
+- Rules: JPG, PNG, WEBP or PDF, the first bytes must match the type, 5 MB at most, 20 files per record. The stored name is random; the original name is kept in the database. A file is opened through `GET /api/files/:id/link`, a link valid for 5 minutes. Uploading, opening and deleting are audited. Deleting removes the object from storage and marks the row deleted.
+- Owner only for now (and the admin inside an owner's account). A caretaker app will need upload rights for meter photos and receipts; not added yet.
+- Testing uploads: the database part can be rolled back but the bucket cannot, so a test must delete every object it creates (run the app in-process on a spare port with the database calls inside one transaction).
+- The old `water_meter_readings.meter_photo_url` column is no longer shown.
+- Fixed the same day: `water_notification_service.js` used `effective_sender_sql` without importing it, so the caretaker reading reminder failed at startup with "effective_sender_sql is not defined".
 
 ### Notification sound
 
@@ -264,7 +283,7 @@ Not built, by agreement or by postponement:
 - **Caretaker app.** The backend permissions exist; there are no caretaker screens.
 - **Document uploads** (tenant documents, expense receipts, meter photos), planned with Supabase.
 - **Automatic payment confirmations** are deliberately not built: the user said not to send them automatically (2026-10-13).
-- **Document uploads.** The user will host on Render, does not want Supabase, and chose Cloudflare R2 (2026-10-13). Not built: it needs their R2 account. They were asked to create a bucket and an API token and put `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET` in the backend `.env`. The bucket gets a neutral name (suggested: `rental-files`), not one with "Kodi" in it, because the user plans to rename the system; the code must only ever read the name from `R2_BUCKET`. Build it (tenant documents, expense receipts, meter photos; files private, served through signed links) once those exist.
+- Document uploads are built (section 5, "File uploads"). The production server on Render needs the same four `R2_` settings.
 - **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
 - **Checking an owner's own sender ID.** The user wants an entered sender ID confirmed with Africa's Talking before it is accepted, and postponed it on 2026-10-12. Africa's Talking has no lookup for this; the only check is to send a real SMS with that sender ID (about KES 0.80) and read the answer. The option offered was a test SMS to the owner's own phone on save. Ask again before building.
 - **String IDs instead of numbers.** Raised by the user on 2026-10-13 and parked ("keep that in mind, we will come back to that"). The advice given: numeric IDs are not the security boundary, the owner check on every query is, and it is in place. Options offered: leave as is; add random public IDs only on records that appear in links (tenants, properties, payments, agreements); or convert every table, which touches nearly every file and is only sensible before real customer data exists. Do not start it without asking.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Camera, Plus, Settings } from 'lucide-react'
+import { countFiles } from '../../api/files'
 import { listUnits } from '../../api/units'
 import {
   getWaterStats,
@@ -8,6 +9,7 @@ import {
   reviewWaterReading,
   submitWaterReading,
 } from '../../api/water'
+import { AttachmentsModal } from '../../components/common/Attachments'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -44,6 +46,8 @@ function WaterBillingPage() {
   const [rulesOpen, setRulesOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [resolving, setResolving] = useState(null)
+  // The reading whose meter photos are open.
+  const [photosFor, setPhotosFor] = useState(null)
 
   // Property and month live in the URL: /water-billing?property=1&month=2026-10
   const properties = propertiesState.data || []
@@ -57,6 +61,13 @@ function WaterBillingPage() {
   const readingsState = useApi(key && `water-readings-${key}`, () =>
     listWaterReadings(property.id, { billing_period: billingPeriod })
   )
+
+  // How many meter photos each reading has, shown beside its camera.
+  const readingIds = (readingsState.data || []).map((reading) => reading.id)
+  const photoCountsState = useApi(readingIds.length ? `meter-photo-counts-${readingIds.join('-')}` : null, () =>
+    countFiles('meter_photo', readingIds)
+  )
+  const photoCounts = photoCountsState.data || {}
 
   function setParam(name, value) {
     const next = new URLSearchParams(searchParams)
@@ -237,6 +248,11 @@ function WaterBillingPage() {
                                   'No tenant'
                                 )}{' '}
                                 - {reading.unit_number}
+                                {reading.is_final ? (
+                                  <span className="block text-[10px] font-normal text-[var(--ink-faint)]">
+                                    Final reading at move-out
+                                  </span>
+                                ) : null}
                               </td>
                               <td className="font-mono px-[18px] py-[18px] text-[12px]">
                                 {formatNumber(reading.previous_reading)}
@@ -251,19 +267,23 @@ function WaterBillingPage() {
                                 {reading.bill_amount === null ? '-' : formatKES(reading.bill_amount)}
                               </td>
                               <td className="px-[18px] py-[18px] text-[var(--ink-faint)]">
-                                {reading.meter_photo_url ? (
-                                  <a
-                                    href={reading.meter_photo_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title="Open meter photo"
-                                    className="hover:text-[var(--accent-ink)]"
-                                  >
-                                    <Camera size={19} />
-                                  </a>
-                                ) : (
-                                  '-'
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotosFor(reading)}
+                                  title={
+                                    photoCounts[reading.id]
+                                      ? `${photoCounts[reading.id]} meter ${photoCounts[reading.id] === 1 ? 'photo' : 'photos'}`
+                                      : 'Add a meter photo'
+                                  }
+                                  className={`inline-flex items-center gap-1 hover:text-[var(--accent-ink)] ${
+                                    photoCounts[reading.id] ? 'text-[var(--accent-ink)]' : ''
+                                  }`}
+                                >
+                                  <Camera size={19} />
+                                  {photoCounts[reading.id] ? (
+                                    <span className="text-[10px] font-bold">{photoCounts[reading.id]}</span>
+                                  ) : null}
+                                </button>
                               </td>
                               <td className="px-[18px] py-[18px]">
                                 <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
@@ -308,6 +328,18 @@ function WaterBillingPage() {
         />
       ) : null}
 
+      {photosFor ? (
+        <AttachmentsModal
+          title={`Meter photos - House ${photosFor.unit_number}`}
+          kind="meter_photo"
+          targetId={photosFor.id}
+          labelHint="Meter on 13 Oct"
+          emptyText="No meter photo yet. Upload a photo of the meter showing this reading, as proof if the tenant questions the bill."
+          onClose={() => setPhotosFor(null)}
+          onChanged={photoCountsState.reload}
+        />
+      ) : null}
+
       {resolving ? (
         <ResolveReadingModal
           reading={resolving}
@@ -322,16 +354,31 @@ function WaterBillingPage() {
 function AddReadingModal({ property, billingPeriod, readings, onClose, onDone }) {
   const unitsState = useApi(`units-${property.id}`, () => listUnits(property.id))
 
-  // Only metered units with a tenant can be billed, and each gets one reading a month.
-  const alreadyRead = new Set(
-    readings.filter((reading) => reading.status !== 'rejected').map((reading) => reading.unit_id)
+  // A final reading is a second one for a tenant who was already read this month and is moving out.
+  const [finalReading, setFinalReading] = useState(false)
+
+  // Readings of the month that still stand, for the tenant living in a unit now.
+  const readingsOf = (unit) =>
+    readings.filter(
+      (reading) =>
+        reading.status !== 'rejected' &&
+        reading.unit_id === unit.id &&
+        reading.tenant_id === unit.current_tenant?.tenant_id
+    )
+
+  // Only metered units with a tenant can be billed.
+  const metered = (unitsState.data || []).filter(
+    (unit) => unit.water_billing_method === 'per_unit_metered' && unit.status === 'occupied'
   )
-  const units = (unitsState.data || []).filter(
-    (unit) =>
-      unit.water_billing_method === 'per_unit_metered' &&
-      unit.status === 'occupied' &&
-      !alreadyRead.has(unit.id)
-  )
+  // Each tenant is read once a month; a unit whose tenant changed can be read again for the new one.
+  const waiting = metered.filter((unit) => !readingsOf(unit).length)
+  // Already read, with no final reading yet.
+  const canHaveFinal = metered.filter((unit) => {
+    const done = readingsOf(unit)
+
+    return done.length && !done.some((reading) => reading.is_final)
+  })
+  const units = finalReading ? canHaveFinal : waiting
 
   const [unitId, setUnitId] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -352,8 +399,9 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
       const reading = await submitWaterReading(property.id, unit.id, {
         billing_period: billingPeriod,
         current_reading: Number(currentReading),
-        ...(previousReading === '' ? {} : { previous_reading: Number(previousReading) }),
+        ...(previousReading === '' || finalReading ? {} : { previous_reading: Number(previousReading) }),
         notes: notes.trim() || null,
+        final_reading: finalReading,
       })
 
       onDone()
@@ -398,13 +446,39 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
   }
 
   return (
-    <ModalShell title={`Add meter reading - ${formatMonth(billingPeriod)}`} onClose={onClose}>
+    <ModalShell
+      title={`${finalReading ? 'Add final reading' : 'Add meter reading'} - ${formatMonth(billingPeriod)}`}
+      onClose={onClose}
+    >
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
           <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
             The bill is worked out as units used × the unit’s water rate and
-            added to the tenant’s account straight away.
+            added to the tenant’s account straight away. Each tenant is read
+            once a month.
           </p>
+
+          {canHaveFinal.length ? (
+            <label className="mb-[18px] flex cursor-pointer items-start gap-3 text-[12px]">
+              <input
+                type="checkbox"
+                checked={finalReading}
+                onChange={(event) => {
+                  setFinalReading(event.target.checked)
+                  setUnitId('')
+                }}
+                className="mt-[2px] h-4 w-4 accent-[var(--accent)]"
+              />
+              <span>
+                <span className="block font-bold">This is a final reading for a tenant who is moving out</span>
+                <span className="mt-1 block text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                  For a tenant already read this month. They get a second,
+                  separate water bill for what they used since that reading.
+                  Record it before you move them out.
+                </span>
+              </span>
+            </label>
+          ) : null}
 
           <label className={labelClass}>House / unit</label>
           <select
@@ -418,7 +492,11 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
                 ? 'Loading units...'
                 : units.length
                   ? 'Choose a unit'
-                  : 'No metered, occupied units are waiting for a reading'}
+                  : finalReading
+                    ? 'No tenant can have a final reading this month'
+                    : metered.length
+                      ? 'Every metered, occupied unit has been read this month'
+                      : 'No metered unit has a tenant living in it'}
             </option>
             {units.map((item) => (
               <option key={item.id} value={item.id}>
@@ -439,16 +517,22 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
               onChange={(event) => setCurrentReading(event.target.value)}
               required
             />
-            <Field
-              label="Previous reading (first reading only)"
-              placeholder="e.g. 120"
-              type="number"
-              min="0"
-              step="any"
-              value={previousReading}
-              onChange={(event) => setPreviousReading(event.target.value)}
-              hint="Needed only the first time this unit is read. After that, last month's reading is used."
-            />
+            {finalReading ? (
+              <p className="self-end text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                It starts from this tenant&apos;s earlier reading this month.
+              </p>
+            ) : (
+              <Field
+                label="Previous reading (first reading only)"
+                placeholder="e.g. 120"
+                type="number"
+                min="0"
+                step="any"
+                value={previousReading}
+                onChange={(event) => setPreviousReading(event.target.value)}
+                hint="Needed only the first time this unit is read. After that, the unit's last reading is used, even if another tenant lived there."
+              />
+            )}
           </div>
 
           {unit ? (
@@ -478,7 +562,7 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
             Cancel
           </button>
           <button type="submit" disabled={saving || !unit} className={primaryButtonClass}>
-            {saving ? 'Saving...' : 'Save reading'}
+            {saving ? 'Saving...' : finalReading ? 'Save final reading' : 'Save reading'}
           </button>
         </ModalFooter>
       </form>

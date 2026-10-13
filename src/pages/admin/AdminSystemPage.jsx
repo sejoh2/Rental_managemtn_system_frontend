@@ -48,7 +48,7 @@ function AdminSystemPage() {
       </div>
 
       <DataState state={state} loadingLabel="Loading system status...">
-        {({ sms, sign_in: signIn, payments, server }) => (
+        {({ sms, sign_in: signIn, payments, files, server }) => (
           <div className="grid gap-4 xl:grid-cols-2">
             <Section title="SMS">
               <Row
@@ -94,6 +94,17 @@ function AdminSystemPage() {
                 <StatusBadge tone={payments.callback_is_https ? 'success' : 'danger'}>
                   {payments.callback_is_https ? 'Yes' : 'No'}
                 </StatusBadge>
+              </Row>
+            </Section>
+
+            <Section title="File storage">
+              <Row label="Storage for documents, receipts and meter photos" hint="Files are private and opened through links that last 5 minutes">
+                <StatusBadge tone={files.storage_set ? 'success' : 'danger'}>
+                  {files.storage_set ? 'Set' : 'Missing'}
+                </StatusBadge>
+              </Row>
+              <Row label="Bucket">
+                <span className="font-mono">{files.bucket || 'Not set'}</span>
               </Row>
             </Section>
 

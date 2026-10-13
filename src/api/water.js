@@ -19,7 +19,9 @@ export async function getWaterStats(propertyId, billingPeriod) {
   return data
 }
 
-// body: { billing_period, current_reading, previous_reading?, notes? }
+// body: { billing_period, current_reading, previous_reading?, notes?, final_reading? }
+// Each tenant is read once a month. final_reading adds one more for a tenant who was
+// already read and is moving out; it is billed separately for the units used since.
 // A reading lower than the previous one comes back flagged and unbilled.
 export async function submitWaterReading(propertyId, unitId, body) {
   const { data } = await api.post(
