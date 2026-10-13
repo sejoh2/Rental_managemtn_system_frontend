@@ -19,6 +19,18 @@ export async function getWaterStats(propertyId, billingPeriod) {
   return data
 }
 
+// The unit's last recorded reading before this month's, which the next one starts from.
+// -> { previous_reading: number | null }   null when the unit has never been read.
+export async function getPreviousWaterReading(propertyId, unitId, billingPeriod) {
+  const { data } = await api.get(
+    `/api/properties/${propertyId}/units/${unitId}/water-readings/previous`,
+    { billing_period: billingPeriod }
+  )
+
+  return data
+}
+
+// previous_reading may raise the starting point above the last recorded reading, never lower it.
 // body: { billing_period, current_reading, previous_reading?, notes?, final_reading? }
 // Each tenant is read once a month. final_reading adds one more for a tenant who was
 // already read and is moving out; it is billed separately for the units used since.

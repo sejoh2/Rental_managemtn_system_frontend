@@ -4,6 +4,7 @@ import { Camera, Plus, Settings } from 'lucide-react'
 import { countFiles } from '../../api/files'
 import { listUnits } from '../../api/units'
 import {
+  getPreviousWaterReading,
   getWaterStats,
   listWaterReadings,
   reviewWaterReading,
@@ -382,13 +383,27 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
 
   const [unitId, setUnitId] = useState('')
   const [currentReading, setCurrentReading] = useState('')
-  const [previousReading, setPreviousReading] = useState('')
+  // null until the owner types in the box; until then it shows the unit's last recorded reading.
+  const [previousReading, setPreviousReading] = useState(null)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [flagged, setFlagged] = useState(null)
 
   const unit = units.find((item) => String(item.id) === unitId)
+
+  // What the unit's meter last showed, which this reading starts from.
+  const previousState = useApi(unit ? `previous-reading-${unit.id}-${billingPeriod}` : null, () =>
+    getPreviousWaterReading(property.id, unit.id, billingPeriod)
+  )
+  const lastRecorded = previousState.data ? previousState.data.previous_reading : null
+  const firstReading = Boolean(previousState.data) && lastRecorded === null
+  const previousValue = previousReading ?? (lastRecorded === null ? '' : String(lastRecorded))
+  // It may be raised, for water used while the unit stood empty, but never lowered.
+  const previousTooLow =
+    lastRecorded !== null && previousValue !== '' && Number(previousValue) < lastRecorded
+  const used =
+    currentReading !== '' && previousValue !== '' ? Number(currentReading) - Number(previousValue) : null
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -399,7 +414,7 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
       const reading = await submitWaterReading(property.id, unit.id, {
         billing_period: billingPeriod,
         current_reading: Number(currentReading),
-        ...(previousReading === '' || finalReading ? {} : { previous_reading: Number(previousReading) }),
+        ...(previousValue === '' ? {} : { previous_reading: Number(previousValue) }),
         notes: notes.trim() || null,
         final_reading: finalReading,
       })
@@ -466,6 +481,7 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
                 onChange={(event) => {
                   setFinalReading(event.target.checked)
                   setUnitId('')
+                  setPreviousReading(null)
                 }}
                 className="mt-[2px] h-4 w-4 accent-[var(--accent)]"
               />
@@ -483,7 +499,11 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
           <label className={labelClass}>House / unit</label>
           <select
             value={unitId}
-            onChange={(event) => setUnitId(event.target.value)}
+            onChange={(event) => {
+              setUnitId(event.target.value)
+              // Another unit has its own last reading.
+              setPreviousReading(null)
+            }}
             required
             className={inputClass}
           >
@@ -517,27 +537,44 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
               onChange={(event) => setCurrentReading(event.target.value)}
               required
             />
-            {finalReading ? (
-              <p className="self-end text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-                It starts from this tenant&apos;s earlier reading this month.
-              </p>
-            ) : (
-              <Field
-                label="Previous reading (first reading only)"
-                placeholder="e.g. 120"
-                type="number"
-                min="0"
-                step="any"
-                value={previousReading}
-                onChange={(event) => setPreviousReading(event.target.value)}
-                hint="Needed only the first time this unit is read. After that, the unit's last reading is used, even if another tenant lived there."
-              />
-            )}
+            <Field
+              label="Previous reading"
+              placeholder={unit ? (previousState.loading ? 'Loading...' : 'e.g. 120') : 'Choose a unit first'}
+              type="number"
+              min={lastRecorded === null ? '0' : String(lastRecorded)}
+              step="any"
+              value={previousValue}
+              onChange={(event) => setPreviousReading(event.target.value)}
+              disabled={!unit || previousState.loading}
+              required={firstReading}
+              hint={
+                !unit
+                  ? 'Filled in from the unit\u2019s last reading once you choose a unit.'
+                  : firstReading
+                    ? 'This unit has never been read. Enter what the meter showed when the tenant moved in.'
+                    : lastRecorded === null
+                      ? ''
+                      : `Taken from the last reading recorded for this unit (${formatNumber(lastRecorded)}). You can raise it if water was used while the unit stood empty, but it cannot go below ${formatNumber(lastRecorded)}.`
+              }
+            />
           </div>
 
+          {previousTooLow ? (
+            <p className="mt-3 text-[11px] leading-[1.5] text-[var(--danger)]">
+              The previous reading cannot be lower than {formatNumber(lastRecorded)}, the last reading
+              recorded for this unit.
+            </p>
+          ) : null}
+
           {unit ? (
-            <p className="mt-3 text-[11px] text-[var(--ink-faint)]">
+            <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               Rate for {unit.unit_number}: {formatKES(unit.water_rate_per_unit)} per unit.
+              {used !== null && used >= 0 && !previousTooLow
+                ? ` ${formatNumber(used)} ${used === 1 ? 'unit' : 'units'} used, so the bill will be ${formatKES(used * unit.water_rate_per_unit)}.`
+                : ''}
+              {used !== null && used < 0
+                ? ' The current reading is lower than the previous one, so it will be saved as flagged and not billed until you correct it.'
+                : ''}
             </p>
           ) : null}
 
@@ -561,7 +598,11 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
             Cancel
           </button>
-          <button type="submit" disabled={saving || !unit} className={primaryButtonClass}>
+          <button
+            type="submit"
+            disabled={saving || !unit || previousState.loading || previousTooLow}
+            className={primaryButtonClass}
+          >
             {saving ? 'Saving...' : finalReading ? 'Save final reading' : 'Save reading'}
           </button>
         </ModalFooter>

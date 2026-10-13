@@ -161,6 +161,7 @@ Things that bit during the session:
 - A reading can be recorded when the unit is per-unit metered, a tenant lives in it, and the month is not in the future.
 - **Each tenant is read once a month** (it used to be once per unit). A unit that changed tenant during the month can be read again for the new tenant; the reading starts from the unit's latest reading, whoever lived there.
 - **Final reading at move-out**: a tick box in Add reading (`final_reading: true`) records one extra reading for a tenant already read that month. It is billed as a separate water charge, "Water, final reading", for the units used since, and must be recorded before the tenant is moved out. One per tenant per month. The reading carries `is_final`.
+- **The previous reading** is filled in from the unit's last recorded reading (`GET .../water-readings/previous`) and shown in the Add reading form. The owner may raise it, for water used while the unit stood empty, but never set it below the last recorded reading (refused with 422; the user's rule, 2026-10-13: "it can go beyond but not below"). When it is raised, the audit entry carries `previous_reading_raised_from`. A unit's first reading must have it typed.
 - The old unique rule on (unit, month) was dropped; the checks are in `submit_meter_reading`. "Missing reading" counts on the dashboard and reminders are still per unit, on purpose, so a tenant who moved in after the month's reading is not flagged as missing.
 
 ### Caretakers
