@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { listServiceCharges } from '../../api/serviceCharges'
 import { createTenant } from '../../api/tenants'
 import { listUnits } from '../../api/units'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
-import { moveInEstimate } from '../../utils/billing'
-import { formatKES, toDateInput } from '../../utils/format'
+import { moveInEstimate, moveInServiceCharges } from '../../utils/billing'
+import { formatDate, formatKES, ordinal, toDateInput } from '../../utils/format'
 import { MOVE_IN_BILLING, optionLabel } from '../../utils/labels'
 import { FormError } from '../common/DataState'
 import {
@@ -208,6 +209,17 @@ function MoveInSummary({ property, unit, moveInDate }) {
   const fixedWater =
     unit.water_billing_method === 'fixed_monthly' ? unit.water_fixed_monthly_bill || 0 : 0
 
+  // One-off service charges are due now; monthly ones start with the next billing.
+  const chargesState = useApi(`service-charges-${property.id}`, () =>
+    listServiceCharges(property.id)
+  )
+  const service = moveInServiceCharges(
+    property.move_in_billing,
+    unit.id,
+    moveInDate,
+    chargesState.data || []
+  )
+
   const rows = [
     ['Rent deposit', unit.rent_deposit],
     ['Water deposit', unit.water_deposit],
@@ -220,6 +232,7 @@ function MoveInSummary({ property, unit, moveInDate }) {
     ],
     ['First month electricity', estimate(unit.electricity_monthly_charge || 0)],
     ['First month water', estimate(fixedWater)],
+    ...service.now,
   ].filter(([, amount]) => amount > 0)
 
   const total = rows.reduce((sum, [, amount]) => sum + amount, 0)
@@ -250,6 +263,19 @@ function MoveInSummary({ property, unit, moveInDate }) {
           <span className="font-mono font-bold">{formatKES(total)}</span>
         </div>
       </div>
+
+      {chargesState.error ? (
+        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--warning)]">
+          The property&apos;s service charges could not be loaded, so they are
+          not in this total. They are still billed when the tenant is added.
+        </p>
+      ) : service.later.length ? (
+        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+          Not due now: {service.later.map(([name, amount]) => `${name} ${formatKES(amount)}`).join(', ')}{' '}
+          every month. First billed on {formatDate(service.firstBilling)} with
+          that month&apos;s rent, due on the {ordinal(property.rent_due_day)}.
+        </p>
+      ) : null}
     </div>
   )
 }

@@ -22,7 +22,8 @@ import {
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatKES, formatMonth, formatNumber, toDateInput } from '../../utils/format'
-import { EXPENSE_CATEGORIES, optionLabel } from '../../utils/labels'
+import StatusBadge from '../../components/common/StatusBadge'
+import { EXPENSE_CATEGORIES, EXPENSE_RECOVERY, optionLabel } from '../../utils/labels'
 
 // First and last day of a 'YYYY-MM' month, as 'YYYY-MM-DD'.
 function monthRange(month) {
@@ -184,7 +185,7 @@ function ExpensesPage() {
           >
             {(expenses) => (
               <div className="overflow-x-auto">
-                <table className="min-w-[820px] w-full border-collapse">
+                <table className="min-w-[980px] w-full border-collapse">
                   <thead>
                     <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
                       <th className="px-[18px] py-[10px] font-bold">Date</th>
@@ -192,6 +193,7 @@ function ExpensesPage() {
                       <th className="px-[18px] py-[10px] font-bold">Property</th>
                       <th className="px-[18px] py-[10px] font-bold">Amount</th>
                       <th className="px-[18px] py-[10px] font-bold">Notes</th>
+                      <th className="px-[18px] py-[10px] font-bold">Who covers it</th>
                       <th className="px-[18px] py-[10px] font-bold"></th>
                     </tr>
                   </thead>
@@ -219,6 +221,14 @@ function ExpensesPage() {
                           </td>
                           <td className="px-[18px] py-[13px] text-[12px]">
                             {voided ? `Voided: ${item.void_reason}` : item.notes || '-'}
+                            {!voided && item.unit_number ? (
+                              <span className="block text-[10px] text-[var(--ink-faint)]">
+                                House {item.unit_number}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-[18px] py-[13px] text-[12px]">
+                            {voided ? null : <ExpenseRecovery expense={item} />}
                           </td>
                           <td className="px-[18px] py-[13px] text-right">
                             {voided ? null : (
@@ -361,6 +371,35 @@ function ExpensesPage() {
       {voiding ? (
         <VoidExpenseModal expense={voiding} onClose={() => setVoiding(null)} onDone={reloadAll} />
       ) : null}
+    </>
+  )
+}
+
+/*
+  Who carries one expense. Only a repair from a maintenance request can be
+  charged to one tenant; other costs are recovered through service charges,
+  which the table per category shows.
+*/
+function ExpenseRecovery({ expense }) {
+  const recovery = expense.recovery
+
+  if (!expense.maintenance_request_id) {
+    return <span className="text-[11px] text-[var(--ink-faint)]">By category, see below</span>
+  }
+
+  const [label, tone] = EXPENSE_RECOVERY[recovery.status]
+
+  const detail = {
+    owner_cost: 'Not charged to a tenant',
+    recovered: `${recovery.tenant_name} paid ${formatKES(recovery.paid)}`,
+    pending: `${recovery.tenant_name} owes ${formatKES(recovery.pending)} of ${formatKES(recovery.charged)}`,
+    at_move_out: `${recovery.tenant_name}, ${formatKES(recovery.pending)} from their deposit`,
+  }[recovery.status]
+
+  return (
+    <>
+      <StatusBadge tone={tone}>{label}</StatusBadge>
+      <span className="mt-1 block text-[10px] text-[var(--ink-faint)]">{detail}</span>
     </>
   )
 }

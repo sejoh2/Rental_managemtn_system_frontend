@@ -29,6 +29,47 @@ export function moveInEstimate(policy, moveInDate, monthlyAmount) {
   return { amount: Math.round((monthlyAmount * days) / daysInMonth), days, daysInMonth }
 }
 
+/*
+  The property's service charges for a tenant moving into a unit.
+  A one-off charge is billed in full on the day they move in. A monthly
+  charge starts with the next monthly billing, unless they move in on the
+  1st, which is the billing date itself.
+
+  charges: from listServiceCharges, each with unit_amounts.
+  -> { now: [[label, amount]], later: [[name, amount]], firstBilling: 'YYYY-MM-01' }
+*/
+export function moveInServiceCharges(policy, unitId, moveInDate, charges) {
+  const { year, month, day } = dateParts(moveInDate)
+  const now = []
+  const later = []
+
+  for (const charge of charges) {
+    const amount =
+      charge.unit_amounts.find((unit) => unit.unit_id === unitId)?.amount ?? charge.amount
+
+    if (charge.status !== 'active' || !(amount > 0)) continue
+
+    if (charge.frequency === 'once') {
+      now.push([charge.name, amount])
+    } else if (day === 1) {
+      // A charge added later in the month is billed from the day it was added.
+      const from = charge.start_date > moveInDate ? charge.start_date : moveInDate
+
+      now.push([`${charge.name} (first month)`, moveInEstimate(policy, from, amount).amount])
+    } else {
+      later.push([charge.name, amount])
+    }
+  }
+
+  const next = month === 12 ? [year + 1, 1] : [year, month + 1]
+
+  return {
+    now: now.filter(([, amount]) => amount > 0),
+    later,
+    firstBilling: `${next[0]}-${String(next[1]).padStart(2, '0')}-01`,
+  }
+}
+
 // What a monthly amount comes to for the move-out month.
 // tenant.move_in_date matters only when the tenant moved in during that same month.
 export function moveOutEstimate(property, tenant, moveOutDate, monthlyAmount) {

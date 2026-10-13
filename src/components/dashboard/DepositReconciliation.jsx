@@ -83,6 +83,63 @@ function DepositGroup({ group }) {
   )
 }
 
+// "paid during the stay", "from the deposit", "unpaid", or a mix of them.
+function repairNote(repair) {
+  return [
+    repair.paid_during_stay > 0
+      ? repair.paid_during_stay === repair.amount
+        ? 'paid during the stay'
+        : `${formatKES(repair.paid_during_stay)} paid during the stay`
+      : null,
+    repair.covered_at_move_out > 0
+      ? repair.covered_at_move_out === repair.amount
+        ? 'taken from the deposit'
+        : `${formatKES(repair.covered_at_move_out)} taken from the deposit`
+      : null,
+    repair.unpaid > 0
+      ? repair.unpaid === repair.amount
+        ? 'unpaid'
+        : `${formatKES(repair.unpaid)} unpaid`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
+/*
+  Every repair charged to the tenant during the stay. The deposits above only
+  list what is still unpaid, so a repair already paid would not show otherwise.
+*/
+function RepairsCharged({ repairs, settled }) {
+  if (!repairs?.length) return null
+
+  return (
+    <div className="border-b border-[var(--line-soft)] px-[18px] py-4">
+      <h4 className="text-[12px] font-bold">Repairs charged during the stay</h4>
+      <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
+        {settled
+          ? 'How each repair charged to this tenant was settled.'
+          : 'Unpaid ones are covered by the rent deposit above. Paid ones are listed so nothing is missed.'}
+      </p>
+
+      <div className="mt-3">
+        {repairs.map((repair) => (
+          <Row
+            key={repair.charge_id}
+            label={`${repair.description} · ${repairNote(repair)}`}
+            value={formatKES(repair.amount)}
+          />
+        ))}
+        <Row
+          label="Total charged for repairs"
+          value={formatKES(repairs.reduce((total, repair) => total + repair.amount, 0))}
+          strong
+        />
+      </div>
+    </div>
+  )
+}
+
 /*
   Reconciles the deposits of a tenant who has moved out.
   Each deposit is shown against its own unpaid bills; "Calculate" merges them
@@ -103,7 +160,12 @@ function DepositReconciliation({ tenant, onChanged }) {
       <DataState state={state} loadingLabel="Loading deposit reconciliation...">
         {(data) =>
           data.status === 'confirmed' ? (
-            <Settled tenant={tenant} settlement={data.settlement} onChanged={handleChanged} />
+            <Settled
+              tenant={tenant}
+              settlement={data.settlement}
+              repairs={data.repairs}
+              onChanged={handleChanged}
+            />
           ) : (
             <OpenReconciliation tenant={tenant} data={data} onChanged={handleChanged} />
           )
@@ -176,6 +238,8 @@ function OpenReconciliation({ tenant, data, onChanged }) {
       {groups.map((group) => (
         <DepositGroup key={group.key} group={group} />
       ))}
+
+      <RepairsCharged repairs={data.repairs} />
 
       {data.credit_held > 0 ? (
         <div className="border-b border-[var(--line-soft)] px-[18px] py-3">
@@ -288,7 +352,7 @@ function OpenReconciliation({ tenant, data, onChanged }) {
   )
 }
 
-function Settled({ tenant, settlement, onChanged }) {
+function Settled({ tenant, settlement, repairs, onChanged }) {
   const [form, setForm] = useState({ paid_on: toDateInput(), method: 'mpesa', reference: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -337,6 +401,8 @@ function Settled({ tenant, settlement, onChanged }) {
           <StatusBadge tone="success">Settled</StatusBadge>
         )}
       </div>
+
+      <RepairsCharged repairs={repairs} settled />
 
       <div className="px-[18px] py-4">
         <Row label="Deposits held" value={formatKES(settlement.deposits_held)} />

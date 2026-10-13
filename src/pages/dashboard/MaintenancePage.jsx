@@ -26,6 +26,8 @@ import {
   MAINTENANCE_CATEGORIES,
   MAINTENANCE_PRIORITIES,
   MAINTENANCE_STATUSES,
+  REPAIR_CHARGE_TIMINGS,
+  REPAIR_PAYER_LABELS,
   optionLabel,
 } from '../../utils/labels'
 
@@ -57,10 +59,54 @@ function requestSubtitle(request) {
       : request.estimated_cost
         ? `est. ${formatKES(request.estimated_cost)}`
         : null,
-    request.tenant_charge_id ? 'charged to tenant' : null,
+    payerNote(request),
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+// Who pays: decided when reported, and final once the cost is recorded.
+function payerNote(request) {
+  const atMoveOut = request.charge_timing === 'move_out'
+
+  if (request.tenant_charge_id) {
+    return atMoveOut ? 'charged to tenant, deducted at move-out' : 'charged to tenant'
+  }
+
+  if (request.expense_id || !request.charge_to_tenant) return null
+
+  return atMoveOut ? 'tenant to pay at move-out' : 'tenant to pay'
+}
+
+/*
+  Who pays for a repair, and when a tenant who pays is charged.
+  payer: 'owner' | 'tenant'; timing: 'now' | 'move_out'.
+*/
+function RepairPayerFields({ payer, timing, tenantName, disabled, onChange }) {
+  return (
+    <>
+      <SelectField
+        label="Who pays for this repair"
+        value={payer}
+        onChange={(event) => onChange({ payer: event.target.value })}
+        options={[
+          ['owner', REPAIR_PAYER_LABELS.owner],
+          ['tenant', `${REPAIR_PAYER_LABELS.tenant} (${tenantName})`],
+        ]}
+        disabled={disabled}
+      />
+
+      {payer === 'tenant' ? (
+        <SelectField
+          label="How the tenant pays"
+          value={timing}
+          onChange={(event) => onChange({ timing: event.target.value })}
+          options={REPAIR_CHARGE_TIMINGS}
+          disabled={disabled}
+        />
+      ) : null}
+    </>
+  )
 }
 
 function MaintenancePage() {
@@ -228,6 +274,8 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
     description: '',
     category: 'plumbing',
     priority: 'normal',
+    payer: 'owner',
+    timing: 'now',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -235,6 +283,11 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
   const unitsState = useApi(form.property_id ? `units-${form.property_id}` : null, () =>
     listUnits(form.property_id)
   )
+
+  // Only a repair in a unit with a tenant living in it can be charged to a tenant.
+  const unitTenant = (unitsState.data || []).find((unit) => String(unit.id) === form.unit_id)
+    ?.current_tenant
+  const chargeTenant = Boolean(unitTenant) && form.payer === 'tenant'
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -252,6 +305,8 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
         description: form.description.trim() || null,
         category: form.category,
         priority: form.priority,
+        charge_to_tenant: chargeTenant,
+        charge_timing: chargeTenant ? form.timing : 'now',
       })
 
       onDone()
@@ -321,7 +376,26 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
                 onChange={setField('description')}
               />
             </div>
+
+            {unitTenant ? (
+              <RepairPayerFields
+                payer={form.payer}
+                timing={form.timing}
+                tenantName={unitTenant.full_name}
+                onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+              />
+            ) : null}
           </div>
+
+          <p className="mt-[14px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            {!form.unit_id
+              ? 'A common-area repair is your cost and cannot be charged to a tenant.'
+              : !unitTenant
+                ? 'No tenant lives in this unit now, so the repair is your cost.'
+                : chargeTenant
+                  ? `Nothing is charged yet. ${unitTenant.full_name} is charged when you resolve the request and enter the cost; you can still change who pays then.`
+                  : 'The repair is your cost. You can still change who pays when you resolve the request.'}
+          </p>
 
           {error ? (
             <div className="mt-[14px]">
@@ -367,7 +441,9 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
     assigned_vendor_name: request.assigned_vendor_name || '',
     estimated_cost: request.estimated_cost === null ? '' : String(request.estimated_cost),
     actual_cost: request.actual_cost === null ? '' : String(request.actual_cost),
-    charge_to_tenant: request.charge_to_tenant,
+    // Chosen when the issue was reported; can still be changed until the cost is recorded.
+    payer: request.charge_to_tenant ? 'tenant' : 'owner',
+    timing: request.charge_timing || 'now',
     resolution_notes: request.resolution_notes || '',
     cancellation_reason: request.cancellation_reason || '',
   })
@@ -396,6 +472,8 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
   const resolving = form.status === 'resolved'
   const cost = Number(form.actual_cost) || 0
   const canChargeTenant = Boolean(request.unit_id && request.unit_tenant_name)
+  const chargeTenant = canChargeTenant && form.payer === 'tenant'
+  const atMoveOut = form.timing === 'move_out'
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -425,7 +503,8 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
           ? {}
           : {
               actual_cost: form.actual_cost === '' ? null : Number(form.actual_cost),
-              charge_to_tenant: Boolean(canChargeTenant && form.charge_to_tenant),
+              charge_to_tenant: chargeTenant,
+              charge_timing: chargeTenant ? form.timing : 'now',
             }),
         resolution_notes: form.resolution_notes.trim() || null,
         ...(form.status === 'cancelled'
@@ -534,26 +613,21 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
           {resolving ? (
             <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
               {canChargeTenant ? (
-                <label className={`flex items-start gap-3 ${costRecorded ? '' : 'cursor-pointer'}`}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(form.charge_to_tenant)}
-                    disabled={costRecorded}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, charge_to_tenant: event.target.checked }))
-                    }
-                    className="mt-[2px] h-4 w-4 accent-[var(--accent)]"
-                  />
-                  <span>
-                    <span className="block text-[11px] font-bold text-[var(--ink)]">
-                      Charge this cost to the tenant ({request.unit_tenant_name})
-                    </span>
-                    <span className="mt-1 block text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-                      Tick this when the tenant caused the damage. Leave it
-                      unticked for normal wear, which is your cost.
-                    </span>
-                  </span>
-                </label>
+                <>
+                  <div className="grid gap-[14px] sm:grid-cols-2">
+                    <RepairPayerFields
+                      payer={form.payer}
+                      timing={form.timing}
+                      tenantName={request.unit_tenant_name}
+                      disabled={costRecorded}
+                      onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                    Choose the tenant when they caused the damage. Normal
+                    wear is your cost.
+                  </p>
+                </>
               ) : (
                 <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
                   {request.unit_id
@@ -566,16 +640,24 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
                 {costRecorded ? (
                   <>
                     <strong>{formatKES(request.actual_cost)} was recorded as an expense</strong>
-                    {request.tenant_charge_id ? ' and charged to the tenant.' : '.'}{' '}
+                    {request.tenant_charge_id
+                      ? request.charge_timing === 'move_out'
+                        ? ' and charged to the tenant, to be deducted from their deposit at move-out.'
+                        : ' and charged to the tenant.'
+                      : '. It is your cost.'}{' '}
                     The cost can no longer be changed here.
                   </>
                 ) : cost > 0 ? (
                   <>
                     <strong>When you save:</strong> {formatKES(cost)} is recorded as a
                     repairs expense for {request.property_name}.{' '}
-                    {canChargeTenant && form.charge_to_tenant
-                      ? `${request.unit_tenant_name} is also charged ${formatKES(cost)}. They can pay it during their stay; anything unpaid is deducted from their deposit at move-out. No SMS is sent automatically: open this request again and click "Send SMS" to tell them.`
-                      : 'The tenant is not charged.'}{' '}
+                    {chargeTenant
+                      ? `${request.unit_tenant_name} is also charged ${formatKES(cost)}. ${
+                          atMoveOut
+                            ? 'It is not collected during their stay and does not count as arrears; it is deducted from their deposit when they move out.'
+                            : 'It is paid from their credit or their next payment; anything still unpaid is deducted from their deposit at move-out.'
+                        } No SMS is sent automatically: open this request again and click "Send SMS" to tell them.`
+                      : 'The tenant is not charged, so it is your cost.'}{' '}
                     The cost cannot be changed afterwards.
                   </>
                 ) : (

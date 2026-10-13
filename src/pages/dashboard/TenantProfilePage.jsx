@@ -320,6 +320,10 @@ function ChargesSummary({ charges, tenant }) {
   const liveCharges = charges.filter((charge) => charge.status !== 'void')
   const billed = liveCharges.reduce((total, charge) => total + charge.amount_due, 0)
   const paid = liveCharges.reduce((total, charge) => total + charge.amount_paid, 0)
+  // Repairs kept for move-out are owed but not due, so they are not in the balance.
+  const heldAtMoveOut = liveCharges
+    .filter((charge) => charge.status === 'held')
+    .reduce((total, charge) => total + charge.amount_due, 0)
 
   if (!liveCharges.length) {
     return <EmptyState title="Nothing billed yet" message="Charges appear here once the tenant is billed." />
@@ -331,6 +335,9 @@ function ChargesSummary({ charges, tenant }) {
         <DetailRow label="Billed" value={formatKES(billed)} />
         <DetailRow label="Paid so far" value={formatKES(paid)} />
         <DetailRow label="Balance" value={formatKES(tenant.balance)} danger={tenant.balance > 0} />
+        {heldAtMoveOut > 0 ? (
+          <DetailRow label="Repairs to deduct at move-out" value={formatKES(heldAtMoveOut)} />
+        ) : null}
         {tenant.credit_balance > 0 ? (
           <DetailRow label="Credit held" value={formatKES(tenant.credit_balance)} />
         ) : null}
@@ -371,10 +378,23 @@ function ChargesSummary({ charges, tenant }) {
                 <td className="font-mono px-[18px] py-[13px]">{formatKES(charge.amount_due)}</td>
                 <td className="font-mono px-[18px] py-[13px]">{formatKES(charge.amount_paid)}</td>
                 <td className="px-[18px] py-[13px]">
+                  {/* held: a repair that waits for move-out; it is not arrears. */}
                   <StatusBadge
-                    tone={charge.status === 'paid' ? 'success' : charge.status === 'partial' ? 'warning' : 'danger'}
+                    tone={
+                      charge.status === 'paid'
+                        ? 'success'
+                        : charge.status === 'partial'
+                          ? 'warning'
+                          : charge.status === 'held'
+                            ? 'info'
+                            : 'danger'
+                    }
                   >
-                    {charge.status === 'open' ? 'Unpaid' : humanize(charge.status)}
+                    {charge.status === 'open'
+                      ? 'Unpaid'
+                      : charge.status === 'held'
+                        ? 'Deduct at move-out'
+                        : humanize(charge.status)}
                   </StatusBadge>
                 </td>
               </tr>

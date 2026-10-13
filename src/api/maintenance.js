@@ -7,7 +7,8 @@ export async function listMaintenance(filters) {
   return data
 }
 
-// body: { unit_id?, title, description?, category, priority }. No unit means a common-area issue.
+// body: { unit_id?, title, description?, category, priority, charge_to_tenant?, charge_timing? }.
+// No unit means a common-area issue. charge_timing: 'now' | 'move_out'.
 export async function reportMaintenance(propertyId, body) {
   const { data } = await api.post(`/api/properties/${propertyId}/maintenance`, body)
 

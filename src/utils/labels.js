@@ -21,6 +21,24 @@ export const SMS_SENDER_OPTIONS = [
   ['custom', 'My own sender ID'],
 ]
 
+export const REPAIR_PAYER_LABELS = {
+  owner: 'Owner (my cost)',
+  tenant: 'Tenant',
+}
+
+export const REPAIR_CHARGE_TIMINGS = [
+  ['now', 'Now: from their credit or next payment'],
+  ['move_out', 'At move-out: deducted from their deposit'],
+]
+
+// expense.recovery.status -> [label, StatusBadge tone]
+export const EXPENSE_RECOVERY = {
+  owner_cost: ['Owner cost', 'neutral'],
+  recovered: ['Recovered', 'success'],
+  pending: ['Pending from tenant', 'warning'],
+  at_move_out: ['To deduct at move-out', 'info'],
+}
+
 export const WATER_BILLING_METHODS = [
   ['per_unit_metered', 'Per-unit metered'],
   ['fixed_monthly', 'Fixed payment every month'],
