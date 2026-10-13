@@ -15,6 +15,13 @@ export const THEME_MODES = [
   ['system', 'Follow device'],
 ]
 
+// An owner's own sender ID is used only once the admin has approved it. status -> [label, tone]
+export const SENDER_STATUS = {
+  pending: ['Waiting for approval', 'warning'],
+  approved: ['Approved', 'success'],
+  rejected: ['Not approved', 'danger'],
+}
+
 // Default is saved as no sender ID at all.
 export const SMS_SENDER_OPTIONS = [
   ['default', "Default (Africa's Talking)"],

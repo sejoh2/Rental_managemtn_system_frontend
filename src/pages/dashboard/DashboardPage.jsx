@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useMatch, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom'
 import DashboardSidebar from '../../components/dashboard/DashboardSidebar'
 import AddPropertyModal from '../../components/dashboard/AddPropertyModal'
 import AddTenantModal from '../../components/dashboard/AddTenantModal'
@@ -19,6 +19,7 @@ import CaretakersPage from './CaretakersPage'
 import SmsCentrePage from './SmsCentrePage'
 import ReportsPage from './ReportsPage'
 import SettingsPage from './SettingsPage'
+import { useAuth } from '../../context/AuthContext'
 import { useProperties } from '../../context/PropertiesContext'
 import PropertiesProvider from '../../context/PropertiesProvider'
 import PaymentStatsProvider from '../../context/PaymentStatsProvider'
@@ -104,6 +105,9 @@ function DashboardPage() {
 
 function DashboardShell() {
   const properties = useProperties().data
+  // Set when a system admin is working inside this owner's account.
+  const { actingOwner, closeOwnerAccount } = useAuth()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [addPropertyOpen, setAddPropertyOpen] = useState(false)
   const [addTenantOpen, setAddTenantOpen] = useState(false)
@@ -136,7 +140,26 @@ function DashboardShell() {
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
-        <span>KODI - Owner Web Dashboard</span>
+        {actingOwner ? (
+          <>
+            <span>
+              <b>Admin</b> - you are working in {actingOwner.name}&apos;s account. Everything
+              you do here is recorded under your name.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                closeOwnerAccount()
+                navigate('/admin/overview')
+              }}
+              className="ml-auto rounded-[6px] border border-[var(--strip-line)] px-[10px] py-[3px] font-bold text-[var(--strip-ink-strong)]"
+            >
+              Exit account
+            </button>
+          </>
+        ) : (
+          <span>KODI - Owner Web Dashboard</span>
+        )}
       </div>
 
       <div className="flex min-h-screen pt-[34px]">

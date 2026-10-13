@@ -6,6 +6,10 @@ export const AuthContext = createContext(null)
 /*
   const { status, user, signIn, signOut, refreshUser } = useAuth()
   status: 'loading' | 'signedOut' | 'signedIn'
+
+  For a system admin only:
+  actingOwner: { user_id, name } | null   the owner account the admin has opened
+  openOwnerAccount(ownerId), closeOwnerAccount()
 */
 export function useAuth() {
   return useContext(AuthContext)

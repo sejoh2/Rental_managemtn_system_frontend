@@ -62,7 +62,8 @@ const navGroups = [
 ]
 
 function DashboardSidebar({ open, onClose }) {
-  const { user, signOut } = useAuth()
+  // actingOwner: set when a system admin is working inside this owner's account.
+  const { user, signOut, actingOwner } = useAuth()
   const name = displayName(user)
   const properties = useProperties().data
   // Units across every property, shown under the Kodi name.
@@ -141,11 +142,15 @@ function DashboardSidebar({ open, onClose }) {
         <div className="border-t border-[var(--sidebar-line)] px-4 py-[14px]">
           <div className="flex items-center gap-[10px]">
             <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-[12px] font-bold text-[var(--accent-ink)]">
-              {initials(name)}
+              {initials(actingOwner ? actingOwner.name : name)}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[12px] font-bold text-[var(--sidebar-ink-strong)]">{name}</div>
-              <div className="text-[10px] text-[var(--sidebar-ink-soft)]">{humanize(user.role)}</div>
+              <div className="truncate text-[12px] font-bold text-[var(--sidebar-ink-strong)]">
+                {actingOwner ? actingOwner.name : name}
+              </div>
+              <div className="text-[10px] text-[var(--sidebar-ink-soft)]">
+                {actingOwner ? `Owner - opened by ${name}` : humanize(user.role)}
+              </div>
             </div>
 
             <button

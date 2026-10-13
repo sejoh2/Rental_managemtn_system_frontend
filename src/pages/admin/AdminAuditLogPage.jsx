@@ -1,6 +1,9 @@
-import { useSearchParams } from 'react-router-dom'
-import { listAuditActions, listAuditLogs, listUsers } from '../../api/admin'
-import { DataState, EmptyState } from '../../components/common/DataState'
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Download } from 'lucide-react'
+import { exportAuditLog, listAuditActions, listAuditLogs, listUsers } from '../../api/admin'
+import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import StatusBadge from '../../components/common/StatusBadge'
 import { inputClass, labelClass } from '../../components/common/Modal'
 import { useApi } from '../../hooks/useApi'
 import { formatDateTime, formatPhone, humanize } from '../../utils/format'
@@ -26,6 +29,8 @@ function detailsText(log) {
 
   Object.entries(log.metadata || {}).forEach(([key, value]) => {
     if (value === null || value === undefined || value === '') return
+    // Shown as a badge next to the person instead.
+    if (key === 'by_admin') return
 
     parts.push(`${key.replace(/_/g, ' ')}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
   })
@@ -64,6 +69,30 @@ function AdminAuditLogPage() {
   const total = logsState.data?.total || 0
   const lastPage = Math.max(Math.ceil(total / PAGE_SIZE), 1)
   const hasFilters = Object.values(filters).some(Boolean)
+  // Passed to an entry's page so its back link returns to this same view.
+  const entryFilters = searchParams.toString() ? `?${searchParams.toString()}` : ''
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState(null)
+
+  // Downloads what the filters show, not just this page. The download is itself audited.
+  async function handleExport() {
+    setExporting(true)
+    setExportError(null)
+
+    try {
+      await exportAuditLog({
+        owner_id: filters.account,
+        user_id: filters.user,
+        action: filters.action,
+        from_date: filters.from,
+        to_date: filters.to,
+      })
+    } catch (downloadError) {
+      setExportError(downloadError)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function setFilter(name, value) {
     const next = new URLSearchParams(searchParams)
@@ -178,8 +207,26 @@ function AdminAuditLogPage() {
       </section>
 
       <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
+        {exportError ? (
+          <div className="border-b border-[var(--line)] px-[18px] py-3">
+            <FormError error={exportError} />
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
-          <h3 className="text-[12px] font-bold">Activity</h3>
+          <h3 className="flex items-center gap-3 text-[12px] font-bold">
+            Activity
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting || !total}
+              title="Downloads up to 5,000 entries matching the filters"
+              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+            >
+              <Download size={13} />
+              {exporting ? 'Preparing...' : 'Export CSV'}
+            </button>
+          </h3>
           <span className="text-[10px] text-[var(--ink-faint)]">
             {logsState.data
               ? total
@@ -202,7 +249,7 @@ function AdminAuditLogPage() {
         >
           {(data) => (
             <div className="overflow-x-auto">
-              <table className="min-w-[1080px] w-full border-collapse">
+              <table className="min-w-[1160px] w-full border-collapse">
                 <thead>
                   <tr className="bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]">
                     <th className="px-[18px] py-[10px] font-bold">When</th>
@@ -211,6 +258,7 @@ function AdminAuditLogPage() {
                     <th className="px-[18px] py-[10px] font-bold">Action</th>
                     <th className="px-[18px] py-[10px] font-bold">Details</th>
                     <th className="px-[18px] py-[10px] font-bold">IP address</th>
+                    <th className="px-[18px] py-[10px] font-bold"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -226,6 +274,12 @@ function AdminAuditLogPage() {
                             <div className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
                               {log.actor.role === 'user' ? 'No role' : humanize(log.actor.role)}
                             </div>
+                            {/* Done by the admin while working inside the owner's account. */}
+                            {log.metadata?.by_admin ? (
+                              <div className="mt-[5px]">
+                                <StatusBadge tone="info">In owner&apos;s account</StatusBadge>
+                              </div>
+                            ) : null}
                           </>
                         ) : (
                           <div className="text-[12px] font-bold text-[var(--ink-soft)]">System</div>
@@ -235,7 +289,13 @@ function AdminAuditLogPage() {
                         {log.account ? personName(log.account) : '-'}
                       </td>
                       <td className="px-[18px] py-[13px] text-[12px] font-bold">
-                        {actionLabel(log.action)}
+                        <Link
+                          to={`/admin/audit-log/${log.id}`}
+                          state={{ filters: entryFilters }}
+                          className="hover:text-[var(--accent-ink)] hover:underline"
+                        >
+                          {actionLabel(log.action)}
+                        </Link>
                       </td>
                       <td className="max-w-[340px] px-[18px] py-[13px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
                         <div className="line-clamp-3 break-words" title={detailsText(log)}>
@@ -244,6 +304,15 @@ function AdminAuditLogPage() {
                       </td>
                       <td className="font-mono whitespace-nowrap px-[18px] py-[13px] text-[11px] text-[var(--ink-faint)]">
                         {log.ip_address || '-'}
+                      </td>
+                      <td className="px-[18px] py-[13px] text-right">
+                        <Link
+                          to={`/admin/audit-log/${log.id}`}
+                          state={{ filters: entryFilters }}
+                          className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
+                        >
+                          View
+                        </Link>
                       </td>
                     </tr>
                   ))}

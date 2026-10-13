@@ -137,7 +137,16 @@ function PropertiesPage({ onAddProperty }) {
                       'Service charges paid into',
                       optionLabel(SERVICE_CHARGE_ACCOUNTS, selectedProperty.service_charge_account),
                     ],
-                    ['SMS sender', selectedProperty.sms_sender_id || "Default (Africa's Talking)"],
+                    [
+                      'SMS sender',
+                      selectedProperty.sms_sender_id
+                        ? `${selectedProperty.sms_sender_id} (${
+                            { pending: 'waiting for approval', approved: 'approved', rejected: 'not approved' }[
+                              selectedProperty.sms_sender_status
+                            ] || 'waiting for approval'
+                          })`
+                        : "Default (Africa's Talking)",
+                    ],
                   ].map(([label, value]) => (
                     <div
                       key={label}

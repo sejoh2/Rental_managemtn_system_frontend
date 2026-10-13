@@ -8,7 +8,7 @@ import SignInPage from './pages/auth/SignInPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 
 function App() {
-  const { status, user } = useAuth()
+  const { status, user, actingOwner } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -20,6 +20,7 @@ function App() {
   }
 
   const signedIn = status === 'signedIn'
+  const onAdminPages = location.pathname.startsWith('/admin')
 
   return (
     <Routes>
@@ -44,6 +45,10 @@ function App() {
             <NamePage />
           ) : user.role === 'owner' ? (
             <DashboardPage />
+          ) : user.role === 'admin' && actingOwner && !onAdminPages ? (
+            // An admin working inside an owner's account sees that owner's dashboard.
+            // The admin's own pages always win, so the browser's back button returns to them.
+            <DashboardPage key={actingOwner.user_id} />
           ) : user.role === 'admin' ? (
             <AdminPage />
           ) : (

@@ -166,6 +166,24 @@ Things that bit during the session:
 - The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
 - Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
 
+### Admin: access to everything
+
+Decided by the user on 2026-10-13: "an admin should be able to access everything", including owners' money, and to act inside an owner's account.
+
+- **Overview** (`/admin/overview`, the admin's home): platform totals and one row per owner account (properties, units, tenants, caretakers, collected this month, SMS this month, last sign-in), with a search box. `GET /api/admin/overview`.
+- **Open account.** The admin clicks "Open account" on an owner and lands in that owner's dashboard with every owner screen and action. `POST /api/admin/owners/:id/open` records `ADMIN_OPENED_ACCOUNT`. From then on the frontend sends `X-Acting-Owner-Id` (`api/client.js`, kept in sessionStorage for that tab) and `authenticate` runs the request as that owner (`req.user` is the owner, `req.admin` the admin). The header is ignored on `/api/auth`, `/api/users` and `/api/admin`, and for anyone who is not an admin.
+- **Audit.** `audit/acting_context.js` (AsyncLocalStorage) carries the admin through the request; `log_audit` then records the admin as the actor, the owner as the account, and `by_admin: true` in the metadata. No owner service was changed.
+- In the app: `useAuth()` gives `actingOwner`, `openOwnerAccount`, `closeOwnerAccount`; `App.jsx` shows `DashboardPage` to an admin with an account open; the top strip shows whose account it is and an "Exit account" button.
+- Leaving: the browser's back button to an `/admin` page closes the account (a `popstate` listener in `AuthProvider`), and `/admin` pages always show the admin area. Inside an account the greeting and the side menu show the owner's name ("Owner - opened by <admin>").
+- **One administrator, set on the server** (the user's decision: "one for now, seeded on deployment, very secure"). It is the `ADMIN_PHONE` in the backend environment. No endpoint or screen can create an admin, `PATCH /api/users/:id` refuses to edit the admin, and at every startup any other account holding the admin role loses it and is signed out (`seed_admin_user`, audited as `ADMIN_ROLE_REMOVED`). Do not add a "make admin" action without asking.
+- **Users page**: search by name, phone or role; "Add owner" (`POST /api/users`, name and phone, nothing is sent to the person); "Edit" name and phone (a new phone signs the person out); "Remove owner role" (`/demote-owner`, refused while the owner has properties: deactivate instead); "Open account" on owner rows. Names are saved as first and last word.
+- **Owner page** (`/admin/owners/:id`, `GET /api/admin/owners/:id`): read-only totals including money collected this month and what tenants owe, properties, caretakers, recent activity.
+- **Sender ID approval.** An owner's own sender ID is used only after the admin approves it on the admin SMS page; until then, and if rejected, that property's messages go from the default sender. One decision per owner and sender ID (`sms_sender_approvals`), mirrored on `properties.sms_sender_status`; every sending query uses `effective_sender_sql` from `sms/sender_approval_service.js`. The owner sees the status in Edit property and on the property details.
+- **Admin SMS usage** counts only messages sent through the platform's sender (`sender_id IS NULL`), which the platform pays for. Messages sent with an owner's approved sender ID are deliberately left out.
+- **Admin bell** (`GET /api/admin/notifications`): sender IDs waiting, people with no role, and security alarms from the last 24 hours of the audit log: 5+ wrong codes for one number, 8+ codes requested for one number, any wrong code for the admin's number. In-app only; nothing is sent by SMS.
+- **System page** (`GET /api/admin/system`): SMS mode, whether the provider account is set, default sender, sign-in code rules, masked admin phone, the M-Pesa callback host and whether it is HTTPS, whether the API is limited to the web app's address. Never a key, secret, password or database address; keep it that way.
+- **Audit log**: "Export CSV" (up to 5,000 rows with the current filters, itself audited as `AUDIT_LOG_EXPORTED`), and an "In owner's account" badge on entries the admin made inside an account. Each entry opens its own page (`/admin/audit-log/:id`, `GET /api/admin/audit-logs/:id`): who, when, account, record, IP, every recorded detail, and up to 30 other entries about the same record.
+
 ### Name at first sign-in
 
 - An account created by OTP is "New User" in the database (the column defaults). `public_user` now returns `needs_name: true` for such an account (`needs_name` in `security/token_service.js`); no rows or defaults were changed.
@@ -224,6 +242,7 @@ Not built, by agreement or by postponement:
 - **Automatic tenant SMS** (payment confirmations, rent reminders). The user chose manual for now; the two matching Settings switches are inactive.
 - **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
 - **Checking an owner's own sender ID.** The user wants an entered sender ID confirmed with Africa's Talking before it is accepted, and postponed it on 2026-10-12. Africa's Talking has no lookup for this; the only check is to send a real SMS with that sender ID (about KES 0.80) and read the answer. The option offered was a test SMS to the owner's own phone on save. Ask again before building.
+- **String IDs instead of numbers.** Raised by the user on 2026-10-13 and parked ("keep that in mind, we will come back to that"). The advice given: numeric IDs are not the security boundary, the owner check on every query is, and it is in place. Options offered: leave as is; add random public IDs only on records that appear in links (tenants, properties, payments, agreements); or convert every table, which touches nearly every file and is only sensible before real customer data exists. Do not start it without asking.
 - **"If a reading is missed"** (carry forward, estimate, do not bill) is saved per property but nothing acts on it.
 
 Known gaps in what is built:
@@ -234,7 +253,7 @@ Known gaps in what is built:
 - A search result for a payment opens the Payments page, not that payment.
 - A house number cannot be reused after its unit is archived; there is no "Single room" unit type.
 - Assigning a payment with "remember this number" and later unassigning it leaves the tenant with the new phone number.
-- `OTP_EXPIRES_MINUTES` is 120 in the backend `.env`; the user may have meant 5.
+- `OTP_EXPIRES_MINUTES` was 120 in the backend `.env`; changed to 5 on 2026-10-13 at the user's request. The `.env` is not in git, so a deployed server needs the same change.
 - `PUBLIC_API_URL` must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.
 
 ## 8. What the user still has to check in the browser
@@ -298,6 +317,21 @@ None of this was clicked through by the assistant. The user received detailed st
 - Every page and every modal in dark mode, looking for text that is hard to read or a panel that stayed white.
 - Light mode: white side menu and top strip.
 - As admin: the button in the admin header, and that it does not change the owner's choice.
+
+**Admin tools** (as admin)
+- Users: search; Add owner; Edit a name and phone; Remove owner role on an owner with and without properties; Open account from a row.
+- Click an owner's name: the read-only owner page.
+- As an owner, enter your own sender ID on a property: it shows "waiting for approval". As admin, the bell shows it; approve it on the SMS page; the owner then sees "approved".
+- SMS page: usage through the platform's sender this month.
+- System page: nothing secret is shown.
+- Audit log: Export CSV, and the "In owner's account" badge.
+- Inside an opened account, the greeting and side menu show the owner's name.
+
+**Admin access** (as admin)
+- Overview: the four cards and the owner accounts table; search by name or phone.
+- Open account on an owner: the owner's dashboard opens with a strip saying whose account it is.
+- Do something inside (for example add an expense), click Exit account, and check the audit log shows the admin as the person, in that owner's account.
+- Refresh while inside an account: it stays open. Sign out and in again: it is closed.
 
 **Name at first sign-in**
 - Refresh the app as the owner still called "New User": the "What is your name?" screen appears instead of the dashboard.

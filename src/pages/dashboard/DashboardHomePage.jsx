@@ -38,7 +38,9 @@ function greeting() {
 }
 
 function DashboardHomePage({ onAddProperty, onExportReport }) {
-  const { user } = useAuth()
+  const { user, actingOwner } = useAuth()
+  // An admin inside an owner's account is shown the owner's name, not their own.
+  const firstName = actingOwner ? actingOwner.name.split(' ')[0] : user.first_name
   const properties = useProperties().data || []
   const [searchParams] = useSearchParams()
 
@@ -59,7 +61,7 @@ function DashboardHomePage({ onAddProperty, onExportReport }) {
           </div>
           <h1 className="font-display text-[20px] font-semibold tracking-[-0.01em]">
             {greeting()}
-            {user.first_name ? `, ${user.first_name}` : ''}
+            {firstName ? `, ${firstName}` : ''}
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
             {property

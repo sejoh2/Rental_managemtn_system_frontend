@@ -1,18 +1,40 @@
 import { useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { LogOut, Menu, ScrollText, Users, X } from 'lucide-react'
+import {
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageSquare,
+  ScrollText,
+  ServerCog,
+  Users,
+  X,
+} from 'lucide-react'
 import ThemeToggle from '../../components/common/ThemeToggle'
 import { displayName, useAuth } from '../../context/AuthContext'
 import { humanize, initials } from '../../utils/format'
+import AdminAuditEntryPage from './AdminAuditEntryPage'
 import AdminAuditLogPage from './AdminAuditLogPage'
+import AdminBell from './AdminBell'
+import AdminOwnerPage from './AdminOwnerPage'
+import AdminSmsPage from './AdminSmsPage'
+import AdminSystemPage from './AdminSystemPage'
+import AdminOverviewPage from './AdminOverviewPage'
 import AdminUsersPage from './AdminUsersPage'
 
 const navItems = [
+  { label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
   { label: 'Users', icon: Users, to: '/admin/users' },
+  { label: 'SMS', icon: MessageSquare, to: '/admin/sms' },
   { label: 'Audit log', icon: ScrollText, to: '/admin/audit-log' },
+  { label: 'System', icon: ServerCog, to: '/admin/system' },
 ]
 
 const pageMeta = {
+  overview: { title: 'Overview', subtitle: 'Every owner account on Kodi' },
+  owners: { title: 'Owner account', subtitle: 'Read-only summary' },
+  sms: { title: 'SMS', subtitle: 'Sender IDs and platform usage' },
+  system: { title: 'System', subtitle: 'How the server is set up' },
   users: { title: 'Users', subtitle: 'Accounts, roles and access' },
   'audit-log': { title: 'Audit log', subtitle: 'Who did what, in which account' },
 }
@@ -24,7 +46,7 @@ function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const name = displayName(user)
-  const meta = pageMeta[location.pathname.split('/')[2]] || pageMeta.users
+  const meta = pageMeta[location.pathname.split('/')[2]] || pageMeta.overview
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
@@ -125,16 +147,22 @@ function AdminPage() {
             </div>
 
             {/* The admin's own choice; it does not change what an owner sees. */}
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-[10px]">
               <ThemeToggle />
+              <AdminBell />
             </div>
           </header>
 
           <div className="h-[calc(100vh-98px)] overflow-y-auto px-4 py-6 sm:px-6 lg:px-[30px]">
             <Routes>
+              <Route path="admin/overview" element={<AdminOverviewPage />} />
+              <Route path="admin/owners/:ownerId" element={<AdminOwnerPage />} />
               <Route path="admin/users" element={<AdminUsersPage />} />
+              <Route path="admin/sms" element={<AdminSmsPage />} />
+              <Route path="admin/system" element={<AdminSystemPage />} />
               <Route path="admin/audit-log" element={<AdminAuditLogPage />} />
-              <Route path="*" element={<Navigate to="/admin/users" replace />} />
+              <Route path="admin/audit-log/:logId" element={<AdminAuditEntryPage />} />
+              <Route path="*" element={<Navigate to="/admin/overview" replace />} />
             </Routes>
           </div>
         </section>

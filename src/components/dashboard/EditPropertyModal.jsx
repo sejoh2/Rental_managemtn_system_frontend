@@ -292,6 +292,8 @@ function EditPropertyForm({ property, onClose, onSaved }) {
 
             <div className="mb-[18px] max-w-[300px]">
               <SmsSenderField
+                saved={property.sms_sender_id}
+                status={property.sms_sender_status}
                 value={form.sms_sender_id}
                 onChange={(value) => setForm((current) => ({ ...current, sms_sender_id: value }))}
               />

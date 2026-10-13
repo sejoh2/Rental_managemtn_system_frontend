@@ -3,6 +3,22 @@ export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080')
 const ACCESS_TOKEN_KEY = 'kodi_access_token'
 const REFRESH_TOKEN_KEY = 'kodi_refresh_token'
 
+// The owner account a system admin has opened: { user_id, name }. Kept for this browser tab only.
+const ACTING_OWNER_KEY = 'kodi_acting_owner'
+
+export function getActingOwner() {
+  try {
+    return JSON.parse(sessionStorage.getItem(ACTING_OWNER_KEY))
+  } catch {
+    return null
+  }
+}
+
+export function setActingOwner(owner) {
+  if (owner) sessionStorage.setItem(ACTING_OWNER_KEY, JSON.stringify(owner))
+  else sessionStorage.removeItem(ACTING_OWNER_KEY)
+}
+
 export class ApiError extends Error {
   constructor(message, { status = 0, details = [], payload = null } = {}) {
     super(message)
@@ -34,6 +50,7 @@ export function setTokens({ access_token, refresh_token }) {
 export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
+  setActingOwner(null)
 }
 
 let sessionExpiredHandler = null
@@ -60,6 +77,9 @@ async function send(path, { method = 'GET', body, query, auth = true } = {}) {
 
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (auth && getAccessToken()) headers.Authorization = `Bearer ${getAccessToken()}`
+  // An admin inside an owner's account: the backend runs the request as that owner.
+  // It ignores this on the admin's own pages and for anyone who is not an admin.
+  if (auth && getActingOwner()) headers['X-Acting-Owner-Id'] = String(getActingOwner().user_id)
 
   try {
     return await fetch(buildUrl(path, query), {
