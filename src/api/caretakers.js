@@ -31,6 +31,16 @@ export async function assignCaretaker(propertyId, body) {
   return data
 }
 
+// Whether the property's caretaker may record payments handed to them (cash, cheque, bank).
+// Off for every new assignment. -> { assignment_id, property_id, caretaker_id, can_record_payments }
+export async function setCaretakerPaymentPermission(propertyId, allowed) {
+  const { data } = await api.put(`/api/properties/${propertyId}/caretaker/payment-permission`, {
+    allowed,
+  })
+
+  return data
+}
+
 // body: { first_name?, last_name?, permission_level?, status?: 'active' | 'inactive' }
 // status 'inactive' removes the caretaker from the property.
 export async function updatePropertyCaretaker(propertyId, body) {

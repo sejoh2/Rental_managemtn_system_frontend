@@ -5,6 +5,7 @@ import {
   getCaretaker,
   listCaretakers,
   updateCaretaker,
+  setCaretakerPaymentPermission,
   updatePropertyCaretaker,
 } from '../../api/caretakers'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
@@ -55,6 +56,7 @@ function groupCaretakers(rows) {
         property_id: row.property_id,
         property_name: row.property_name,
         permission_level: row.permission_level,
+        can_record_payments: row.can_record_payments === true,
       })
     }
   }
@@ -183,6 +185,9 @@ function CaretakersPage() {
                                   <StatusBadge tone={assignment.permission_level === 'level_2' ? 'info' : 'neutral'}>
                                     {levelLabel(assignment.permission_level)}
                                   </StatusBadge>
+                                  {assignment.can_record_payments ? (
+                                    <StatusBadge tone="warning">Records payments</StatusBadge>
+                                  ) : null}
                                 </div>
                               ))}
                             </div>
@@ -385,6 +390,8 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
   })
   // property id -> permission level picked, for the properties whose level was changed.
   const [levels, setLevels] = useState({})
+  // property id -> true or false, for the properties whose payment permission was changed.
+  const [payments, setPayments] = useState({})
   const [another, setAnother] = useState({ property_id: '', permission_level: 'level_1' })
   const [removing, setRemoving] = useState(null)
   // 'save' | 'assign' while a request is running.
@@ -425,6 +432,12 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
 
         if (level && level !== assignment.permission_level) {
           await updatePropertyCaretaker(assignment.property_id, { permission_level: level })
+        }
+
+        const allowed = payments[assignment.property_id]
+
+        if (allowed !== undefined && allowed !== assignment.can_record_payments) {
+          await setCaretakerPaymentPermission(assignment.property_id, allowed)
         }
       }
 
@@ -543,6 +556,28 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
                   >
                     Remove
                   </button>
+
+                  <label className="flex w-full basis-full items-start gap-2 text-[11px] leading-[1.5]">
+                    <input
+                      type="checkbox"
+                      checked={payments[assignment.property_id] ?? assignment.can_record_payments}
+                      onChange={(event) =>
+                        setPayments((current) => ({
+                          ...current,
+                          [assignment.property_id]: event.target.checked,
+                        }))
+                      }
+                      className="mt-[2px] h-[13px] w-[13px]"
+                    />
+                    <span>
+                      May record payments handed to them (cash, cheque or bank) for{' '}
+                      {assignment.property_name}
+                      <span className="block text-[10px] text-[var(--ink-faint)]">
+                        Each payment they record shows their name and is in the audit log. Off unless
+                        you turn it on.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               ))}
             </div>
