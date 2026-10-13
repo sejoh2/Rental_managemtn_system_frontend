@@ -5,6 +5,7 @@ import { useApi } from '../../hooks/useApi'
 import { formatDateTime } from '../../utils/format'
 import { FormError } from './DataState'
 import { inputClass } from './Modal'
+import TakePhoto from './TakePhoto'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf'
@@ -59,8 +60,11 @@ function Attachments({ kind, targetId, labelHint, emptyText, compact = false, on
     // Lets the same file be chosen again after a failed upload.
     event.target.value = ''
 
-    if (!file) return
+    if (file) send(file)
+  }
 
+  // Uploads a chosen file, or a photo just taken with the camera.
+  function send(file) {
     if (file.size > MAX_BYTES) {
       setError({ message: `${file.name} is ${fileSize(file.size)}. The limit is 5 MB.` })
       return
@@ -202,6 +206,12 @@ function Attachments({ kind, targetId, labelHint, emptyText, compact = false, on
           <Upload size={14} />
           {working === 'upload' ? 'Uploading...' : compact ? 'Attach file' : 'Upload a file'}
         </button>
+
+        <TakePhoto
+          onPhoto={send}
+          disabled={working !== null}
+          className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+        />
 
         {compact ? (
           <span className="text-[10px] text-[var(--ink-faint)]">

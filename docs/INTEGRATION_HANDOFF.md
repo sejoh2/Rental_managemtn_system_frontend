@@ -242,6 +242,8 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 
 - **Files open under the row, not in a window** (asked 2026-10-13: "we don't have to open a new modal when uploading a file"). Receipt on an expense row and the camera on a reading row toggle `AttachmentsRow`, a panel under that row with the files (Open, Delete) and one "Attach file" button, no description box (`compact`). `AttachmentsModal` was removed. The tenant's Documents card is unchanged and keeps the description box.
 
+- **Take photo** (asked 2026-10-13, for the web and the caretaker app): `components/common/TakePhoto.jsx`, beside every upload button (tenant documents, the receipt and meter-photo panels, the Add expense form). On a phone or tablet it opens the device's camera app (`capture="environment"`); on a computer it shows the webcam under the button with Capture. The picture is redrawn to at most 1600 px on its longest side as a JPG before upload, because phone photos often pass the 5 MB limit. A webcam needs HTTPS or localhost.
+
 ### Installable app, PWA (built 2026-10-13)
 
 - Asked by the user for owner and admin, before the caretaker app. The caretaker app will be a separate Flutter app; caretakers do not use the web version.

@@ -27,6 +27,7 @@ import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatKES, formatMonth, formatNumber, toDateInput } from '../../utils/format'
 import StatusBadge from '../../components/common/StatusBadge'
+import TakePhoto from '../../components/common/TakePhoto'
 import { EXPENSE_CATEGORIES, EXPENSE_RECOVERY, optionLabel } from '../../utils/labels'
 
 // First and last day of a 'YYYY-MM' month, as 'YYYY-MM-DD'.
@@ -648,15 +649,23 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
                 onChange={handleFilesChosen}
                 className="hidden"
               />
-              <button
-                type="button"
-                onClick={() => fileInput.current.click()}
-                disabled={saving || savedWithoutReceipt}
-                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
-              >
-                <Paperclip size={14} />
-                {receipts.length ? 'Attach another file' : 'Attach file'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInput.current.click()}
+                  disabled={saving || savedWithoutReceipt}
+                  className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                >
+                  <Paperclip size={14} />
+                  {receipts.length ? 'Attach another file' : 'Attach file'}
+                </button>
+
+                <TakePhoto
+                  onPhoto={(photo) => setReceipts((current) => [...current, photo])}
+                  disabled={saving || savedWithoutReceipt}
+                  className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                />
+              </div>
               <p className="mt-2 text-[10px] text-[var(--ink-faint)]">
                 A photo (JPG, PNG, WEBP) or a PDF, up to 5 MB each.
               </p>
