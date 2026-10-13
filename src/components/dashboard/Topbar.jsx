@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Bell, Menu, Plus, Search } from 'lucide-react'
 import { getAttention, searchEverything } from '../../api/dashboard'
 import { useProperties } from '../../context/PropertiesContext'
+import SoundToggle from '../common/SoundToggle'
 import ThemeToggle from '../common/ThemeToggle'
 import { useApi } from '../../hooks/useApi'
+import { useNotificationSound } from '../../hooks/useNotificationSound'
 import { formatDate, formatKES, formatPhone } from '../../utils/format'
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
@@ -192,6 +194,12 @@ function AttentionBell() {
   const attentionState = useApi('attention', getAttention)
   const [open, setOpen] = useState(false)
   const attention = attentionState.data
+  // Checks again every minute, and plays a sound when the count goes up, if allowed.
+  const { soundAllowed, setSoundAllowed } = useNotificationSound(
+    attention ? attention.total : null,
+    attentionState.reload,
+    'owner'
+  )
 
   const items = attention
     ? [
@@ -256,6 +264,8 @@ function AttentionBell() {
                 {attention ? 'Nothing needs your attention.' : 'Checking...'}
               </div>
             )}
+
+            <SoundToggle allowed={soundAllowed} onChange={setSoundAllowed} />
           </div>
         </>
       ) : null}

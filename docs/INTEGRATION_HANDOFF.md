@@ -184,6 +184,12 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 - **System page** (`GET /api/admin/system`): SMS mode, whether the provider account is set, default sender, sign-in code rules, masked admin phone, the M-Pesa callback host and whether it is HTTPS, whether the API is limited to the web app's address. Never a key, secret, password or database address; keep it that way.
 - **Audit log**: "Export CSV" (up to 5,000 rows with the current filters, itself audited as `AUDIT_LOG_EXPORTED`), and an "In owner's account" badge on entries the admin made inside an account. Each entry opens its own page (`/admin/audit-log/:id`, `GET /api/admin/audit-logs/:id`): who, when, account, record, IP, every recorded detail, and up to 30 other entries about the same record.
 
+### Notification sound
+
+- Both bells (the owner's in the top bar, the admin's in the admin header) have a "Play a sound for new notifications" tick box at the bottom of their list. It is off by default and saved per device and per account (`kodi-sound-<role>-<id>` in localStorage).
+- The owner and the admin hear different sounds (`utils/sound.js`, made with the Web Audio API, no sound file): two soft rising notes for the owner, three lower quick notes for the admin.
+- `hooks/useNotificationSound.js` re-checks each bell every 60 seconds, also in a background tab, and plays the sound only when the count goes up, never on first load. Browsers allow sound only after the person has interacted with the page, and only while Kodi is open in a tab; there are no push notifications.
+
 ### Name at first sign-in
 
 - An account created by OTP is "New User" in the database (the column defaults). `public_user` now returns `needs_name: true` for such an account (`needs_name` in `security/token_service.js`); no rows or defaults were changed.

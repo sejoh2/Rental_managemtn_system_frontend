@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { getAdminNotifications } from '../../api/admin'
+import SoundToggle from '../../components/common/SoundToggle'
 import { useApi } from '../../hooks/useApi'
+import { useNotificationSound } from '../../hooks/useNotificationSound'
 import { formatDateTime, formatPhone } from '../../utils/format'
 
 const panelClass =
@@ -24,6 +26,12 @@ function AdminBell() {
   const state = useApi('admin-notifications', getAdminNotifications)
   const [open, setOpen] = useState(false)
   const data = state.data
+  // Checks again every minute, and plays a sound when the count goes up, if allowed.
+  const { soundAllowed, setSoundAllowed } = useNotificationSound(
+    data ? data.total : null,
+    state.reload,
+    'admin'
+  )
 
   function toggle() {
     // Looked up again each time the list is opened.
@@ -109,6 +117,8 @@ function AdminBell() {
                 Nothing needs your attention.
               </div>
             )}
+
+            <SoundToggle allowed={soundAllowed} onChange={setSoundAllowed} />
           </div>
         </>
       ) : null}
