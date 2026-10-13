@@ -4,6 +4,7 @@ import { Camera, Plus, Settings } from 'lucide-react'
 import { countFiles } from '../../api/files'
 import { listUnits } from '../../api/units'
 import {
+  editWaterReading,
   getPreviousWaterReading,
   getWaterStats,
   listWaterReadings,
@@ -49,6 +50,8 @@ function WaterBillingPage() {
   const [resolving, setResolving] = useState(null)
   // The reading whose meter photos are open.
   const [photosFor, setPhotosFor] = useState(null)
+  // The submitted reading being corrected.
+  const [editingReading, setEditingReading] = useState(null)
 
   // Property and month live in the URL: /water-billing?property=1&month=2026-10
   const properties = propertiesState.data || []
@@ -297,6 +300,13 @@ function WaterBillingPage() {
                                   >
                                     Correct reading
                                   </button>
+                                ) : reading.can_edit ? (
+                                  <button
+                                    onClick={() => setEditingReading(reading)}
+                                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
+                                  >
+                                    Edit
+                                  </button>
                                 ) : null}
                               </td>
                             </tr>
@@ -338,6 +348,14 @@ function WaterBillingPage() {
           emptyText="No meter photo yet. Upload a photo of the meter showing this reading, as proof if the tenant questions the bill."
           onClose={() => setPhotosFor(null)}
           onChanged={photoCountsState.reload}
+        />
+      ) : null}
+
+      {editingReading ? (
+        <EditReadingModal
+          reading={editingReading}
+          onClose={() => setEditingReading(null)}
+          onDone={reloadAll}
         />
       ) : null}
 
@@ -612,6 +630,132 @@ function AddReadingModal({ property, billingPeriod, readings, onClose, onDone })
 }
 
 // A flagged reading is fixed by entering the right figure, or thrown out.
+// Corrects a reading that was typed in wrongly; its bill follows the new figures.
+function EditReadingModal({ reading, onClose, onDone }) {
+  const [previous, setPrevious] = useState(String(reading.previous_reading))
+  const [current, setCurrent] = useState(String(reading.current_reading))
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const used = previous !== '' && current !== '' ? Number(current) - Number(previous) : null
+  const newBill = used !== null && used >= 0 ? used * reading.rate_per_unit : null
+  const paid = reading.bill_status === 'void' ? 0 : reading.bill_amount_paid || 0
+  const unchanged =
+    Number(previous) === reading.previous_reading && Number(current) === reading.current_reading
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await editWaterReading(reading.id, {
+        previous_reading: Number(previous),
+        current_reading: Number(current),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      })
+
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ModalShell
+      title={`Edit reading - House ${reading.unit_number}, ${formatMonth(reading.billing_period)}`}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <p className="mb-[18px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+            {reading.tenant_name ? `${reading.tenant_name}'s` : 'This'} reading was saved as{' '}
+            {formatNumber(reading.previous_reading)} to {formatNumber(reading.current_reading)}, a bill of{' '}
+            {formatKES(reading.bill_amount)}. Correct the figures and the bill is corrected with them.
+          </p>
+
+          <div className="grid gap-[14px] sm:grid-cols-2">
+            <Field
+              label="Previous reading"
+              type="number"
+              min="0"
+              step="any"
+              value={previous}
+              onChange={(event) => setPrevious(event.target.value)}
+              required
+              hint="It cannot go below the reading recorded before this one."
+            />
+            <Field
+              label="Current reading"
+              type="number"
+              min="0"
+              step="any"
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="mt-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-[11px] leading-[1.6] text-[var(--ink-soft)]">
+            {used === null ? (
+              'Enter both readings.'
+            ) : used < 0 ? (
+              <span className="text-[var(--danger)]">
+                The current reading cannot be lower than the previous reading.
+              </span>
+            ) : (
+              <>
+                <strong>When you save:</strong> {formatNumber(used)} {used === 1 ? 'unit' : 'units'} at{' '}
+                {formatKES(reading.rate_per_unit)} per unit, so the bill becomes{' '}
+                <strong>{formatKES(newBill)}</strong> (it was {formatKES(reading.bill_amount)}).{' '}
+                {newBill === 0
+                  ? 'Nothing was used, so the bill is cancelled.'
+                  : paid > newBill
+                    ? `The tenant has paid ${formatKES(paid)} towards it; the ${formatKES(paid - newBill)} above the new bill goes back to them as credit and is used for their other bills.`
+                    : paid > 0
+                      ? `The tenant has paid ${formatKES(paid)} towards it, so ${formatKES(newBill - paid)} will still be owed.`
+                      : 'Nothing has been paid towards it yet.'}
+              </>
+            )}
+          </div>
+
+          <div className="mt-[18px]">
+            <Field
+              label="Why is it being changed (optional)"
+              placeholder="e.g. Typed 280 instead of 180"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </div>
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving || used === null || used < 0 || unchanged}
+            className={primaryButtonClass}
+          >
+            {saving ? 'Saving...' : 'Save correction'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
+  )
+}
+
 function ResolveReadingModal({ reading, onClose, onDone }) {
   const [corrected, setCorrected] = useState('')
   const [notes, setNotes] = useState('')

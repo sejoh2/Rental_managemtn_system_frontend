@@ -44,6 +44,14 @@ export async function submitWaterReading(propertyId, unitId, body) {
   return data
 }
 
+// Corrects a submitted reading and its bill. Only a unit's newest reading (reading.can_edit).
+// body: { previous_reading?, current_reading?, notes? } -> the reading, with returned_as_credit
+export async function editWaterReading(readingId, body) {
+  const { data } = await api.patch(`/api/water-readings/${readingId}`, body)
+
+  return data
+}
+
 // body: { action: 'approve', corrected_current_reading, notes? } | { action: 'reject', notes? }
 export async function reviewWaterReading(readingId, body) {
   const { data } = await api.patch(`/api/water-readings/${readingId}/review`, body)
