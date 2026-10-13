@@ -1,5 +1,6 @@
 import { getSystemStatus } from '../../api/admin'
 import { DataState } from '../../components/common/DataState'
+import InstallApp from '../../components/common/InstallApp'
 import StatusBadge from '../../components/common/StatusBadge'
 import { useApi } from '../../hooks/useApi'
 import { formatDateTime, formatKES } from '../../utils/format'
@@ -119,6 +120,16 @@ function AdminSystemPage() {
                 </StatusBadge>
               </Row>
               <Row label="Server time">{formatDateTime(server.time)}</Row>
+            </Section>
+
+            <Section title="Install on this device">
+              <div className="px-[18px] py-4">
+                <p className="mb-3 max-w-[640px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                  Opens the app in its own window. Installing changes nothing about signing in: an
+                  administrator is still signed out when the window is closed or left idle.
+                </p>
+                <InstallApp />
+              </div>
             </Section>
           </div>
         )}

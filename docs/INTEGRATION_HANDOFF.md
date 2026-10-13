@@ -242,6 +242,17 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 
 - **Files open under the row, not in a window** (asked 2026-10-13: "we don't have to open a new modal when uploading a file"). Receipt on an expense row and the camera on a reading row toggle `AttachmentsRow`, a panel under that row with the files (Open, Delete) and one "Attach file" button, no description box (`compact`). `AttachmentsModal` was removed. The tenant's Documents card is unchanged and keeps the description box.
 
+### Installable app, PWA (built 2026-10-13)
+
+- Asked by the user for owner and admin, before the caretaker app. The caretaker app will be a separate Flutter app; caretakers do not use the web version.
+- `public/manifest.webmanifest` (name, colours, icons), `public/sw.js` (service worker), icons `public/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, and `public/favicon.svg`. The PNG icons are drawn by `scripts/make-icons.ps1 -Out public -Letter K`.
+- **The service worker keeps only the app's own files** (the page, `/assets/*`, icons). It never keeps a server response: no tenant, payment or other record is stored on the device, and nothing works offline except opening the app's frame. Do not add caching of API responses without the user deciding it; it is a privacy and money-accuracy question. Requests to another origin and to `/api/` are not touched.
+- It is registered only in the built app (`registerServiceWorker` in `src/utils/installApp.js`, `import.meta.env.PROD`), never under `npm run dev`. Test with `npx vite build` then `npx vite preview`. A new version is picked up on the next load (the page is fetched from the network first); raise `SHELL` in `sw.js` when its behaviour changes.
+- "Install app" (`components/common/InstallApp.jsx`) is in Settings, Appearance for the owner and on the admin System page. It uses the browser's offer (Chrome, Edge); elsewhere it explains the browser menu.
+- The admin session rules are unchanged in the installed app (tab-only session, 12 hours, 15 minutes idle).
+- The host must serve `index.html` for unknown paths (already needed for the routes) and must not cache `/sw.js` for long.
+- **On renaming the system**: also change the name in `manifest.webmanifest`, the `<title>` and `apple-mobile-web-app-title` in `index.html`, the letter in `favicon.svg`, and redraw the icons with the script.
+
 ### Notification sound
 
 - Both bells (the owner's in the top bar, the admin's in the admin header) have a "Play a sound for new notifications" tick box at the bottom of their list. It is off by default and saved per device and per account (`kodi-sound-<role>-<id>` in localStorage).

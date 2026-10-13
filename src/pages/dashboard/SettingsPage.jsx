@@ -19,6 +19,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../components/common/Modal'
+import InstallApp from '../../components/common/InstallApp'
 import StatusBadge from '../../components/common/StatusBadge'
 import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
 import PaymentRemindersTab from '../../components/dashboard/PaymentRemindersTab'
@@ -761,6 +762,14 @@ function AppearanceTab() {
           </span>
         </label>
       ))}
+
+      <div className="mt-8">
+        <SectionTitle
+          title="Install on this device"
+          helper="Puts the app on your home screen or desktop, opening in its own window. Your records are never kept on the device, so you still need a connection to see or change them."
+        />
+        <InstallApp />
+      </div>
     </div>
   )
 }
