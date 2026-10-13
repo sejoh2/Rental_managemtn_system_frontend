@@ -9,7 +9,8 @@ function ConfirmDeleteModal({ open, ...props }) {
 }
 
 // onConfirm may be async; the dialog stays open and shows the error if it fails.
-function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm }) {
+// children: extra choices shown under the message, such as a tick box.
+function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm, children }) {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState(null)
 
@@ -52,6 +53,8 @@ function ConfirmDeleteDialog({ title, message, confirmLabel, onClose, onConfirm 
               {message}
             </p>
           </div>
+
+          {children}
 
           {error ? (
             <div className="mt-[14px]">

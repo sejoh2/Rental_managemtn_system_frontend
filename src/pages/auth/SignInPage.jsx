@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { requestOtp, verifyOtp } from '../../api/auth'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
 import PhoneSignInForm from '../../components/auth/PhoneSignInForm'
@@ -10,7 +10,25 @@ function SignInPage() {
   const [authStep, setAuthStep] = useState('phone')
   const [phone, setPhone] = useState('')
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState(null)
+  // Starts with a note when the admin was signed out for leaving the page untouched.
+  const [error, setError] = useState(() => {
+    try {
+      return sessionStorage.getItem('kodi_signed_out_idle')
+        ? { message: 'You were signed out after 15 minutes without activity. Sign in again to continue.' }
+        : null
+    } catch {
+      return null
+    }
+  })
+
+  // The note is for this visit only.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('kodi_signed_out_idle')
+    } catch {
+      // Nothing to clear.
+    }
+  }, [])
   // The latest code request: { id, phone, resendAt, resendSeconds, expiresMinutes, attemptsLeft }
   const [otpRequest, setOtpRequest] = useState(null)
 

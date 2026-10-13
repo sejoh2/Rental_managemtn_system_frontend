@@ -7,6 +7,13 @@ export async function listPayments() {
   return data
 }
 
+// One payment in full, with applied_to, property_name and recorded_by_name.
+export async function getPayment(paymentId) {
+  const { data } = await api.get(`/api/payments/${paymentId}`)
+
+  return data
+}
+
 // Saves every payment as a CSV file built by the backend; the export is recorded in the audit log.
 // filters: { property_id?, status?, from_date?, to_date? }
 export function exportPayments(filters) {

@@ -12,6 +12,10 @@ import {
 } from '../api/client'
 import { AuthContext } from './AuthContext'
 
+// How long the admin may leave the page untouched before being signed out.
+const ADMIN_IDLE_MS = 15 * 60 * 1000
+const IDLE_NOTICE_KEY = 'kodi_signed_out_idle'
+
 function AuthProvider({ children }) {
   const [session, setSession] = useState(() => ({
     status: hasSession() ? 'loading' : 'signedOut',
@@ -67,6 +71,34 @@ function AuthProvider({ children }) {
     setActingOwner(null)
     setActing(null)
   }, [])
+
+  // The admin is signed out after 15 minutes without touching the page. Owners are not.
+  const isAdmin = session.user?.role === 'admin'
+
+  useEffect(() => {
+    if (!isAdmin) return undefined
+
+    let lastActivity = Date.now()
+    const touch = () => {
+      lastActivity = Date.now()
+    }
+    const events = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart']
+
+    events.forEach((name) => window.addEventListener(name, touch, { passive: true, capture: true }))
+
+    const timer = setInterval(() => {
+      if (Date.now() - lastActivity < ADMIN_IDLE_MS) return
+
+      // The sign-in page says why, once.
+      sessionStorage.setItem(IDLE_NOTICE_KEY, '1')
+      signOut()
+    }, 20000)
+
+    return () => {
+      clearInterval(timer)
+      events.forEach((name) => window.removeEventListener(name, touch, { capture: true }))
+    }
+  }, [isAdmin, signOut])
 
   // Going back to the admin pages with the browser's back button leaves the owner's account,
   // so returning to it means opening it again, which is audited.

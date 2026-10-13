@@ -146,7 +146,7 @@ function TopbarSearch() {
                   type="button"
                   onMouseDown={(event) => {
                     event.preventDefault()
-                    go('/payments')
+                    go(`/payments/${payment.id}`)
                   }}
                   className={resultClass}
                 >

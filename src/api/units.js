@@ -1,8 +1,19 @@
 import { api } from './client'
 
 // Each unit carries current_tenant: { tenant_id, full_name, status, balance } | null.
-export async function listUnits(propertyId) {
-  const { data } = await api.get(`/api/properties/${propertyId}/units`)
+// includeArchived adds units taken out of use (status 'inactive'), listed last.
+export async function listUnits(propertyId, { includeArchived = false } = {}) {
+  const { data } = await api.get(
+    `/api/properties/${propertyId}/units`,
+    includeArchived ? { include_archived: 'true' } : undefined
+  )
+
+  return data
+}
+
+// Puts an archived unit back in use, as a vacant unit.
+export async function restoreUnit(unitId) {
+  const { data } = await api.post(`/api/units/${unitId}/restore`)
 
   return data
 }

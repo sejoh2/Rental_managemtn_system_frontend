@@ -243,7 +243,13 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
                           )}
                         </td>
                         <td className="font-mono px-[18px] py-[13px] text-[12px]">
-                          {formatKES(payment.amount)}
+                          <Link
+                            to={`/payments/${payment.id}`}
+                            className="font-semibold hover:text-[var(--accent-ink)] hover:underline"
+                            title="Open this payment"
+                          >
+                            {formatKES(payment.amount)}
+                          </Link>
                         </td>
                         <td className="px-[18px] py-[13px] text-[12px]">{paymentMethodLabel(payment)}</td>
                         <td className="px-[18px] py-[13px] text-[12px]">

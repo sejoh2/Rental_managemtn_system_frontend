@@ -20,6 +20,16 @@ export async function updateServiceCharge(serviceChargeId, body) {
   return data
 }
 
-export function removeServiceCharge(serviceChargeId) {
-  return api.delete(`/api/service-charges/${serviceChargeId}`)
+// The bills this charge has made that can still be cancelled. -> { bills, tenants, billed, paid }
+export async function getServiceChargeBilled(serviceChargeId) {
+  const { data } = await api.get(`/api/service-charges/${serviceChargeId}/billed`)
+
+  return data
+}
+
+// cancelBills also undoes the bills it already made; what tenants paid goes back to them as credit.
+export function removeServiceCharge(serviceChargeId, cancelBills = false) {
+  return api.delete(
+    `/api/service-charges/${serviceChargeId}${cancelBills ? '?cancel_bills=true' : ''}`
+  )
 }

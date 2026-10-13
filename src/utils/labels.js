@@ -163,6 +163,32 @@ export const SERVICE_CHARGE_FREQUENCIES = [
   ['once', 'One-off - billed once per tenant'],
 ]
 
+// Days before the rent due day on which an automatic reminder can be sent; 0 is the day itself.
+export const REMINDER_DAYS_BEFORE = [
+  [7, '7 days before'],
+  [5, '5 days before'],
+  [3, '3 days before'],
+  [2, '2 days before'],
+  [1, '1 day before'],
+  [0, 'On the due date'],
+]
+
+export const REMINDER_LATE_DAYS = [
+  ['1', '1 day after'],
+  ['2', '2 days after'],
+  ['3', '3 days after'],
+  ['5', '5 days after'],
+  ['7', '7 days after'],
+  ['14', '14 days after'],
+]
+
+// 6 AM to 8 PM, so nobody is texted at night.
+export const REMINDER_HOURS = Array.from({ length: 15 }, (_, index) => {
+  const hour = index + 6
+
+  return [String(hour), `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`]
+})
+
 // When a new monthly charge first reaches the tenants already living in the property.
 export const SERVICE_CHARGE_FIRST_BILLING = [
   ['now', 'Now, for the rest of this month'],

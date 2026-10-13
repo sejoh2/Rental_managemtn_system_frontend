@@ -21,6 +21,7 @@ import {
 } from '../../components/common/Modal'
 import StatusBadge from '../../components/common/StatusBadge'
 import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
+import PaymentRemindersTab from '../../components/dashboard/PaymentRemindersTab'
 import WaterRulesModal from '../../components/dashboard/WaterRulesModal'
 import { useAuth } from '../../context/AuthContext'
 import { useProperties } from '../../context/PropertiesContext'
@@ -40,6 +41,7 @@ const tabs = [
   ['account', 'Account'],
   ['payments', 'Payment accounts'],
   ['water', 'Water rules'],
+  ['reminders', 'Payment reminders'],
   ['users', 'Users & roles'],
   ['notifications', 'Notifications'],
   ['appearance', 'Appearance'],
@@ -51,12 +53,6 @@ const cardHeaderClass =
 const smallButtonClass = 'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[11px] font-bold'
 const headRowClass =
   'bg-[var(--bg)] text-left text-[9px] uppercase tracking-[0.05em] text-[var(--ink-faint)]'
-
-const missedReadingLabels = {
-  carry_forward: "Carry forward previous month's units and flag for review",
-  do_not_bill: 'Do not bill water until reading is submitted',
-  estimate_average: 'Apply estimated average and flag for review',
-}
 
 // "Same day as rent is due", "5th of every month", "Last day of every month"
 function waterBillingDayLabel(property) {
@@ -100,8 +96,8 @@ function SettingsPage({ onAddProperty }) {
   const selectedProperty =
     properties.find((property) => String(property.id) === searchParams.get('property')) ||
     properties[0]
-  // Only these two tabs are about one property.
-  const perProperty = activeTab === 'payments' || activeTab === 'water'
+  // Only these tabs are about one property.
+  const perProperty = ['payments', 'water', 'reminders'].includes(activeTab)
 
   function setParam(name, value) {
     const next = new URLSearchParams(searchParams)
@@ -122,7 +118,7 @@ function SettingsPage({ onAddProperty }) {
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
             {perProperty && selectedProperty
-              ? `Payment accounts and water rules for ${selectedProperty.name}.`
+              ? `Payment accounts, water rules and payment reminders for ${selectedProperty.name}.`
               : 'Your account, payment accounts, water rules and access control.'}
           </p>
         </div>
@@ -181,7 +177,7 @@ function SettingsPage({ onAddProperty }) {
             <section className={cardClass}>
               <EmptyState
                 title="No properties yet"
-                message="Add a property first; its payment accounts and water rules are set here."
+                message="Add a property first; its payment accounts, water rules and payment reminders are set here."
               />
             </section>
           }
@@ -193,6 +189,8 @@ function SettingsPage({ onAddProperty }) {
                 property={selectedProperty}
                 onSaved={propertiesState.reload}
               />
+            ) : activeTab === 'reminders' ? (
+              <PaymentRemindersTab key={selectedProperty.id} property={selectedProperty} />
             ) : (
               <WaterRulesTab
                 key={selectedProperty.id}
@@ -482,13 +480,6 @@ function WaterRulesTab({ property, onSaved }) {
         label="Reading due from caretaker"
         value={`Within ${property.water_reading_due_days} days of billing day`}
       />
-      <DetailRow
-        label="If a reading is missed"
-        value={
-          missedReadingLabels[property.water_missed_reading_action] ||
-          humanize(property.water_missed_reading_action)
-        }
-      />
 
       <p className="px-[18px] py-3 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
         These are the property&apos;s defaults; each unit can have its own
@@ -627,12 +618,6 @@ const smsAlerts = [
     label: 'Notify me when a payment is received',
     active: false,
   },
-  {
-    key: 'auto_rent_reminder',
-    label: 'Send tenants a rent due reminder automatically',
-    hint: 'Rent reminders are sent by hand from the SMS centre for now.',
-    active: false,
-  },
 ]
 
 const emailSummaries = [
@@ -714,7 +699,10 @@ function NotificationsForm({ notifications, onSaved }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <SectionTitle title="SMS alerts" helper="Each SMS sent appears in the SMS centre and is charged like any other message." />
+      <SectionTitle
+        title="SMS alerts"
+        helper="Each SMS sent appears in the SMS centre and is charged like any other message. Automatic payment reminders for tenants are set per property, under the Payment reminders tab."
+      />
       {smsAlerts.map(renderCheck)}
 
       <div className="mt-[22px]">

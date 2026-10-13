@@ -29,7 +29,15 @@ export async function getExpenseReconciliation(filters) {
   return data
 }
 
-// body: { category, amount, expense_date, notes? }
+// body: any of { category, amount, expense_date, notes, unit_id }. Owner only; not for an
+// expense that came from a maintenance request, or a voided one.
+export async function updateExpense(expenseId, body) {
+  const { data } = await api.patch(`/api/expenses/${expenseId}`, body)
+
+  return data
+}
+
+// body: { category, amount, expense_date, notes?, unit_id? }. No unit_id means the whole property.
 export async function createExpense(propertyId, body) {
   const { data } = await api.post(`/api/properties/${propertyId}/expenses`, body)
 

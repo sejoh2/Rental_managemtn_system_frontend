@@ -7,8 +7,10 @@ import {
   getExpenseReconciliation,
   getExpenseSummary,
   listExpenses,
+  updateExpense,
   voidExpense,
 } from '../../api/expenses'
+import { listUnits } from '../../api/units'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -37,6 +39,7 @@ function ExpensesPage() {
   const properties = useProperties().data || []
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [voiding, setVoiding] = useState(null)
 
   const [exporting, setExporting] = useState(false)
@@ -232,12 +235,23 @@ function ExpensesPage() {
                           </td>
                           <td className="px-[18px] py-[13px] text-right">
                             {voided ? null : (
-                              <button
-                                onClick={() => setVoiding(item)}
-                                className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
-                              >
-                                Void
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                {/* A repair from a maintenance request is fixed; a tenant may have been charged for it. */}
+                                {item.maintenance_request_id ? null : (
+                                  <button
+                                    onClick={() => setEditing(item)}
+                                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setVoiding(item)}
+                                  className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
+                                >
+                                  Void
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -360,10 +374,19 @@ function ExpensesPage() {
       </section>
 
       {addOpen ? (
-        <AddExpenseModal
+        <ExpenseFormModal
           properties={properties}
           defaultPropertyId={propertyId}
           onClose={() => setAddOpen(false)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {editing ? (
+        <ExpenseFormModal
+          properties={properties}
+          expense={editing}
+          onClose={() => setEditing(null)}
           onDone={reloadAll}
         />
       ) : null}
@@ -404,16 +427,25 @@ function ExpenseRecovery({ expense }) {
   )
 }
 
-function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
+// Adds an expense, or corrects one when `expense` is passed.
+function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onDone }) {
   const [form, setForm] = useState({
-    property_id: defaultPropertyId || String(properties[0]?.id || ''),
-    category: 'repairs_maintenance',
-    amount: '',
-    expense_date: toDateInput(),
-    notes: '',
+    property_id: expense
+      ? String(expense.property_id)
+      : defaultPropertyId || String(properties[0]?.id || ''),
+    // Empty means the cost is for the whole property.
+    unit_id: expense?.unit_id ? String(expense.unit_id) : '',
+    category: expense?.category || 'repairs_maintenance',
+    amount: expense ? String(expense.amount) : '',
+    expense_date: expense ? toDateInput(expense.expense_date) : toDateInput(),
+    notes: expense?.notes || '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+
+  const unitsState = useApi(form.property_id ? `units-${form.property_id}` : null, () =>
+    listUnits(form.property_id)
+  )
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -424,13 +456,17 @@ function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
     setSaving(true)
     setError(null)
 
+    const body = {
+      category: form.category,
+      amount: Number(form.amount),
+      expense_date: form.expense_date,
+      notes: form.notes.trim() || null,
+      unit_id: form.unit_id ? Number(form.unit_id) : null,
+    }
+
     try {
-      await createExpense(form.property_id, {
-        category: form.category,
-        amount: Number(form.amount),
-        expense_date: form.expense_date,
-        notes: form.notes.trim() || null,
-      })
+      if (expense) await updateExpense(expense.id, body)
+      else await createExpense(form.property_id, body)
 
       onDone()
       onClose()
@@ -441,22 +477,37 @@ function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
   }
 
   return (
-    <ModalShell title="Add expense" onClose={onClose}>
+    <ModalShell title={expense ? 'Edit expense' : 'Add expense'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
           <div className="mb-[18px] grid gap-[14px] sm:grid-cols-2">
             <SelectField
               label="Property"
               value={form.property_id}
-              onChange={setField('property_id')}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, property_id: event.target.value, unit_id: '' }))
+              }
               options={properties.map((property) => [String(property.id), property.name])}
+              disabled={Boolean(expense)}
             />
             <SelectField
-              label="Category"
-              value={form.category}
-              onChange={setField('category')}
-              options={EXPENSE_CATEGORIES}
+              label="This cost is for"
+              value={form.unit_id}
+              onChange={setField('unit_id')}
+              options={[
+                ['', unitsState.loading ? 'Loading units...' : 'The whole property'],
+                ...(unitsState.data || []).map((unit) => [String(unit.id), `House ${unit.unit_number}`]),
+              ]}
             />
+
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Category"
+                value={form.category}
+                onChange={setField('category')}
+                options={EXPENSE_CATEGORIES}
+              />
+            </div>
 
             <Field
               label="Amount (KES)"
@@ -486,8 +537,9 @@ function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
           />
 
           <p className="mt-[14px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-            This is added to the selected property's ledger immediately and
-            reduces its net profit figure in Reports.
+            {expense
+              ? 'The change is recorded in the audit log. The property cannot be changed; void the expense and add it again under the right property.'
+              : 'This is added to the selected property\u2019s ledger immediately and reduces its net profit figure in Reports. Choose a house when the cost was for one unit only.'}
           </p>
 
           {error ? (
@@ -502,7 +554,7 @@ function AddExpenseModal({ properties, defaultPropertyId, onClose, onDone }) {
             Cancel
           </button>
           <button type="submit" disabled={saving} className={primaryButtonClass}>
-            {saving ? 'Adding...' : 'Add expense'}
+            {saving ? 'Saving...' : expense ? 'Save changes' : 'Add expense'}
           </button>
         </ModalFooter>
       </form>

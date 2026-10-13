@@ -50,3 +50,17 @@ export async function removePaymentAccount(propertyId, accountFor) {
 
   return data
 }
+
+// Automatic payment reminders of a property.
+// -> { enabled, days_before: [3, 0], hour, late_enabled, late_days_after }
+export async function getPaymentReminders(propertyId) {
+  const { data } = await api.get(`/api/properties/${propertyId}/reminders`)
+
+  return data
+}
+
+export async function savePaymentReminders(propertyId, body) {
+  const { data } = await api.put(`/api/properties/${propertyId}/reminders`, body)
+
+  return data
+}

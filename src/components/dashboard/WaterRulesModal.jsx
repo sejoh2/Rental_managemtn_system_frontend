@@ -24,12 +24,6 @@ const readingDueOptions = [3, 5, 7].map((days) => [
   `Within ${days} days of billing day`,
 ])
 
-const missedReadingOptions = [
-  ['carry_forward', "Carry forward previous month's units and flag for review"],
-  ['do_not_bill', 'Do not bill water until reading is submitted'],
-  ['estimate_average', 'Apply estimated average and flag for review'],
-]
-
 // The day a water bill falls due: the rent due day, a fixed day, or the month's last day.
 function billingDayOptions(current) {
   const options = [
@@ -63,6 +57,7 @@ function WaterRulesForm({ property, onClose, onSaved }) {
     water_fixed_fee: String(property.water_fixed_fee || ''),
     water_billing_day: property.water_billing_day,
     water_reading_due_days: String(property.water_reading_due_days),
+    // No longer offered on screen: nothing acted on it. The stored value is sent back unchanged.
     water_missed_reading_action: property.water_missed_reading_action,
     apply_to_occupied_units: false,
   })
@@ -174,19 +169,6 @@ function WaterRulesForm({ property, onClose, onSaved }) {
                   />
                 </div>
 
-                <div>
-                  <SelectField
-                    label="If a reading is missed"
-                    value={form.water_missed_reading_action}
-                    onChange={setField('water_missed_reading_action')}
-                    options={missedReadingOptions}
-                  />
-                  <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-                    Saved as your preference. Kodi does not yet bill missed
-                    readings on its own; a unit is billed when its reading is
-                    entered.
-                  </p>
-                </div>
               </>
             ) : null}
 

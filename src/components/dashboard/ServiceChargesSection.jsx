@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import {
   createServiceCharge,
+  getServiceChargeBilled,
   listServiceCharges,
   removeServiceCharge,
   updateServiceCharge,
@@ -54,12 +55,19 @@ function ServiceChargesSection({ property }) {
   // null | { charge } - charge is undefined when adding.
   const [editing, setEditing] = useState(null)
   const [removing, setRemoving] = useState(null)
+  // Whether removing a charge also cancels the bills it already made.
+  const [cancelBills, setCancelBills] = useState(false)
   // Result of the last charge added, so the owner sees what was billed.
   const [lastAdded, setLastAdded] = useState(null)
 
   async function handleRemove() {
-    await removeServiceCharge(removing.id)
+    await removeServiceCharge(removing.id, cancelBills)
     chargesState.reload()
+  }
+
+  function closeRemove() {
+    setRemoving(null)
+    setCancelBills(false)
   }
 
   return (
@@ -166,12 +174,67 @@ function ServiceChargesSection({ property }) {
       <ConfirmDeleteModal
         open={Boolean(removing)}
         title="Remove service charge"
-        message={`${removing?.name || 'This charge'} will no longer be billed to tenants of ${property.name}. What they were already billed stays on their accounts.`}
-        confirmLabel="Remove charge"
-        onClose={() => setRemoving(null)}
+        message={`${removing?.name || 'This charge'} will no longer be billed to tenants of ${property.name}.`}
+        confirmLabel={cancelBills ? 'Remove and cancel its bills' : 'Remove charge'}
+        onClose={closeRemove}
         onConfirm={handleRemove}
-      />
+      >
+        {removing ? (
+          <BilledSoFar charge={removing} cancelBills={cancelBills} onChange={setCancelBills} />
+        ) : null}
+      </ConfirmDeleteModal>
     </section>
+  )
+}
+
+/*
+  Under the remove message: what the charge has already billed, and the choice
+  to cancel those bills too, for a charge that was added by mistake.
+*/
+function BilledSoFar({ charge, cancelBills, onChange }) {
+  const state = useApi(`service-charge-billed-${charge.id}`, () => getServiceChargeBilled(charge.id))
+  const billed = state.data
+
+  if (!billed) {
+    return (
+      <p className="mt-[14px] text-[11px] text-[var(--ink-faint)]">
+        {state.error ? state.error.message : 'Checking what was already billed...'}
+      </p>
+    )
+  }
+
+  if (!billed.bills) {
+    return (
+      <p className="mt-[14px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+        No tenant has a bill for it that can be cancelled, so there is nothing else to undo.
+      </p>
+    )
+  }
+
+  return (
+    <label className="mt-[14px] flex cursor-pointer items-start gap-3 text-[12px]">
+      <input
+        type="checkbox"
+        checked={cancelBills}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-[2px] h-4 w-4 accent-[var(--accent)]"
+      />
+      <span>
+        <span className="block font-bold">
+          Also cancel the {billed.bills} {billed.bills === 1 ? 'bill' : 'bills'} already made for it (
+          {formatKES(billed.billed)})
+        </span>
+        <span className="mt-1 block text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+          {cancelBills
+            ? `The ${billed.bills === 1 ? 'bill is' : 'bills are'} taken off ${billed.tenants} ${billed.tenants === 1 ? 'tenant' : 'tenants'}.${
+                billed.paid > 0
+                  ? ` ${formatKES(billed.paid)} already paid towards ${billed.bills === 1 ? 'it' : 'them'} goes back to the tenants as credit, and is used for their other bills.`
+                  : ' Nothing had been paid towards them.'
+              } This cannot be undone; add the correct charge afterwards.`
+            : 'Tick this if the charge was added by mistake. Left unticked, what tenants were already billed stays on their accounts.'}
+        </span>
+      </span>
+    </label>
   )
 }
 

@@ -5,6 +5,7 @@ import {
   confirmDepositReconciliation,
   getDepositReconciliation,
   recordDepositRefund,
+  reopenDepositReconciliation,
 } from '../../api/tenants'
 import { useApi } from '../../hooks/useApi'
 import { chargeLabel } from '../../utils/billing'
@@ -359,6 +360,25 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
 
   const refundPending = settlement.refund_due > 0 && !settlement.refund_paid_on
 
+  // Reopening: null until "Reopen" is clicked, then the reason being typed.
+  const [reopenReason, setReopenReason] = useState(null)
+  const [reopening, setReopening] = useState(false)
+  const [reopenError, setReopenError] = useState(null)
+
+  async function handleReopen(event) {
+    event.preventDefault()
+    setReopening(true)
+    setReopenError(null)
+
+    try {
+      await reopenDepositReconciliation(tenant.id, reopenReason.trim())
+      onChanged()
+    } catch (error) {
+      setReopenError(error.details?.[0] || error)
+      setReopening(false)
+    }
+  }
+
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
   }
@@ -425,6 +445,57 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
             this tenant&apos;s account; record a payment when they pay it.
           </p>
         ) : null}
+
+        {/* A mistake can be corrected until the refund has been paid. */}
+        {settlement.refund_paid_on ? null : reopenReason === null ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-soft)] pt-3">
+            <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              Something missing or wrong, such as a deduction you forgot?
+            </p>
+            <button
+              type="button"
+              onClick={() => setReopenReason('')}
+              className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
+            >
+              Reopen to correct
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleReopen} className="mt-3 border-t border-[var(--line-soft)] pt-4">
+            <h4 className="text-[12px] font-bold">Reopen this reconciliation</h4>
+            <p className="mb-3 mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              The bills the deposits paid become unpaid again, the deductions
+              are removed and the tenant&apos;s credit is put back, exactly as
+              it was before you confirmed. You then add the right deductions
+              and confirm again.
+            </p>
+
+            <Field
+              label="Why are you reopening it"
+              placeholder="e.g. Forgot the broken window"
+              value={reopenReason}
+              onChange={(event) => setReopenReason(event.target.value)}
+              required
+              minLength={3}
+              maxLength={500}
+            />
+
+            {reopenError ? (
+              <div className="mt-[14px]">
+                <FormError error={reopenError} />
+              </div>
+            ) : null}
+
+            <div className="mt-[14px] flex gap-[10px]">
+              <button type="submit" disabled={reopening} className={primaryButtonClass}>
+                {reopening ? 'Reopening...' : 'Reopen'}
+              </button>
+              <button type="button" onClick={() => setReopenReason(null)} className={secondaryButtonClass}>
+                Keep it as it is
+              </button>
+            </div>
+          </form>
+        )}
 
         {settlement.refund_paid_on ? (
           <p className="mt-3 text-[11px] leading-[1.5] text-[var(--success)]">

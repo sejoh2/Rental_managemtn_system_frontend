@@ -9,6 +9,7 @@ import DashboardHomePage from './DashboardHomePage'
 import PropertiesPage from './PropertiesPage'
 import UnitsHousesPage from './UnitsHousesPage'
 import AgreementsPage from './AgreementsPage'
+import PaymentDetailPage from './PaymentDetailPage'
 import PaymentsPage from './PaymentsPage'
 import WaterBillingPage from './WaterBillingPage'
 import ExpensesPage from './ExpensesPage'
@@ -204,6 +205,7 @@ function DashboardShell() {
               <Route path="tenants/:tenantId" element={<TenantProfilePage />} />
               <Route path="agreements" element={<AgreementsPage />} />
               <Route path="payments" element={<PaymentsPage />} />
+              <Route path="payments/:paymentId" element={<PaymentDetailPage />} />
               <Route path="water-billing" element={<WaterBillingPage />} />
               <Route path="expenses" element={<ExpensesPage />} />
               <Route path="maintenance" element={<MaintenancePage />} />

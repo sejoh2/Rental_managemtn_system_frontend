@@ -12,6 +12,7 @@ import {
   listSmsMessages,
   listSmsTemplates,
   retrySmsMessage,
+  updateSmsBroadcast,
   updateSmsTemplate,
 } from '../../api/sms'
 import { listTenants } from '../../api/tenants'
@@ -261,13 +262,18 @@ function SmsCentrePage() {
                     </td>
                     <td className="px-[18px] py-[13px] text-[12px]">{recipientLabel(item, properties)}</td>
                     <td className="px-[18px] py-[13px] text-[12px]">{formatDateTime(item.scheduled_at)}</td>
-                    <td className="px-[18px] py-[13px] text-right">
-                      <button
-                        onClick={() => setCancelling(item)}
-                        className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
-                      >
-                        Cancel
-                      </button>
+                    <td className="px-[18px] py-[13px]">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setBroadcast({ editing: item })} className={smallButtonClass}>
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setCancelling(item)}
+                          className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -444,6 +450,7 @@ function SmsCentrePage() {
         <BroadcastModal
           templates={templates}
           selectedTemplate={broadcast.template}
+          editing={broadcast.editing}
           properties={properties}
           onClose={() => setBroadcast(null)}
           onDone={reloadAfterSending}
@@ -485,15 +492,42 @@ function SmsCentrePage() {
   )
 }
 
-function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDone }) {
-  const [form, setForm] = useState({
-    template_id: selectedTemplate ? String(selectedTemplate.id) : '',
-    message: selectedTemplate?.body || '',
-    send_to: 'all_active_tenants',
-    when: 'now',
-    date: toDateInput(),
-    time: '08:00',
-  })
+// The "Send to" value for a saved broadcast: a group, "property:1" or "tenant:1".
+function sendToValue(broadcast) {
+  if (broadcast.recipient_group === 'property') return `property:${broadcast.property_id}`
+  if (broadcast.recipient_group === 'specific_tenant') return `tenant:${broadcast.tenant_id}`
+
+  return broadcast.recipient_group
+}
+
+// "08:05" in this device's time.
+function timeInput(value) {
+  const date = new Date(value)
+
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// Sends or schedules a broadcast, or changes a scheduled one when `editing` is passed.
+function BroadcastModal({ templates, selectedTemplate, editing, properties, onClose, onDone }) {
+  const [form, setForm] = useState(
+    editing
+      ? {
+          template_id: editing.template_id ? String(editing.template_id) : '',
+          message: editing.message_template,
+          send_to: sendToValue(editing),
+          when: 'later',
+          date: toDateInput(editing.scheduled_at),
+          time: timeInput(editing.scheduled_at),
+        }
+      : {
+          template_id: selectedTemplate ? String(selectedTemplate.id) : '',
+          message: selectedTemplate?.body || '',
+          send_to: 'all_active_tenants',
+          when: 'now',
+          date: toDateInput(),
+          time: '08:00',
+        }
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -569,13 +603,16 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
 
     setSaving(true)
 
+    const body = {
+      ...target,
+      ...(form.template_id ? { template_id: Number(form.template_id) } : {}),
+      message: form.message.trim(),
+      ...(sendAt ? { send_at: sendAt.toISOString() } : {}),
+    }
+
     try {
-      await createSmsBroadcast({
-        ...target,
-        ...(form.template_id ? { template_id: Number(form.template_id) } : {}),
-        message: form.message.trim(),
-        ...(sendAt ? { send_at: sendAt.toISOString() } : {}),
-      })
+      if (editing) await updateSmsBroadcast(editing.id, body)
+      else await createSmsBroadcast(body)
 
       onDone()
       onClose()
@@ -586,7 +623,7 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
   }
 
   return (
-    <ModalShell title="New broadcast" onClose={onClose}>
+    <ModalShell title={editing ? 'Edit scheduled broadcast' : 'New broadcast'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <ModalBody>
           <div className="grid gap-[18px]">
@@ -646,10 +683,13 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
               <label className={labelClass}>When</label>
 
               <div className="flex flex-wrap gap-5 text-[12px] text-[var(--ink)]">
-                {[
-                  ['now', 'Send now'],
-                  ['later', 'Schedule for later'],
-                ].map(([value, label]) => (
+                {(editing
+                  ? [['later', 'Scheduled']]
+                  : [
+                      ['now', 'Send now'],
+                      ['later', 'Schedule for later'],
+                    ]
+                ).map(([value, label]) => (
                   <label key={value} className="inline-flex items-center gap-2">
                     <input
                       type="radio"
@@ -710,7 +750,7 @@ function BroadcastModal({ templates, selectedTemplate, properties, onClose, onDo
             disabled={saving || (!later && Boolean(estimate) && reach === 0)}
             className={primaryButtonClass}
           >
-            {saving ? 'Sending...' : later ? 'Schedule broadcast' : 'Send broadcast'}
+            {saving ? 'Saving...' : editing ? 'Save changes' : later ? 'Schedule broadcast' : 'Send broadcast'}
           </button>
         </ModalFooter>
       </form>

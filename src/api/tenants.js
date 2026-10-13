@@ -55,6 +55,16 @@ export async function calculateDepositReconciliation(tenantId, deductions) {
   return data
 }
 
+// Undoes a confirmed reconciliation so it can be corrected and confirmed again.
+// Refused once the refund is recorded as paid, or the tenant has paid since.
+export async function reopenDepositReconciliation(tenantId, reason) {
+  const { data } = await api.post(`/api/tenants/${tenantId}/deposit-reconciliation/reopen`, {
+    reason,
+  })
+
+  return data
+}
+
 // Final: uses the deposits for the unpaid bills and deductions and fixes the refund or debt.
 export async function confirmDepositReconciliation(tenantId, deductions) {
   const { data } = await api.post(`/api/tenants/${tenantId}/deposit-reconciliation/confirm`, {

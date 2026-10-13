@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { archiveUnit, listUnits } from '../../api/units'
-import { DataState, EmptyState } from '../../components/common/DataState'
+import { archiveUnit, listUnits, restoreUnit } from '../../api/units'
+import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
 import ElectricityBillsModal from '../../components/dashboard/ElectricityBillsModal'
 import UnitFormModal from '../../components/dashboard/UnitFormModal'
@@ -20,6 +20,9 @@ const unitFilters = [
   { key: 'maintenance', label: 'Under maintenance', matches: (unit) => unit.status === 'maintenance' },
   { key: 'arrears', label: 'In arrears', matches: (unit) => displayStatus(unit) === 'arrears' },
 ]
+
+// Shown beside the filters above: units taken out of use, kept for their history.
+const NOT_IN_USE = 'not_in_use'
 
 const unitStatusColors = {
   occupied: 'bg-[var(--success)]',
@@ -57,11 +60,30 @@ function UnitsHousesPage() {
     properties[0]
 
   const unitsState = useApi(
-    selectedProperty ? `units-${selectedProperty.id}` : null,
-    () => listUnits(selectedProperty.id)
+    selectedProperty ? `units-all-${selectedProperty.id}` : null,
+    () => listUnits(selectedProperty.id, { includeArchived: true })
   )
-  const units = unitsState.data || []
-  const filteredUnits = units.filter(unitFilters.find((filter) => filter.key === activeFilter).matches)
+  // Units in use, which every count is about, and units taken out of use.
+  const units = (unitsState.data || []).filter((unit) => unit.status !== 'inactive')
+  const unitsNotInUse = (unitsState.data || []).filter((unit) => unit.status === 'inactive')
+  const filteredUnits =
+    activeFilter === NOT_IN_USE
+      ? []
+      : units.filter(unitFilters.find((filter) => filter.key === activeFilter).matches)
+  // "All" lists them after the units in use; their own filter lists only them.
+  const shownNotInUse = activeFilter === 'all' || activeFilter === NOT_IN_USE ? unitsNotInUse : []
+  const [restoreError, setRestoreError] = useState(null)
+
+  async function handleRestoreUnit(unit) {
+    setRestoreError(null)
+
+    try {
+      await restoreUnit(unit.id)
+      handleUnitsChanged()
+    } catch (error) {
+      setRestoreError(error)
+    }
+  }
 
   function handleUnitsChanged() {
     unitsState.reload()
@@ -167,7 +189,26 @@ function UnitsHousesPage() {
                       {filter.label} ({units.filter(filter.matches).length})
                     </button>
                   ))}
+
+                  {unitsNotInUse.length ? (
+                    <button
+                      onClick={() => setActiveFilter(NOT_IN_USE)}
+                      className={`rounded-full border px-3 py-[7px] text-[11px] font-medium transition ${
+                        activeFilter === NOT_IN_USE
+                          ? 'border-transparent bg-[var(--accent-soft)] text-[var(--accent-hover)]'
+                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--ink-soft)] hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
+                      }`}
+                    >
+                      Not in use ({unitsNotInUse.length})
+                    </button>
+                  ) : null}
                 </div>
+
+                {restoreError ? (
+                  <div className="mb-[14px]">
+                    <FormError error={restoreError} />
+                  </div>
+                ) : null}
 
                 <div className="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
                   {filteredUnits.map((unit) => (
@@ -177,6 +218,10 @@ function UnitsHousesPage() {
                       onEdit={() => setEditingUnit(unit)}
                       onDelete={() => setDeletingUnit(unit)}
                     />
+                  ))}
+
+                  {shownNotInUse.map((unit) => (
+                    <NotInUseTile key={unit.id} unit={unit} onRestore={() => handleRestoreUnit(unit)} />
                   ))}
 
                   <button
@@ -223,9 +268,9 @@ function UnitsHousesPage() {
 
       <ConfirmDeleteModal
         open={Boolean(deletingUnit)}
-        title="Delete unit / house"
-        message={`Deleting ${deletingUnit?.unit_number || 'this unit'} will archive it from the active unit list. Existing rent history, tenant history and water readings should stay saved for records.`}
-        confirmLabel="Delete unit"
+        title="Take unit / house out of use"
+        message={`${deletingUnit?.unit_number || 'This unit'} will be marked "Not in use": no tenant can be added to it and it is not counted or billed. It stays listed on this page, its rent, tenant and water history is kept, and you can restore it at any time. Use this for a house that is not rented out, such as the caretaker\u2019s.`}
+        confirmLabel="Take out of use"
         onClose={() => setDeletingUnit(null)}
         onConfirm={handleDeleteUnit}
       />
@@ -274,7 +319,37 @@ function UnitTile({ unit, onEdit, onDelete }) {
           onClick={onDelete}
           className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-left text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
         >
-          Delete
+          Not in use
+        </button>
+      </div>
+    </article>
+  )
+}
+
+// A unit taken out of use: kept for its history, not rented, counted or billed.
+function NotInUseTile({ unit, onRestore }) {
+  return (
+    <article className="relative rounded-[8px] border border-dashed border-[var(--line)] bg-[var(--bg)] px-3 py-9">
+      <h3 className="text-[13px] font-bold text-[var(--ink-soft)]">{unit.unit_number}</h3>
+
+      <p className="mt-[5px] text-[10px] text-[var(--ink-faint)]">
+        {[optionLabel(UNIT_TYPES, unit.unit_type), unit.block_or_floor].filter(Boolean).join(' - ')}
+      </p>
+
+      <p className="mt-[3px] text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--ink-faint)]">
+        Not in use
+      </p>
+
+      <div className="font-mono mt-[10px] text-[12px] font-semibold text-[var(--ink-faint)]">
+        {formatKES(unit.monthly_rent)}
+      </div>
+
+      <div className="mt-[12px]">
+        <button
+          onClick={onRestore}
+          className="w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-left text-[11px] font-bold text-[var(--ink)] transition hover:bg-[var(--line-soft)]"
+        >
+          Restore
         </button>
       </div>
     </article>

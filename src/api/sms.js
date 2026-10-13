@@ -66,6 +66,13 @@ export async function createSmsBroadcast(body) {
 }
 
 // Only a broadcast that is still scheduled can be cancelled.
+// Only while it is still waiting for its time. body as createSmsBroadcast, with send_at.
+export async function updateSmsBroadcast(broadcastId, body) {
+  const { data } = await api.patch(`/api/sms/broadcasts/${broadcastId}`, body)
+
+  return data
+}
+
 export function cancelSmsBroadcast(broadcastId) {
   return api.post(`/api/sms/broadcasts/${broadcastId}/cancel`)
 }

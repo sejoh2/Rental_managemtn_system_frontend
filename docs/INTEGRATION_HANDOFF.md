@@ -16,7 +16,7 @@ Kodi is a rental management system for Kenyan property owners.
 
 - Backend runs on `http://localhost:8080` (`npm run dev`, nodemon, restarts on every file save). API docs at `/api-docs`, source in `docs/openapi.yaml`. Keep that file updated with every backend change; it is parsed at startup, so a YAML mistake (for example a duplicate key) stops the server.
 - Frontend runs on `http://localhost:5173` (`npm run dev`). API base URL is `VITE_API_URL` in `.env`.
-- The database is a real hosted PostgreSQL (Aiven) with the owner's test data. It allows 15 connections; the backend pool is capped at 8 (`DB_POOL_MAX`).
+- The database is a real hosted PostgreSQL (Aiven) with the owner's test data. It allows 15 connections, 3 of them reserved, and the user keeps DBeaver open (4 more). The backend pool is capped at 5 (`DB_POOL_MAX`); at 8 the Payments page failed with "remaining connection slots are reserved" on 2026-10-13. Test scripts must set `DB_POOL_MAX=2` before loading `src/config/db`. A refused connection is answered with "The server is busy" (503), never the database's own text.
 - Sign-in is by phone and OTP. `SMS_MODE=console` in the backend `.env`, so codes and every SMS are printed in the backend terminal and nothing reaches a phone. You cannot sign in yourself, so you cannot click through the screens.
 - Test data: owner is user id 3 ("New User"); property id 1 "Test Appartment" (rent and water accounts, `move_in_billing` and `move_out_billing` both `prorated`, rent due day 5); unit id 2 "A1" (metered water); tenant id 1 "John Otieno", moved in 2026-10-04, rent KES 11,000, rent deposit 11,000, water deposit 2,000, all paid, and he holds some credit. There were no caretakers when last checked.
 - Tables are created and upgraded at backend startup by the `*_tables.js` files. Upgrades must be idempotent (`ADD COLUMN IF NOT EXISTS`, drop and re-add constraints).
@@ -111,6 +111,7 @@ The test script pattern: take one client from the pool, `BEGIN`, replace `db.que
 Things that bit during the session:
 
 - Inside the test transaction `CURRENT_TIMESTAMP` is frozen at its start. Code that compares an app-side `new Date()` with it can behave differently from production.
+- Never run a whole `init_*_tables` for the `users` table (or any table the running server uses constantly) inside a long test transaction: its `ALTER TABLE` waits on the live server and the live server waits on the test, a deadlock. Run only the statement being tested.
 - A parameter used twice with different inferred types fails ("inconsistent types deduced"); cast it, for example `$4::VARCHAR`.
 - A parameter in a `SELECT` list of an `INSERT ... SELECT` needs a cast, for example `$1::BIGINT`.
 - PostgreSQL `DATE` columns come back as JS `Date` at local midnight. Never call `toISOString().slice(0, 10)` on them; use `TO_CHAR(col, 'YYYY-MM-DD')` in SQL. "Today" and month boundaries use `AT TIME ZONE 'Africa/Nairobi'`.
@@ -138,6 +139,21 @@ Things that bit during the session:
 - **Expenses show who covers each one.** `recovery` on every expense: `owner_cost`, `recovered`, `pending` or `at_move_out`, with the tenant and amounts. Only a repair from a maintenance request can be tied to one tenant; other categories are recovered through service charges and stay in the per-category table.
 - **Move-out** no longer asks for a refund decision. Afterwards the tenant profile shows a deposit reconciliation (`src/deposits/`): each deposit covers its own kind of bill (the rent deposit also covers service charges, repairs and deductions); the owner adds deductions; **Calculate** merges the deposits and any credit into one figure; **Confirm** is final. The refund is recorded once, in full. A tenant who owes more keeps the rest as a debt and can still record payments. Only deposit money actually paid counts as held.
 - **Income** is what payments settled against rent, water, electricity, service charges, repairs and deductions, plus deposit money used for bills at move-out, counted on that day. Deposits themselves are not income. Expenses, Reports and the Dashboard all use this definition and were checked to agree.
+
+### Automatic payment reminders (decided 2026-10-13)
+
+- Off by default; switched on **per property** in Settings > Payment reminders (`src/reminders/`, `PUT /api/properties/:id/reminders`, columns on `properties`).
+- The owner chooses the days before the rent due day (7, 5, 3, 2, 1 and/or on the day) and the hour (6 AM to 8 PM, Kenyan time). On each chosen day, from that hour, every active or notice-given tenant of the property who **owes anything** gets one SMS with **everything they owe** (all open and partial charges; a repair held for move-out is not counted) and the due date. A tenant who owes nothing gets none.
+- A separate tick box adds one **late notice** a chosen number of days after the due day, to tenants who still have a bill past its due date.
+- Each reminder is recorded in `sms_auto_reminders` (unique per tenant, kind, due date and day) so it is sent once; it goes through `send_single_sms`, so it is in the SMS centre, costs like any message, and uses the property's approved sender ID. The hourly job is `start_payment_reminder_scheduler`; each batch is audited (`AUTO_PAYMENT_REMINDERS_SENT`, `AUTO_LATE_NOTICES_SENT`).
+- A reminder that falls before the 1st cannot include the new month's rent, which is billed on the 1st; the screen warns about it.
+
+### Undoing money actions (decided 2026-10-13)
+
+- **Remove a service charge and cancel its bills.** The remove dialog offers "Also cancel the bills already made for it". Each bill is voided and what a tenant had paid towards it returns to them as credit (`release_charge_payments`), which then settles their other bills. Bills already settled from a deposit at move-out are left alone. `DELETE /api/service-charges/:id?cancel_bills=true`, preview at `GET .../billed`.
+- **Reopen a confirmed deposit reconciliation** (`POST /api/tenants/:id/deposit-reconciliation/reopen`, a reason is required, audited). The bills the deposits paid are unpaid again, the deductions are deleted, the credit is restored from a snapshot saved at confirmation, and the settlement is removed, so the owner can add the right deductions and confirm again. Refused once the refund is recorded as paid, or once the tenant has paid anything after the confirmation.
+- **Unassigning an M-Pesa payment forgets a remembered number.** When "remember this number" replaced the tenant's payment number, the old one is kept on the payment (`remembered_previous_phone`) and put back when the payment is unassigned.
+- **"If a reading is missed"** was removed from the screens on the user's instruction: nothing acted on it and it concerns money. The column and its stored value remain in the backend; do not show it again unless the behaviour is built.
 
 ### Caretakers
 
@@ -176,6 +192,7 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 - In the app: `useAuth()` gives `actingOwner`, `openOwnerAccount`, `closeOwnerAccount`; `App.jsx` shows `DashboardPage` to an admin with an account open; the top strip shows whose account it is and an "Exit account" button.
 - Leaving: the browser's back button to an `/admin` page closes the account (a `popstate` listener in `AuthProvider`), and `/admin` pages always show the admin area. Inside an account the greeting and the side menu show the owner's name ("Owner - opened by <admin>").
 - **One administrator, set on the server** (the user's decision: "one for now, seeded on deployment, very secure"). It is the `ADMIN_PHONE` in the backend environment. No endpoint or screen can create an admin, `PATCH /api/users/:id` refuses to edit the admin, and at every startup any other account holding the admin role loses it and is signed out (`seed_admin_user`, audited as `ADMIN_ROLE_REMOVED`). Do not add a "make admin" action without asking.
+- **The admin is signed out after 15 minutes without activity** (pointer, key, scroll or touch), checked in `AuthProvider`; the sign-in page then says why. Owners are not affected.
 - **The admin has no lasting session** (the user's decision, 2026-10-13). The admin's tokens are kept in sessionStorage, so closing the tab or the browser signs them out and a new tab asks for sign-in again; everyone else stays in localStorage (`sessionStore` and `setTokens(..., { tabOnly })` in `api/client.js`). On the backend an admin's refresh token lasts 12 hours instead of 30 days (`ADMIN_REFRESH_TOKEN_EXPIRES_IN`, default `12h`), renewed while they are active.
 - **Users page**: search by name, phone or role; "Add owner" (`POST /api/users`, name and phone, nothing is sent to the person); "Edit" name and phone (a new phone signs the person out); "Remove owner role" (`/demote-owner`, refused while the owner has properties: deactivate instead); "Open account" on owner rows. Names are saved as first and last word.
 - **Owner page** (`/admin/owners/:id`, `GET /api/admin/owners/:id`): read-only totals including money collected this month and what tenants owe, properties, caretakers, recent activity.
@@ -246,20 +263,16 @@ Not built, by agreement or by postponement:
 
 - **Caretaker app.** The backend permissions exist; there are no caretaker screens.
 - **Document uploads** (tenant documents, expense receipts, meter photos), planned with Supabase.
-- **Automatic tenant SMS** (payment confirmations, rent reminders). The user chose manual for now; the two matching Settings switches are inactive.
+- **Automatic payment confirmations** are deliberately not built: the user said not to send them automatically (2026-10-13).
+- **Document uploads.** The user will host on Render, does not want Supabase, and chose Cloudflare R2 (2026-10-13). Not built: it needs their R2 account. They were asked to create a bucket and an API token and put `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET` in the backend `.env`. The bucket gets a neutral name (suggested: `rental-files`), not one with "Kodi" in it, because the user plans to rename the system; the code must only ever read the name from `R2_BUCKET`. Build it (tenant documents, expense receipts, meter photos; files private, served through signed links) once those exist.
 - **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
 - **Checking an owner's own sender ID.** The user wants an entered sender ID confirmed with Africa's Talking before it is accepted, and postponed it on 2026-10-12. Africa's Talking has no lookup for this; the only check is to send a real SMS with that sender ID (about KES 0.80) and read the answer. The option offered was a test SMS to the owner's own phone on save. Ask again before building.
 - **String IDs instead of numbers.** Raised by the user on 2026-10-13 and parked ("keep that in mind, we will come back to that"). The advice given: numeric IDs are not the security boundary, the owner check on every query is, and it is in place. Options offered: leave as is; add random public IDs only on records that appear in links (tenants, properties, payments, agreements); or convert every table, which touches nearly every file and is only sensible before real customer data exists. Do not start it without asking.
-- **"If a reading is missed"** (carry forward, estimate, do not bill) is saved per property but nothing acts on it.
 
 Known gaps in what is built:
 
-- A service charge already billed, and a confirmed deposit reconciliation, cannot be undone from the screen.
-- Expenses cannot be edited (void and re-add), and a hand-entered expense cannot be tied to a unit.
-- A scheduled SMS broadcast cannot be edited (cancel and recreate).
-- A search result for a payment opens the Payments page, not that payment.
-- A house number cannot be reused after its unit is archived; there is no "Single room" unit type.
-- Assigning a payment with "remember this number" and later unassigning it leaves the tenant with the new phone number.
+- Done 2026-10-13: an expense typed in by hand can be edited (`PATCH /api/expenses/:id`, owner only, audited) and is for one unit or the whole property (`unit_id`); an expense from a maintenance request stays fixed. A scheduled SMS broadcast can be edited until it is sent (`PATCH /api/sms/broadcasts/:id`). Each payment has its own page (`/payments/:id`), opened from the list and from the top-bar search.
+- An archived unit ("Not in use" on the Units page, status `inactive`) is how the user marks a house that is not rented, such as the caretaker's. It stays listed on the Units page with a Restore button (`?include_archived=true`, `POST /api/units/:id/restore`), and is not counted or billed. Its house number still cannot be reused, which the user accepts. There is no "Single room" unit type.
 - `OTP_EXPIRES_MINUTES` was 120 in the backend `.env`; changed to 5 on 2026-10-13 at the user's request. The `.env` is not in git, so a deployed server needs the same change.
 - `PUBLIC_API_URL` must be a live HTTPS address for Daraja callbacks; it was an ngrok URL.
 
