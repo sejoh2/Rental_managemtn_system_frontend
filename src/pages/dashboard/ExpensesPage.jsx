@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Plus } from 'lucide-react'
+import { Download, Paperclip, Plus, X } from 'lucide-react'
 import {
   createExpense,
   exportExpenses,
@@ -10,9 +10,9 @@ import {
   updateExpense,
   voidExpense,
 } from '../../api/expenses'
-import { countFiles } from '../../api/files'
+import { countFiles, uploadFile } from '../../api/files'
 import { listUnits } from '../../api/units'
-import { AttachmentsModal } from '../../components/common/Attachments'
+import { AttachmentsRow } from '../../components/common/Attachments'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -43,7 +43,7 @@ function ExpensesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [voiding, setVoiding] = useState(null)
-  // The expense whose receipts are open.
+  // The expense whose receipts are open, under its row.
   const [receiptsFor, setReceiptsFor] = useState(null)
 
   const [exporting, setExporting] = useState(false)
@@ -216,8 +216,8 @@ function ExpensesPage() {
                       const voided = item.status === 'void'
 
                       return (
+                        <Fragment key={item.id}>
                         <tr
-                          key={item.id}
                           className={`border-b border-[var(--line-soft)] last:border-b-0 ${
                             voided ? 'text-[var(--ink-faint)]' : ''
                           }`}
@@ -248,7 +248,9 @@ function ExpensesPage() {
                             {voided ? null : (
                               <div className="flex justify-end gap-2">
                                 <button
-                                  onClick={() => setReceiptsFor(item)}
+                                  onClick={() =>
+                                    setReceiptsFor((current) => (current?.id === item.id ? null : item))
+                                  }
                                   className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--ink)]"
                                 >
                                   {receiptCounts[item.id] ? `Receipt (${receiptCounts[item.id]})` : 'Receipt'}
@@ -272,6 +274,19 @@ function ExpensesPage() {
                             )}
                           </td>
                         </tr>
+
+                        {receiptsFor?.id === item.id && !voided ? (
+                          <AttachmentsRow
+                            colSpan={7}
+                            title="Receipts for this expense"
+                            kind="expense_receipt"
+                            targetId={item.id}
+                            emptyText="No receipt yet."
+                            onClose={() => setReceiptsFor(null)}
+                            onChanged={receiptCountsState.reload}
+                          />
+                        ) : null}
+                        </Fragment>
                       )
                     })}
                   </tbody>
@@ -399,18 +414,6 @@ function ExpensesPage() {
         />
       ) : null}
 
-      {receiptsFor ? (
-        <AttachmentsModal
-          title={`Receipts - ${optionLabel(EXPENSE_CATEGORIES, receiptsFor.category)}, ${formatKES(receiptsFor.amount)}`}
-          kind="expense_receipt"
-          targetId={receiptsFor.id}
-          labelHint="Hardware shop receipt"
-          emptyText="No receipt yet. Upload a photo or a PDF of the receipt or invoice for this expense."
-          onClose={() => setReceiptsFor(null)}
-          onChanged={receiptCountsState.reload}
-        />
-      ) : null}
-
       {editing ? (
         <ExpenseFormModal
           properties={properties}
@@ -457,6 +460,10 @@ function ExpenseRecovery({ expense }) {
 }
 
 // Adds an expense, or corrects one when `expense` is passed.
+// The same limits the server applies to a receipt.
+const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const RECEIPT_MAX_BYTES = 5 * 1024 * 1024
+
 function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onDone }) {
   const [form, setForm] = useState({
     property_id: expense
@@ -471,6 +478,34 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // Receipts chosen for a new expense; they are uploaded once the expense is saved.
+  const [receipts, setReceipts] = useState([])
+  // Set when the expense was saved but a receipt could not be uploaded.
+  const [savedWithoutReceipt, setSavedWithoutReceipt] = useState(false)
+  const fileInput = useRef(null)
+
+  function handleFilesChosen(event) {
+    const chosen = [...event.target.files]
+
+    // Lets the same file be chosen again after it is removed.
+    event.target.value = ''
+
+    const wrongType = chosen.find((file) => !RECEIPT_TYPES.includes(file.type))
+    const tooLarge = chosen.find((file) => file.size > RECEIPT_MAX_BYTES)
+
+    if (wrongType || tooLarge) {
+      setError({
+        message: wrongType
+          ? `${wrongType.name} cannot be attached. Use a photo (JPG, PNG, WEBP) or a PDF.`
+          : `${tooLarge.name} is too large. The limit is 5 MB.`,
+      })
+
+      return
+    }
+
+    setError(null)
+    setReceipts((current) => [...current, ...chosen])
+  }
 
   const unitsState = useApi(form.property_id ? `units-${form.property_id}` : null, () =>
     listUnits(form.property_id)
@@ -493,16 +528,34 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
       unit_id: form.unit_id ? Number(form.unit_id) : null,
     }
 
+    let created = null
+
     try {
       if (expense) await updateExpense(expense.id, body)
-      else await createExpense(form.property_id, body)
-
-      onDone()
-      onClose()
+      else created = await createExpense(form.property_id, body)
     } catch (saveError) {
       setError(saveError)
       setSaving(false)
+
+      return
     }
+
+    try {
+      for (const file of receipts) await uploadFile('expense_receipt', created.id, file, '')
+    } catch (uploadError) {
+      // The expense itself is saved; saving again would add it twice.
+      onDone()
+      setSavedWithoutReceipt(true)
+      setError({
+        message: `The expense was saved, but a receipt could not be attached: ${uploadError.message} Close this and use Receipt on the expense's row to attach it.`,
+      })
+      setSaving(false)
+
+      return
+    }
+
+    onDone()
+    onClose()
   }
 
   return (
@@ -565,6 +618,51 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
             onChange={setField('notes')}
           />
 
+          {expense ? null : (
+            <div className="mt-[18px]">
+              <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">Receipt (optional)</label>
+
+              {receipts.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  className="mb-2 flex items-center justify-between gap-3 rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[11px]"
+                >
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setReceipts((current) => current.filter((_, at) => at !== index))}
+                    disabled={saving || savedWithoutReceipt}
+                    aria-label={`Remove ${file.name}`}
+                    className="text-[var(--ink-faint)] hover:text-[var(--danger)]"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ))}
+
+              <input
+                ref={fileInput}
+                type="file"
+                accept={RECEIPT_TYPES.join(',')}
+                multiple
+                onChange={handleFilesChosen}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInput.current.click()}
+                disabled={saving || savedWithoutReceipt}
+                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+              >
+                <Paperclip size={14} />
+                {receipts.length ? 'Attach another file' : 'Attach file'}
+              </button>
+              <p className="mt-2 text-[10px] text-[var(--ink-faint)]">
+                A photo (JPG, PNG, WEBP) or a PDF, up to 5 MB each.
+              </p>
+            </div>
+          )}
+
           <p className="mt-[14px] text-[11px] leading-[1.5] text-[var(--ink-faint)]">
             {expense
               ? 'The change is recorded in the audit log. The property cannot be changed; void the expense and add it again under the right property.'
@@ -580,11 +678,13 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
 
         <ModalFooter>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancel
+            {savedWithoutReceipt ? 'Close' : 'Cancel'}
           </button>
-          <button type="submit" disabled={saving} className={primaryButtonClass}>
-            {saving ? 'Saving...' : expense ? 'Save changes' : 'Add expense'}
-          </button>
+          {savedWithoutReceipt ? null : (
+            <button type="submit" disabled={saving} className={primaryButtonClass}>
+              {saving ? 'Saving...' : expense ? 'Save changes' : 'Add expense'}
+            </button>
+          )}
         </ModalFooter>
       </form>
     </ModalShell>

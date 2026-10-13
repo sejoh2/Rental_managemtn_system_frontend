@@ -238,6 +238,10 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 - The old `water_meter_readings.meter_photo_url` column is no longer shown.
 - Fixed the same day: `water_notification_service.js` used `effective_sender_sql` without importing it, so the caretaker reading reminder failed at startup with "effective_sender_sql is not defined".
 
+- **A receipt can be attached while adding an expense** (asked 2026-10-13): "Attach file" in the Add expense form, one or more files, checked for type and size before saving. The expense is saved first, then each file is uploaded to it with the existing `POST /api/files`; no backend change. If an upload fails the expense stays saved, the form says so and offers only Close, so it cannot be added twice. Editing an expense still uses the Receipt button on its row.
+
+- **Files open under the row, not in a window** (asked 2026-10-13: "we don't have to open a new modal when uploading a file"). Receipt on an expense row and the camera on a reading row toggle `AttachmentsRow`, a panel under that row with the files (Open, Delete) and one "Attach file" button, no description box (`compact`). `AttachmentsModal` was removed. The tenant's Documents card is unchanged and keeps the description box.
+
 ### Notification sound
 
 - Both bells (the owner's in the top bar, the admin's in the admin header) have a "Play a sound for new notifications" tick box at the bottom of their list. It is off by default and saved per device and per account (`kodi-sound-<role>-<id>` in localStorage).

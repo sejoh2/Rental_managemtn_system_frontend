@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Camera, Plus, Settings } from 'lucide-react'
 import { countFiles } from '../../api/files'
@@ -12,7 +12,7 @@ import {
   reviewWaterReading,
   submitWaterReading,
 } from '../../api/water'
-import { AttachmentsModal } from '../../components/common/Attachments'
+import { AttachmentsRow } from '../../components/common/Attachments'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
   Field,
@@ -55,7 +55,7 @@ function WaterBillingPage() {
   const [rulesOpen, setRulesOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [resolving, setResolving] = useState(null)
-  // The reading whose meter photos are open.
+  // The reading whose meter photos are open, under its row.
   const [photosFor, setPhotosFor] = useState(null)
   // The submitted reading being corrected.
   const [editingReading, setEditingReading] = useState(null)
@@ -251,7 +251,8 @@ function WaterBillingPage() {
                           const status = readingStatus(reading)
 
                           return (
-                            <tr key={reading.id} className="border-b border-[var(--line-soft)] last:border-b-0">
+                            <Fragment key={reading.id}>
+                            <tr className="border-b border-[var(--line-soft)] last:border-b-0">
                               <td className="px-[18px] py-[18px] text-[12px] font-bold">
                                 {reading.tenant_id ? (
                                   <Link to={`/tenants/${reading.tenant_id}`} className="hover:text-[var(--accent-ink)]">
@@ -282,7 +283,9 @@ function WaterBillingPage() {
                               <td className="px-[18px] py-[18px] text-[var(--ink-faint)]">
                                 <button
                                   type="button"
-                                  onClick={() => setPhotosFor(reading)}
+                                  onClick={() =>
+                                    setPhotosFor((current) => (current?.id === reading.id ? null : reading))
+                                  }
                                   title={
                                     photoCounts[reading.id]
                                       ? `${photoCounts[reading.id]} meter ${photoCounts[reading.id] === 1 ? 'photo' : 'photos'}`
@@ -327,6 +330,19 @@ function WaterBillingPage() {
                                 ) : null}
                               </td>
                             </tr>
+
+                            {photosFor?.id === reading.id ? (
+                              <AttachmentsRow
+                                colSpan={8}
+                                title={`Meter photos - House ${reading.unit_number}`}
+                                kind="meter_photo"
+                                targetId={reading.id}
+                                emptyText="No meter photo yet."
+                                onClose={() => setPhotosFor(null)}
+                                onChanged={photoCountsState.reload}
+                              />
+                            ) : null}
+                            </Fragment>
                           )
                         })}
                       </tbody>
@@ -353,18 +369,6 @@ function WaterBillingPage() {
           readings={readingsState.data || []}
           onClose={() => setAddOpen(false)}
           onDone={reloadAll}
-        />
-      ) : null}
-
-      {photosFor ? (
-        <AttachmentsModal
-          title={`Meter photos - House ${photosFor.unit_number}`}
-          kind="meter_photo"
-          targetId={photosFor.id}
-          labelHint="Meter on 13 Oct"
-          emptyText="No meter photo yet. Upload a photo of the meter showing this reading, as proof if the tenant questions the bill."
-          onClose={() => setPhotosFor(null)}
-          onChanged={photoCountsState.reload}
         />
       ) : null}
 
