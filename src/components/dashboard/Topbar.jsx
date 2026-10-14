@@ -194,7 +194,8 @@ function AttentionBell() {
   const attentionState = useApi('attention', getAttention)
   const [open, setOpen] = useState(false)
   const attention = attentionState.data
-  // Checks again every minute, and plays a sound when the count goes up, if allowed.
+  // Updates the moment the server reports a change (live connection), and plays a
+  // sound when the count goes up, if allowed.
   const { soundAllowed, setSoundAllowed } = useNotificationSound(
     attention ? attention.total : null,
     attentionState.reload,

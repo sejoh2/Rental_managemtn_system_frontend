@@ -12,7 +12,7 @@ function SoundToggle({ allowed, onChange }) {
         <span className="font-bold">Play a sound for new notifications</span>
         <span className="mt-[2px] block text-[10px] text-[var(--ink-faint)]">
           {allowed
-            ? 'On for this device. It plays while Kodi is open in a tab.'
+            ? 'On for this device. It plays while Kodi is open in a tab. After opening or reloading the page, click anywhere once: browsers only allow sound after that.'
             : 'Off. Tick to hear a short tone when something new needs attention.'}
         </span>
       </span>
