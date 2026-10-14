@@ -230,6 +230,15 @@ Things that bit during the session:
 - The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
 - Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
 
+### Branches and CI/CD (set up 2026-10-14)
+
+- Branches, asked by the user: every branch starts from `test`; pull requests go into `test`; when `test` passes it is promoted to `main` by a pull request. Render deploys `main` (Auto-Deploy: after CI checks pass). The three repositories are public, which is what makes CodeQL, branch protection and unlimited Actions minutes free.
+- Each repository has `.github/workflows/ci.yml` (on pull requests and pushes to `test` and `main`), `.github/dependabot.yml` (update pull requests into `test`), and backend and frontend also `codeql.yml` (security scan, also weekly). Secrets: gitleaks on every run. Dependency review on pull requests.
+- Backend CI: every file passes `node --check`, app.js loads, openapi.yaml parses, `npm test` (no saved tests yet), `npm audit --omit=dev --audit-level=critical` (critical because the africastalking package brings an old axios rated high with no fix; raise to high once replaced), and start-up on an empty PostgreSQL 18, twice, then /health and a 401 from /api/auth/me. That last job exists because a deploy failed on 2026-10-14 when old code met a newer database.
+- Frontend CI: lint, build, `npm audit --omit=dev --audit-level=high`. The frontend `.env` is no longer tracked (`.env.example` instead).
+- Mobile CI: `dart format` check, `flutter analyze` (the type check), `flutter test`, Flutter pinned to 3.44.9; on `main` it also builds a release APK (debug-signed) as a download, with `API_URL` from the repository variable of that name.
+- There is no type checking in the backend or frontend: they are plain JavaScript. Adding ESLint to the backend, or TypeScript checking, is a separate decision.
+
 ### Sign-in sessions (changed 2026-10-14)
 
 - The user saw an admin stay signed in after switching to a new database: a token was checked only against the secret and a user ID, and the new database gave the admin the same ID. Asked how professionals handle it, they chose: issuer and audience on every token, and a session check on every request.
