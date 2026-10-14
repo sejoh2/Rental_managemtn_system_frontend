@@ -7,7 +7,7 @@
   email     e.g. 'hello@example.com'
 */
 export const CONTACT = {
-  whatsapp: '254768453840',
-  phone: '254768453840',
+  whatsapp: '+254768453840',
+  phone: '+254768453840',
   email: 'kyalojoseph505@gmail.com',
 }
