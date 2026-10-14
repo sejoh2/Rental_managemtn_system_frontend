@@ -30,6 +30,25 @@ export function writeSoundAllowed(user, allowed) {
 let audio = null
 
 /*
+  Gets the browser's permission to play sound. Browsers grant it only during a
+  click or key press on the page, so this runs on the first one after the page
+  loads; a chime that comes later, from a timer, can then be heard.
+*/
+export function unlockSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+
+    if (!AudioContext) return
+
+    audio = audio || new AudioContext()
+
+    if (audio.state === 'suspended') audio.resume()
+  } catch {
+    // Nothing more can be done; the page works without sound.
+  }
+}
+
+/*
   The owner and the admin hear different sounds, so someone who uses both
   can tell them apart. Each is [pitch in Hz, seconds after the start] notes.
 
