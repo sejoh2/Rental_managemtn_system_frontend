@@ -287,6 +287,13 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 
 - **Take photo** (asked 2026-10-13, for the web and the caretaker app): `components/common/TakePhoto.jsx`, beside every upload button (tenant documents, the receipt and meter-photo panels, the Add expense form). On a phone or tablet it opens the device's camera app (`capture="environment"`); on a computer it shows the webcam under the button with Capture. The picture is redrawn to at most 1600 px on its longest side as a JPG before upload, because phone photos often pass the 5 MB limit. A webcam needs HTTPS or localhost.
 
+### Public home page (built 2026-10-14)
+
+- `src/pages/home/HomePage.jsx` at `/` for visitors; someone signed in at `/` goes to `/dashboard`. Asked by the user to bring in customers, following landing-page practice: one goal ("Get an account", repeated), the value and a product picture in the first screen, the owner's problems, benefits, how it works, the caretaker app (marked coming soon), questions (FAQ), a closing call to action. Same design tokens, fonts and dark/light switch as the app.
+- The user chose "Sign in + contact to get an account": owners cannot sign up themselves. Contact details live in `src/config/contact.js` (WhatsApp, phone, email); an empty one hides its button. **Still empty**, waiting for the user.
+- **Only true claims.** No prices, client names, user counts or testimonials until the user gives real ones; the FAQ says "talk to us" for the price. The product picture is drawn with the app's own styles and labelled as an example property. Do not say the caretaker app works offline or is available until it is.
+- `index.html` has a fuller description and Open Graph tags (how a shared link looks).
+
 ### Installable app, PWA (built 2026-10-13)
 
 - Asked by the user for owner and admin, before the caretaker app. The caretaker app will be a separate Flutter app; caretakers do not use the web version.

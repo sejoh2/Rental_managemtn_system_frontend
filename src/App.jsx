@@ -6,6 +6,7 @@ import NamePage from './pages/auth/NamePage'
 import NoAccessPage from './pages/auth/NoAccessPage'
 import SignInPage from './pages/auth/SignInPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
+import HomePage from './pages/home/HomePage'
 
 function App() {
   const { status, user, actingOwner } = useAuth()
@@ -24,6 +25,9 @@ function App() {
 
   return (
     <Routes>
+      {/* The public home page; someone signed in goes straight to their pages. */}
+      <Route path="/" element={signedIn ? <Navigate to="/dashboard" replace /> : <HomePage />} />
+
       <Route
         path="/login"
         element={
