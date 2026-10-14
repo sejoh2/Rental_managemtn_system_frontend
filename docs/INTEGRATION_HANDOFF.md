@@ -199,6 +199,17 @@ Things that bit during the session:
 - **Sending twice does not save twice:** a request carrying `Idempotency-Key` (16 to 100 letters, digits, hyphens or underscores; the app makes one per saved item) is carried out once; a repeat with the same key gets the first answer back with the header `Idempotent-Replay: true`. Kept per signed-in user for 30 days (`idempotency_keys`, `src/middleware/idempotency.js`, run from `authenticate`). A refused request frees its key. The same key on a different address is refused with 422.
 - Caretakers have no screens in this web app (they see `NoAccessPage`). These are backend permissions for a later caretaker app. Nothing is sent to a caretaker when they are added; there are no invitations.
 
+### Caretaker mobile app (started 2026-10-13)
+
+- Folder `My_AppsRental_management_system_mobile`, a Flutter project for every platform (Android first), app ID `io.github.sejoh2.caretaker_app` (the user's own; settle it before publishing, it cannot change after). The user created it and runs every install command themselves (`flutter pub add ...`): give the command, do not run it in their project. To check code, copy `lib`, `test`, `pubspec.yaml` and `analysis_options.yaml` to the scratchpad, add the packages there, and run `flutter analyze` and `flutter test`.
+- Online-only first; saving without a connection comes after. Every server call goes through `lib/core/api_client.dart` so that can be added in one layer. It renews the session (one shared renewal), sends `Idempotency-Key` when given a save key, and turns failures into `ApiException` with a message for the user.
+- Low-end phones matter (the user, 2026-10-13): lists in pages and built lazily, photos shrunk before upload, few packages (so far `http` and `flutter_secure_storage`; no state-management or routing package), lookups by ID with maps. Judge speed with `flutter run --release`.
+- IDs are text in every model (`'${json[...]}'`), ready for the ID change.
+- Colours come from `lib/core/app_theme.dart` (`AppColors.of(context)`), the same light and dark sets as the web; no colour values in screens. The app follows the phone's light or dark setting. Fonts are the system's for now.
+- The server address is `API_URL` (`--dart-define`), default `http://10.0.2.2:8080` for an emulator. On a real phone use the computer's Wi-Fi address. Plain http is allowed only in the debug build (`android/app/src/debug/AndroidManifest.xml`); the released app needs https.
+- Built so far: sign-in (phone, six-digit code, name on first sign-in), a refusal screen for anyone who is not a caretaker, and Home listing the caretaker's properties with what they may do in each.
+- Built 2026-10-14: a property page; Units (filters All, Occupied, Vacant, Owing; tenant and balance); Water readings by month (who is still to be read, what was recorded), Record reading (previous prefilled, may be raised not lowered, bill preview, final reading at move-out, one save key per form), and for a recorded reading Edit, Cancel (reason required) and Fix a flagged one, the same rules as the web. Server calls for these are in `lib/data/water_repository.dart`. Meter photos are next (needs `image_picker`).
+
 ### SMS
 
 - **Nothing is sent to a tenant automatically.** Broadcasts are started by the owner. The repair charge notice is sent with a "Send SMS" button on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`), and can be sent again.
@@ -218,6 +229,14 @@ Things that bit during the session:
 - Reports: property and period filters in the URL; arrears show current tenants and former tenants separately; archived properties are left out; exports hold totals and a line per tenant, as PDF or CSV built from the same sections; periods are Kenyan time.
 - The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
 - Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
+
+### Sign-in sessions (changed 2026-10-14)
+
+- The user saw an admin stay signed in after switching to a new database: a token was checked only against the secret and a user ID, and the new database gave the admin the same ID. Asked how professionals handle it, they chose: issuer and audience on every token, and a session check on every request.
+- `src/security/token_service.js`: tokens carry `iss` (`rental-api`, or `JWT_ISSUER`), `aud` (`rental-app-<NODE_ENV>`, or `JWT_AUDIENCE`) and `sid`, the `refresh_tokens` row of the session; only HS256 is accepted. `authenticate` loads the user together with the session (`get_user_for_session`), so a session ended by signing out, by an admin, or by running out is refused on the next request. Same query as before, no extra round trip.
+- Renewing keeps the session and swaps its refresh token in one UPDATE (`renew_session`): a refresh token works once, and access tokens of the session stay valid until they expire. Signing out ends only that device's session. Refresh tokens are stored as SHA-256, found by session ID (before: bcrypt, compared one by one).
+- No reuse detection (ending the whole session when an old refresh token is presented): two browser tabs renewing at the same moment would sign the person out. Raise it in the security review if wanted.
+- Production must have its own `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (on the go-live list). Moving web tokens into HttpOnly cookies is for the pre-launch security review.
 
 ### Admin: access to everything
 
