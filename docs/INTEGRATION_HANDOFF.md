@@ -210,6 +210,14 @@ Things that bit during the session:
 - Built so far: sign-in (phone, six-digit code, name on first sign-in), a refusal screen for anyone who is not a caretaker, and Home listing the caretaker's properties with what they may do in each.
 - Built 2026-10-14: a property page; Units (filters All, Occupied, Vacant, Owing; tenant and balance); Water readings by month (who is still to be read, what was recorded), Record reading (previous prefilled, may be raised not lowered, bill preview, final reading at move-out, one save key per form), and for a recorded reading Edit, Cancel (reason required) and Fix a flagged one, the same rules as the web. Server calls for these are in `lib/data/water_repository.dart`. Meter photos are next (needs `image_picker`).
 
+### Caretaker app rebuild (step 1 of 5, 2026-10-14)
+
+- The user asked for the app to use the web's look exactly, a landing screen, an icon, and to be built "professionally" with planning. Agreed plan, one branch per step: 1 `feature/app-foundation` (look, landing and intro, sign-in, Home, bottom bar, Settings, icon); 2 `feature/app-water` (readings with camera photos, units); 3 `feature/app-tenants`; 4 `feature/app-repairs-expenses`; 5 `feature/app-more` (electricity, payments, settings additions).
+- Structure: `lib/app` (`routes.dart` with the pure `redirectFor` rule, `router.dart` with go_router and a StatefulShellRoute bottom bar: Home, Water, More), `lib/core` (api client, session, auth, `preferences.dart` with shared_preferences for intro-seen, light/dark and the selected property, `properties_controller.dart`, `theme/` with `app_colors.dart`, `app_text.dart`, `app_theme.dart` and `AppSpace`), `lib/data` (repositories; screens never call the server directly), `lib/features/<area>`, `lib/widgets` (BrandMark, BrandPanel with the web's glows and ledger lines, AppCard, SectionLabel, StatTile, NavRow, IconBadge, StatusChip, ErrorBox, NoteBox, LoadingView, EmptyView, ErrorView, PropertyGate).
+- Fonts bundled as on the web: Manrope (text), Space Grotesk (headings, brand), JetBrains Mono (amounts, readings), static TTFs with their OFL licences in `assets/fonts`. Colours only from `AppColors`.
+- Landing: welcome screen on the brand panel, then 3 intro slides once (choice of the user); after that, signed-out goes straight to sign-in. Icon and splash from `assets/icon`, drawn by `tool/make_icons.ps1` (orange K in Space Grotesk Bold); `flutter_launcher_icons` and `flutter_native_splash` settings are in `pubspec.yaml`. Launcher name "Kodi" in AndroidManifest and Info.plist; rename there and in `lib/config.dart`.
+- Packages for this step (installed by the user): go_router, shared_preferences, image_picker (step 2), dev: flutter_launcher_icons, flutter_native_splash. Checked in a scratch copy with them added: analyze clean, 23 tests (routes rule, home figures, welcome and intro screens).
+
 ### SMS
 
 - **Nothing is sent to a tenant automatically.** Broadcasts are started by the owner. The repair charge notice is sent with a "Send SMS" button on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`), and can be sent again.
@@ -286,6 +294,13 @@ Decided by the user on 2026-10-13: "an admin should be able to access everything
 - **Files open under the row, not in a window** (asked 2026-10-13: "we don't have to open a new modal when uploading a file"). Receipt on an expense row and the camera on a reading row toggle `AttachmentsRow`, a panel under that row with the files (Open, Delete) and one "Attach file" button, no description box (`compact`). `AttachmentsModal` was removed. The tenant's Documents card is unchanged and keeps the description box.
 
 - **Take photo** (asked 2026-10-13, for the web and the caretaker app): `components/common/TakePhoto.jsx`, beside every upload button (tenant documents, the receipt and meter-photo panels, the Add expense form). On a phone or tablet it opens the device's camera app (`capture="environment"`); on a computer it shows the webcam under the button with Capture. The picture is redrawn to at most 1600 px on its longest side as a JPG before upload, because phone photos often pass the 5 MB limit. A webcam needs HTTPS or localhost.
+
+### Public home page (built 2026-10-14)
+
+- `src/pages/home/HomePage.jsx` at `/` for visitors; someone signed in at `/` goes to `/dashboard`. Asked by the user to bring in customers, following landing-page practice: one goal ("Get an account", repeated), the value and a product picture in the first screen, the owner's problems, benefits, how it works, the caretaker app (marked coming soon), questions (FAQ), a closing call to action. Same design tokens, fonts and dark/light switch as the app.
+- The user chose "Sign in + contact to get an account": owners cannot sign up themselves. Contact details live in `src/config/contact.js` (WhatsApp, phone, email); an empty one hides its button. **Still empty**, waiting for the user.
+- **Only true claims.** No prices, client names, user counts or testimonials until the user gives real ones; the FAQ says "talk to us" for the price. The product picture is drawn with the app's own styles and labelled as an example property. Do not say the caretaker app works offline or is available until it is.
+- `index.html` has a fuller description and Open Graph tags (how a shared link looks).
 
 ### Installable app, PWA (built 2026-10-13)
 
