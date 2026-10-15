@@ -14,6 +14,7 @@ import {
 } from '../../api/water'
 import { AttachmentsRow } from '../../components/common/Attachments'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import ChooseProperty from '../../components/dashboard/ChooseProperty'
 import {
   Field,
   ModalBody,
@@ -62,10 +63,8 @@ function WaterBillingPage() {
   // The submitted reading being cancelled, with its bill.
   const [cancellingReading, setCancellingReading] = useState(null)
 
-  // Property and month live in the URL: /water-billing?property=1&month=2026-10
-  const properties = propertiesState.data || []
-  const property =
-    properties.find((item) => String(item.id) === searchParams.get('property')) || properties[0]
+  // The property is chosen in the top bar; the month lives in the URL: /water-billing?month=2026-10
+  const property = propertiesState.oneProperty
   const month = searchParams.get('month') || toDateInput().slice(0, 7)
   const billingPeriod = `${month}-01`
 
@@ -145,16 +144,6 @@ function WaterBillingPage() {
 
         {property ? (
           <div className="flex flex-wrap gap-[10px]">
-            <select
-              value={property.id}
-              onChange={(event) => setParam('property', event.target.value)}
-              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
-            >
-              {properties.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </select>
-
             <input
               type="month"
               value={month}
@@ -203,7 +192,9 @@ function WaterBillingPage() {
           </section>
         }
       >
-        {() => (
+        {() => !property ? (
+          <ChooseProperty message="Water is billed one property at a time. Pick one here or at the top." />
+        ) : (
           <>
             <div className="mb-6 grid gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
               {statCards.map((item) => (

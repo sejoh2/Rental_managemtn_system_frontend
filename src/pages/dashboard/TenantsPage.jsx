@@ -27,8 +27,11 @@ const tenantFilters = [
 
 function TenantsPage({ onAddTenant }) {
   const navigate = useNavigate()
-  const properties = useProperties().data
-  const tenantsState = useApi('tenants', () => listTenants())
+  const { data: properties, selectedId, selected } = useProperties()
+  // Only the tenants of the property chosen in the top bar, or everyone's.
+  const tenantsState = useApi(`tenants-${selectedId || 'all'}`, () =>
+    listTenants(selectedId ? { property_id: selectedId } : undefined)
+  )
   const [activeFilter, setActiveFilter] = useState('all')
 
   const tenants = tenantsState.data || []
@@ -50,9 +53,11 @@ function TenantsPage({ onAddTenant }) {
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
             {tenantsState.data
               ? `${currentCount} active ${currentCount === 1 ? 'tenant' : 'tenants'}${
-                  properties
-                    ? ` across ${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`
-                    : ''
+                  selected
+                    ? ` at ${selected.name}`
+                    : properties
+                      ? ` across ${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`
+                      : ''
                 }`
               : 'Loading tenants...'}
           </p>

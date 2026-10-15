@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { archiveUnit, listUnits, restoreUnit } from '../../api/units'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import ChooseProperty from '../../components/dashboard/ChooseProperty'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
 import ElectricityBillsModal from '../../components/dashboard/ElectricityBillsModal'
 import UnitFormModal from '../../components/dashboard/UnitFormModal'
@@ -53,18 +54,14 @@ function customUnitTypes(units) {
 
 function UnitsHousesPage() {
   const propertiesState = useProperties()
-  const [searchParams, setSearchParams] = useSearchParams()
   const [activeFilter, setActiveFilter] = useState('all')
   const [addOpen, setAddOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState(null)
   const [deletingUnit, setDeletingUnit] = useState(null)
   const [electricityOpen, setElectricityOpen] = useState(false)
 
-  // The selected property lives in the URL (/units?property=1) so it survives a refresh.
-  const properties = propertiesState.data || []
-  const selectedProperty =
-    properties.find((property) => String(property.id) === searchParams.get('property')) ||
-    properties[0]
+  // Chosen in the top bar; with all properties chosen, the page asks for one.
+  const selectedProperty = propertiesState.oneProperty
 
   const unitsState = useApi(
     selectedProperty ? `units-all-${selectedProperty.id}` : null,
@@ -124,19 +121,6 @@ function UnitsHousesPage() {
 
         {selectedProperty ? (
           <div className="flex flex-wrap gap-[10px]">
-            <select
-              value={selectedProperty.id}
-              onChange={(event) => {
-                setSearchParams({ property: event.target.value })
-                setActiveFilter('all')
-              }}
-              className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
-            >
-              {properties.map((property) => (
-                <option key={property.id} value={property.id}>{property.name}</option>
-              ))}
-            </select>
-
             {/* Only for properties with a unit whose electricity is typed in each month. */}
             {units.some((unit) => unit.electricity_billing_method === 'entered') ? (
               <button
@@ -178,8 +162,10 @@ function UnitsHousesPage() {
           </section>
         }
       >
-        {() => (
-          <DataState state={unitsState} loadingLabel="Loading units...">
+        {() => !selectedProperty ? (
+          <ChooseProperty message="Units are listed one property at a time. Pick one here or at the top." />
+        ) : (
+          <DataState key={selectedProperty.id} state={unitsState} loadingLabel="Loading units...">
             {() => (
               <>
                 <div className="mb-[18px] flex flex-wrap gap-[10px]">

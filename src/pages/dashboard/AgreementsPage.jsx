@@ -46,7 +46,11 @@ const smallButtonClass =
   'inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50'
 
 function AgreementsPage() {
-  const agreementsState = useApi('agreements', () => listAgreements())
+  // Only the agreements of the property chosen in the top bar, or all of them.
+  const propertyId = useProperties().selectedId
+  const agreementsState = useApi(`agreements-${propertyId || 'all'}`, () =>
+    listAgreements(propertyId ? { property_id: propertyId } : undefined)
+  )
   const [templateOpen, setTemplateOpen] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [signing, setSigning] = useState(null)

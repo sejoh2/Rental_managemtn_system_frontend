@@ -35,12 +35,11 @@ function Row({ label, value, strong, danger, note }) {
 }
 
 function ReportsPage() {
-  const properties = useProperties().data || []
+  const { selectedId: propertyId } = useProperties()
   const [searchParams, setSearchParams] = useSearchParams()
   const [exportOpen, setExportOpen] = useState(false)
 
-  // Filters live in the URL: /reports?property=1&period=last_month
-  const propertyId = searchParams.get('property') || ''
+  // The property is chosen in the top bar; the period lives in the URL: /reports?period=last_month
   const period = REPORT_PERIODS.some(([value]) => value === searchParams.get('period'))
     ? searchParams.get('period')
     : 'this_month'
@@ -74,18 +73,6 @@ function ReportsPage() {
         </div>
 
         <div className="flex flex-wrap gap-[10px]">
-          <select
-            value={propertyId}
-            onChange={(event) => setParam('property', event.target.value)}
-            aria-label="Property"
-            className={`min-w-[200px] ${filterClass}`}
-          >
-            <option value="">All properties</option>
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>{property.name}</option>
-            ))}
-          </select>
-
           <select
             value={period}
             onChange={(event) => setParam('period', event.target.value)}

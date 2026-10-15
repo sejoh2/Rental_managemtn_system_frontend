@@ -10,6 +10,7 @@ import {
   updateProfile,
 } from '../../api/settings'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
+import ChooseProperty from '../../components/dashboard/ChooseProperty'
 import {
   Field,
   ModalBody,
@@ -90,13 +91,11 @@ function SettingsPage({ onAddProperty }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [managePropertiesOpen, setManagePropertiesOpen] = useState(false)
 
-  // The tab and the property live in the URL: /settings?tab=water&property=1
+  // The tab lives in the URL (/settings?tab=water); the property is chosen in the top bar.
   const activeTab = tabs.some(([key]) => key === searchParams.get('tab'))
     ? searchParams.get('tab')
     : 'account'
-  const selectedProperty =
-    properties.find((property) => String(property.id) === searchParams.get('property')) ||
-    properties[0]
+  const selectedProperty = propertiesState.oneProperty
   // Only these tabs are about one property.
   const perProperty = ['payments', 'water', 'reminders'].includes(activeTab)
 
@@ -125,19 +124,6 @@ function SettingsPage({ onAddProperty }) {
         </div>
 
         <div className="flex flex-wrap gap-[10px]">
-          {perProperty && selectedProperty ? (
-            <select
-              value={selectedProperty.id}
-              onChange={(event) => setParam('property', event.target.value)}
-              aria-label="Property"
-              className="h-10 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] font-bold outline-none"
-            >
-              {properties.map((property) => (
-                <option key={property.id} value={property.id}>{property.name}</option>
-              ))}
-            </select>
-          ) : null}
-
           <button
             onClick={() => setManagePropertiesOpen(true)}
             className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
@@ -184,7 +170,9 @@ function SettingsPage({ onAddProperty }) {
           }
         >
           {() =>
-            activeTab === 'payments' ? (
+            !selectedProperty ? (
+              <ChooseProperty message="These settings are kept for each property. Pick one here or at the top." />
+            ) : activeTab === 'payments' ? (
               <PaymentAccountsTab
                 key={selectedProperty.id}
                 property={selectedProperty}

@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
 import { getDashboardHome } from '../../api/dashboard'
 import { DataState, EmptyState } from '../../components/common/DataState'
@@ -41,12 +41,9 @@ function DashboardHomePage({ onAddProperty, onExportReport }) {
   const { user, actingOwner } = useAuth()
   // An admin inside an owner's account is shown the owner's name, not their own.
   const firstName = actingOwner ? actingOwner.name.split(' ')[0] : user.first_name
-  const properties = useProperties().data || []
-  const [searchParams] = useSearchParams()
-
-  // Chosen with the property dropdown in the top bar: /dashboard?property=1
-  const propertyId = searchParams.get('property') || ''
-  const property = properties.find((item) => String(item.id) === propertyId)
+  // Chosen with the property dropdown in the top bar.
+  const { data, selectedId: propertyId, selected: property } = useProperties()
+  const properties = data || []
 
   const homeState = useApi(`dashboard-home-${propertyId || 'all'}`, () =>
     getDashboardHome(propertyId)
