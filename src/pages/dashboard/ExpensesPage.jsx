@@ -39,7 +39,8 @@ function monthRange(month) {
 }
 
 function ExpensesPage() {
-  const properties = useProperties().data || []
+  const { data, selectedId: propertyId } = useProperties()
+  const properties = data || []
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -50,8 +51,7 @@ function ExpensesPage() {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
 
-  // Filters live in the URL: /expenses?property=1&month=2026-10&category=security
-  const propertyId = searchParams.get('property') || ''
+  // The property is chosen in the top bar; the rest live in the URL: /expenses?month=2026-10&category=security
   const category = searchParams.get('category') || ''
   const month = searchParams.get('month') || toDateInput().slice(0, 7)
   const filters = { property_id: propertyId, ...monthRange(month) }
@@ -127,17 +127,6 @@ function ExpensesPage() {
         </div>
 
         <div className="flex flex-wrap gap-[10px]">
-          <select
-            value={propertyId}
-            onChange={(event) => setParam('property', event.target.value)}
-            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
-          >
-            <option value="">All properties</option>
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>{property.name}</option>
-            ))}
-          </select>
-
           <select
             value={category}
             onChange={(event) => setParam('category', event.target.value)}

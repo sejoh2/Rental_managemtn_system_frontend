@@ -110,13 +110,13 @@ function RepairPayerFields({ payer, timing, tenantName, disabled, onChange }) {
 }
 
 function MaintenancePage() {
-  const properties = useProperties().data || []
+  const { data, selectedId: propertyId } = useProperties()
+  const properties = data || []
   const [searchParams, setSearchParams] = useSearchParams()
   const [reportOpen, setReportOpen] = useState(false)
   const [updating, setUpdating] = useState(null)
 
-  // Filters live in the URL: /maintenance?property=1&status=reported
-  const propertyId = searchParams.get('property') || ''
+  // The property is chosen in the top bar; the status lives in the URL: /maintenance?status=reported
   const status = searchParams.get('status') || ''
 
   // Every status is loaded, so the tabs can show their counts.
@@ -151,17 +151,6 @@ function MaintenancePage() {
         </div>
 
         <div className="flex flex-wrap gap-[10px]">
-          <select
-            value={propertyId}
-            onChange={(event) => setParam('property', event.target.value)}
-            className="min-w-[200px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-[10px] text-[12px] font-bold"
-          >
-            <option value="">All properties</option>
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>{property.name}</option>
-            ))}
-          </select>
-
           <button
             onClick={() => setReportOpen(true)}
             disabled={!properties.length}

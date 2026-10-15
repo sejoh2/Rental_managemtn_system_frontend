@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Menu, Plus, Search } from 'lucide-react'
 import { getAttention, searchEverything } from '../../api/dashboard'
 import { useProperties } from '../../context/PropertiesContext'
@@ -19,8 +19,6 @@ const groupLabelClass =
 const resultClass = 'block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--line-soft)]'
 
 function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
-  const onDashboard = useLocation().pathname.startsWith('/dashboard')
-
   return (
     <header className="sticky top-[34px] z-30 flex h-[64px] items-center gap-4 border-b border-[var(--line)] bg-[var(--surface)] px-4 sm:px-6">
       <button
@@ -38,8 +36,8 @@ function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
 
       <TopbarSearch />
 
-      {/* Only the Dashboard is filtered from here; other pages have their own property filter. */}
-      {onDashboard ? <DashboardPropertySelect /> : null}
+      {/* Every page shows the property chosen here, or all of them. */}
+      <PropertySelect />
 
       <div className="ml-auto flex items-center gap-[10px]">
         <ThemeToggle />
@@ -165,17 +163,17 @@ function TopbarSearch() {
   )
 }
 
-// Switches the Dashboard between all properties and one; kept in the URL as ?property=1.
-function DashboardPropertySelect() {
-  const properties = useProperties().data || []
-  const [searchParams, setSearchParams] = useSearchParams()
+// The one place the property is chosen; remembered for next time.
+function PropertySelect() {
+  const { data, selectedId, selectProperty } = useProperties()
+  const properties = data || []
 
   return (
     <select
-      value={searchParams.get('property') || ''}
-      onChange={(event) => setSearchParams(event.target.value ? { property: event.target.value } : {})}
+      value={selectedId}
+      onChange={(event) => selectProperty(event.target.value)}
       aria-label="Property"
-      className="hidden rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[12px] font-bold md:block"
+      className="min-w-0 max-w-[150px] rounded-[8px] border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[12px] font-bold sm:max-w-[220px]"
     >
       <option value="">
         {properties.length
