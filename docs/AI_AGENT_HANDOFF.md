@@ -14,8 +14,11 @@ In the user's words (2026-10-15): "build an AI agent around this. The Agent to d
 | "How much we have made" in the brief | **The user's own income from Kodi.** Kodi has no billing yet (no plans, subscriptions or invoices), so this has to be built. |
 | Channels | **WhatsApp and SMS first; phone calls later.** |
 | Where the agent lives | **A new service in its own repository**, separate from the Kodi backend, talking to Kodi through a limited API. A fault in the agent must not affect rent collection. |
+| Repository name and folder (2026-10-15, new chat) | **`Rental_management_system_agent`**, folder `C:\Users\Other\Documents\My_Apps\Rental_management_system_agent`. The user creates it on GitHub. |
+| Does billing (M8) move earlier? (2026-10-15) | **Yes, before the brief.** Order: M1 to M5, then M8, then M6, M7, M9, M10. The brief launches with real income. |
+| Calendar (2026-10-15) | **Google Calendar.** The agent reads free/busy and creates events; reminders go by WhatsApp and SMS. |
 
-Not decided yet: the product name (Kodi is a placeholder; the user will choose), the calendar tool, the voice provider, Kodi's prices and plans.
+Not decided yet: the product name (Kodi is a placeholder; the user will choose), the voice provider, Kodi's prices and plans.
 
 ## 3. Plan proposed to the user (agreed in outline, not started)
 
@@ -70,7 +73,7 @@ Each milestone is one or more branches from `test`, ending with test steps for t
 | M9 | Voice: the user | The morning brief and urgent alerts as phone calls; the user can ask follow-up questions; approvals still by tap plus PIN | The brief call works for a week; an urgent alert rings the user |
 | M10 | Voice: customers | Answers incoming calls; calls leads who asked to be called; says it is an AI; asks consent before recording; hands over to the user | A test lead's call is answered, logged, and a requested callback happens |
 
-Ask the user whether M8 (billing) should come earlier, since income is part of the brief.
+Building order decided 2026-10-15: M1, M2, M3, M4, M5, **M8**, M6, M7, M9, M10.
 
 ## 5a. What it needs: accounts, effort, data, money (given to the user 2026-10-15)
 
@@ -146,5 +149,5 @@ Text-only months (steps 1 to 3): about KES 4,000 to 10,000. With daily brief cal
 ## 8. First thing to do in the new chat
 
 1. Read this file and `docs/INTEGRATION_HANDOFF.md`.
-2. Confirm with the user: the new repository's name and folder (the user creates it), whether billing moves earlier, Google Calendar or Cal.com.
+2. ~~Confirm with the user: the new repository's name and folder, whether billing moves earlier, Google Calendar or Cal.com.~~ Answered 2026-10-15, see section 2.
 3. List the gaps for M1 (Foundation, section 3a), then build it once the user agrees. The steps in section 3 are the short version; the milestones in section 3a replace them.
