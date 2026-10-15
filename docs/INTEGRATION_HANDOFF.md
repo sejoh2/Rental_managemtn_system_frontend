@@ -393,8 +393,8 @@ Conventions:
 
 Not built, by agreement or by postponement:
 
-- **Caretaker app.** The backend permissions exist; there are no caretaker screens.
-- **Document uploads** (tenant documents, expense receipts, meter photos), planned with Supabase.
+- **Web app: everything the user asked for is built (2026-10-15).** The user still has to test the one property choice and merge it.
+- **Caretaker app.** Separate Flutter app, all five steps built (section 5, "Caretaker app"); being tested on the user's phone against the Render backend. Nothing in it was run on a device by Claude; only analyze and 23 widget and rule tests.
 - **Automatic payment confirmations** are deliberately not built: the user said not to send them automatically (2026-10-13).
 - Document uploads are built (section 5, "File uploads"). The production server on Render needs the same four `R2_` settings.
 - **Manager and Accountant roles, invitations, bank payment accounts, email summaries** from the original design.
