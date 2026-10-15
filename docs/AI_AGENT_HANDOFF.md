@@ -32,7 +32,43 @@ In the user's words (2026-10-15): "build an AI agent around this. The Agent to d
 | Approval PIN | Asked in the admin page only for money approvals (trials, prices, discounts); always asked for WhatsApp approvals (M5) |
 | WhatsApp for building (M3) | The user's Meta test number. Production still needs Meta business verification and a real number |
 | Model while building | **Google Gemini, free tier** (user's choice; replaces "Claude API" in section 4). Checked 2026-10-15 on ai.google.dev: free-tier prompts and answers "are used to improve" Google's products, human reviewers may read them, and the terms say "Do not submit sensitive, confidential, or personal information to the Unpaid Services"; the paid tier is not used for that. So: build and test with made-up data only; switch to the paid tier before real people's data reaches it (go-live reminder saved). The model is a setting in `.env`, and all calls to the model go through one file, so changing model or provider is one change |
-| Autonomy lists (question 9 in the chat) | **Open**, not answered yet |
+| Autonomy lists (confirmed "as proposed") | **Level 1, alone and logged:** answer questions about Kodi, add and update leads, write notes, write drafts. **Level 2, Approvals:** a message the customer did not start, a message to more than one person, prices, discounts, trials (these three are money: PIN), promises or contract terms, publishing, deleting a lead. **Level 3, alert at once:** angry or threatening customer, legal or data-protection question, an attempt to trick the agent, Kodi down, payments failing. Matches `approvals.kind` and `alerts.category` in the agent repo |
+| What approving a trial does until M8 | Kodi has no trials or billing yet. Approving lets the agent tell the landlord the trial is confirmed and sets the lead's stage to `trial`; the user creates the landlord's Kodi account by hand. From M8 an approved trial can be created in Kodi billing automatically. Trial length and terms are an M8 money rule |
+
+### Part (b) decisions (2026-10-15)
+
+| Question | User's answer |
+|---|---|
+| Session | Same as Kodi's admin: tokens in sessionStorage (closing the tab signs out), signed out after 15 minutes idle, at most 12 hours. Tokens carry issuer, audience and session ID, checked on every request; the agent has its own JWT secrets |
+| PIN | 6 digits, set in Settings after first sign-in; changing it needs a fresh phone code; stored hashed; 5 wrong tries lock it for 30 minutes and record an alert |
+| Pages | Chat, Conversations, Leads, Approvals, Alerts, Knowledge, Activity (audit log, read-only), Settings (PIN, light and dark mode) |
+| Sign-in SMS | Kodi's Africa's Talking account. Kodi has no sender ID yet, so `AFRICASTALKING_SENDER_ID` is optional: empty uses Africa's Talking's default sender. In development codes print in the terminal (`SMS_MODE=console`) |
+
+### Part (c) decisions (2026-10-15)
+
+| Question | User's answer |
+|---|---|
+| Language | Reply in the landlord's language: English or Swahili, whichever they write in; a mixed message gets the main language used |
+| How the agent introduces itself | "Kodi's assistant, an AI" (follows the product name when Kodi is renamed) |
+| Approval expiry | 3 days. An expired approval is never carried out, and the landlord is told the owner will get back to them |
+| Daily limit | 300 agent replies a day (setting in `.env`). At the limit the agent stops replying for the day and raises an alert |
+| Approved actions in M1 | No channels exist yet (WhatsApp is M3), so an approved message appears in that conversation in the admin page; from M3 it is sent on the conversation's channel |
+
+### M1 progress
+
+Repo `Rental_management_system_agent` exists with `main` and `test` (first commit: `.gitignore`, `README.md`). M1 is on branch `feature/m1-foundation`, in four parts:
+
+- **(a) Skeleton, tables, audit: built 2026-10-15, not committed, not yet tested by the user.** Express 5 on port 8090 (Kodi uses 8080), `/health` checks the database (503 when it cannot reach it). Tables: `audit_logs` (actor_type owner/agent/customer/system; the database refuses update, delete and truncate), `leads` (unique phone when given), `lead_consents` (history with exact wording), `conversations`, `messages`, `approvals` (the request is frozen once made; only the decision changes; `is_money` marks PIN approvals), `alerts`, `knowledge_versions` (append-only; newest is in use). Deleting a lead removes its conversations, messages and consents, and keeps approvals and alerts unlinked. Tested by Claude on a throwaway local PostgreSQL 18 in the scratchpad (the user has PostgreSQL 18 installed): 18 checks passed, startup run twice, health with the database up and down.
+- **(a) committed and pushed by the user** (`8cdf8d2`), tested by the user on the Render database.
+- **(b) Sign-in, PIN and admin page shell: built 2026-10-15, not committed, not yet tested by the user.**
+  - Backend: `owner_account` (one row, from `OWNER_PHONE`/`OWNER_NAME` in `.env`; changing the phone ends every session and clears the PIN, audited `OWNER_PHONE_CHANGED`), `otp_codes` (purposes `login` and `pin_change`), `sessions` (12 hours max, ended after 15 minutes without a request, revoked reason kept). Tokens: issuer `rental-agent`, audience `rental-agent-admin-<NODE_ENV>`, session ID checked on every request, refresh token single-use and never outliving the session. A phone other than the owner's gets the same answer and nothing is sent (`LOGIN_REFUSED_UNKNOWN_PHONE`). Rate limits per address per 15 minutes, sign-in and PIN counted separately (`CODE_REQUEST_LIMIT` 5, `CODE_TRY_LIMIT` 10). Errors the code meant are one `[REFUSED]` line in the terminal.
+  - PIN (`src/settings/pin_service.js`): 6 digits, refuses repeated digits and straight runs, bcrypt hash, setting or changing needs a `pin_change` SMS code. `check_pin` (for part c): 5 wrong tries lock it 30 minutes and raise a `security` alert (new alert category, added with a replaceable constraint). Setting a new PIN unlocks it.
+  - Routes: `/api/auth/request-code`, `verify-code`, `refresh-token`, `logout`, `me`, `still-here`; `/api/settings/pin` (GET, PUT) and `/pin/send-code`; `/api/activity` (read-only, filters who/action/dates in Nairobi days) and `/api/activity/actions`. When `web/dist` exists the agent serves the admin page itself (deployment); in development the page runs on Vite.
+  - Admin page in `web/` (React, Vite on port 5174, Kodi's CSS, components and admin layout copied): sign-in (Kodi's code screen), side menu Chat, Conversations, Leads, Approvals, Alerts, Knowledge (placeholders saying when each arrives), Activity (real), Settings (PIN and Appearance). Tokens only in sessionStorage; signed out after 15 minutes without touching the page; tells the agent "still here" every 5 minutes while in use. The theme script is a file (`public/theme-init.js`), not inline, so helmet's security policy allows it once served by the agent. Same lint rules as Kodi's frontend.
+  - Tested by Claude: 61 backend checks over HTTP on a throwaway PostgreSQL; build and lint clean; a 19-step click-through in headless Edge (sign-in, stranger's number, PIN too easy then saved, Activity and its filter, dark mode kept after reload, phone width, a session ended by the agent, sign-out), with screenshots checked. Note: Kodi's font shows "(c)" as a copyright sign, so page text says "part C", not "part (c)".
+- (c) the agent with Gemini, tools and the three levels; (d) the knowledge draft: not started.
+
+How Claude tests the agent without touching anything of the user's: `initdb` a throwaway database in the scratchpad on port 55432, copy the repo to a staging folder with a junction to the Kodi backend's `node_modules` (until the agent has its own), run the test, then remove the junction and delete everything.
 
 Not decided yet: the product name (Kodi is a placeholder; the user will choose), the voice provider, Kodi's prices and plans.
 
