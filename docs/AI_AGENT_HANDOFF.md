@@ -58,7 +58,7 @@ In the user's words (2026-10-15): "build an AI agent around this. The Agent to d
 
 | Question | User's answer |
 |---|---|
-| Finding leads on its own | The user expected this. Explained it was not in the agreed plan and the limits (Data Protection Act consent; WhatsApp bans messages to people who did not opt in). Proposed a "Finding leads" milestone: research businesses (property managers, landlord associations, agents) through public business contacts, draft first messages, every first contact through Approvals; and referral requests to paying landlords. **Not answered yet.** |
+| Finding leads on its own | The user expected this. Explained it was not in the agreed plan and the limits (Data Protection Act consent; WhatsApp bans messages to people who did not opt in). Proposed a "Finding leads" milestone: research businesses (property managers, landlord associations, agents) through public business contacts, draft first messages, every first contact through Approvals; and referral requests to paying landlords. **Agreed: added as M11, after WhatsApp.** |
 | What to connect first | Finish M1 (part D, deploy to Render), then WhatsApp (M3) with the Meta test number, and the website chat (M2) |
 | Voice | A spoken-message call first (Africa's Talking rings the user and reads an alert or a brief; Kenyan voice number about KES 5,000 setup + KES 2,000 a month + VAT, to confirm with them), a two-way voice AI later. Timing not fixed; proposed with the alerts (M5) |
 | Gemini billing | Stay on the free tier for now (about 10 replies a day on 3.8 Flash, then 3.6 Flash at 5 requests a minute). Made-up data only; paid tier before real landlords |
@@ -85,7 +85,14 @@ Repo `Rental_management_system_agent` exists with `main` and `test` (first commi
   - A wrong PIN or code answers **403**, not 401: the page treats 401 as "session ended", renews and re-sends, which counted one wrong PIN twice (found in the browser test, fixed).
   - Pages: Chat (test chats as a landlord), Conversations (reply as owner, hand back, close), Leads (search, stage filter, details editable by the owner, consent history), Approvals (PIN dialog for money), Alerts (seen, resolve with a note), counts next to the menu items (`/api/summary`, every 30 seconds).
   - Tested by Claude: 60 checks with a scripted model (including a model calling unknown tools, setting `paying`, writing its own consent wording, an impostor giving another lead's phone, two messages at once, expiry, the daily limit), the 57 sign-in checks again, an 18-step click-through in headless Edge, and a made-up conversation with the real Gemini (it disclosed being an AI, saved the lead, asked the exact consent question, quoted no price, put the trial in Approvals, raised an alert at "ignore your instructions", answered in Swahili).
-- (d) the knowledge page and full draft: not started. A starter text is seeded at startup (`src/knowledge/knowledge_service.js`).
+- **(c) committed by the user** (`d8d046d`).
+- **(d) Knowledge: built 2026-10-15, not committed, not yet tested by the user.**
+  - The full first draft is `src/knowledge/knowledge_draft.js`, written from section 5 of `docs/INTEGRATION_HANDOFF.md`. It corrects the starter text, which wrongly said bank payments are matched (Kodi supports M-Pesa paybill and till only). Four parts are marked `[OWNER TO CONFIRM: ...]`: what makes Kodi different, who it suits best, how the demo goes, anything else never to say. The agent's instructions say to treat a marked line as unknown and never repeat the marker.
+  - At startup the draft is put in use as a new `system` version until the owner has saved a version of their own; after that a restart never replaces the owner's text. So the user's Render database gets it on top of the old starter (version 1).
+  - `/api/knowledge` (current and the list), `/versions/:id`, `POST /` (a new owner version; refused when unchanged, under 50 or over 30,000 characters), `POST /versions/:id/restore` (a new version with the old text). Audited `KNOWLEDGE_SEEDED`, `KNOWLEDGE_UPDATED`, `KNOWLEDGE_RESTORED`.
+  - Knowledge page: the text in an editor, a count of the parts to confirm with "Find the next one", Saved or Not saved, a note per save, the versions list, any version viewable and usable again; a warning before leaving with unsaved edits. The placeholder page is gone: every menu item is a real page.
+  - Tested by Claude: 26 checks (seeding over an existing starter, restarts, limits, the agent using a new version on its next reply, restore, the page in headless Edge) and the 60 part (c) checks again.
+- **Next: deploy M1 to Render**, then M1 is tested on the live service and done.
 
 How Claude tests the agent without touching anything of the user's: `initdb` a throwaway database in the scratchpad on port 55432, copy the repo to a staging folder with a junction to the Kodi backend's `node_modules` (until the agent has its own), run the test, then remove the junction and delete everything.
 
@@ -144,7 +151,9 @@ Each milestone is one or more branches from `test`, ending with test steps for t
 | M9 | Voice: the user | The morning brief and urgent alerts as phone calls; the user can ask follow-up questions; approvals still by tap plus PIN | The brief call works for a week; an urgent alert rings the user |
 | M10 | Voice: customers | Answers incoming calls; calls leads who asked to be called; says it is an AI; asks consent before recording; hands over to the user | A test lead's call is answered, logged, and a requested callback happens |
 
-Building order decided 2026-10-15: M1, M2, M3, M4, M5, **M8**, M6, M7, M9, M10.
+| M11 | Finding leads (added 2026-10-15 at the user's request) | The agent researches businesses, not private people (property management firms, landlord associations, estate agents) through their public business contacts, builds a list with a reason for each, and drafts a first message; every first contact goes through Approvals. Paying landlords (from M8) get a referral request, with approval; someone referred is contacted only if they agree. Data protection and WhatsApp opt-in rules apply; check with someone qualified | The user approves a researched business and its first message, it is sent, and a reply lands in Conversations as a lead |
+
+Building order decided 2026-10-15: M1, M2, M3, M4, M5, **M8**, M6, M7, M9, M10. **M11 (Finding leads) comes after WhatsApp (M3)**; its exact place is decided when M3 is done.
 
 ## 5a. What it needs: accounts, effort, data, money (given to the user 2026-10-15)
 
