@@ -18,6 +18,22 @@ In the user's words (2026-10-15): "build an AI agent around this. The Agent to d
 | Does billing (M8) move earlier? (2026-10-15) | **Yes, before the brief.** Order: M1 to M5, then M8, then M6, M7, M9, M10. The brief launches with real income. |
 | Calendar (2026-10-15) | **Google Calendar.** The agent reads free/busy and creates events; reminders go by WhatsApp and SMS. |
 
+### M1 decisions (2026-10-15)
+
+| Question | User's answer |
+|---|---|
+| Sign-in to the agent | Its own phone-and-code sign-in like Kodi's, codes through Africa's Talking; only the user's phone (set on the server) is accepted |
+| Admin page | A small React page in the agent repo, served by the agent's Render service, copying Kodi's colours, fonts and layout. It may later be shown inside the Kodi app |
+| Database | Render Postgres in Frankfurt, created now and used for development; wiped or replaced at go-live. Kodi's Aiven database is never touched |
+| The agent's knowledge of Kodi | Editable text in the admin page, every change audited. Claude writes the first draft from the Kodi repos; the user corrects it |
+| npm install and running | The user runs `npm install` and `npm run dev`; Claude gives the commands |
+| Prices before plans exist (money rule) | The agent says pricing will be confirmed by the owner and offers a demo. Any discount or special price goes to Approvals |
+| Free trials (money rule) | Every trial goes to Approvals until the trial rules are set in M8 |
+| Approval PIN | Asked in the admin page only for money approvals (trials, prices, discounts); always asked for WhatsApp approvals (M5) |
+| WhatsApp for building (M3) | The user's Meta test number. Production still needs Meta business verification and a real number |
+| Model while building | **Google Gemini, free tier** (user's choice; replaces "Claude API" in section 4). Checked 2026-10-15 on ai.google.dev: free-tier prompts and answers "are used to improve" Google's products, human reviewers may read them, and the terms say "Do not submit sensitive, confidential, or personal information to the Unpaid Services"; the paid tier is not used for that. So: build and test with made-up data only; switch to the paid tier before real people's data reaches it (go-live reminder saved). The model is a setting in `.env`, and all calls to the model go through one file, so changing model or provider is one change |
+| Autonomy lists (question 9 in the chat) | **Open**, not answered yet |
+
 Not decided yet: the product name (Kodi is a placeholder; the user will choose), the voice provider, Kodi's prices and plans.
 
 ## 3. Plan proposed to the user (agreed in outline, not started)
@@ -41,7 +57,7 @@ Since money is the user's chosen brief figure, ask whether billing (step 6) shou
 
 ## 4. Technical direction (suggested, confirm with the user)
 
-- **Brain:** the Claude API with tool use. Default to the latest models: `claude-opus-5-5` for decisions and drafting, `claude-haiku-5-5` or `claude-sonnet-5-5` for cheap routine replies. Keys only in the server's environment, never in a frontend or chat.
+- **Brain (changed 2026-10-15): Google Gemini with function calling**, free tier while building, paid tier before real data (see "M1 decisions"). The original suggestion was the Claude API with tool use: Default to the latest models: `claude-opus-5-5` for decisions and drafting, `claude-haiku-5-5` or `claude-sonnet-5-5` for cheap routine replies. Keys only in the server's environment, never in a frontend or chat.
 - **Stack:** match Kodi's backend so one person can maintain both: Node, Express 5, CommonJS, Postgres, zod validation, services that write an audit row for every change. Host on Render next to Kodi (Frankfurt), its own Postgres database.
 - **Talking to Kodi:** the agent never touches Kodi's database. Kodi gets a small, separate API for the agent (service token, read-mostly, figures and sign-ups only, no tenant personal data), audited like everything else.
 - **Channels:** WhatsApp Business Cloud API (needs a Meta business account, a verified number and approved message templates for messages outside 24 hours); SMS via Africa's Talking, already used by Kodi (`src/utils/sms_provider.js` in the backend calls it with `fetch`).
