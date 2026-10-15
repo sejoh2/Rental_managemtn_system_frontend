@@ -102,7 +102,12 @@ function CaretakersPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [managingId, setManagingId] = useState(null)
 
-  const caretakers = groupCaretakers(caretakersState.data || [])
+  // With one property chosen in the top bar, only the caretakers looking after it.
+  const caretakers = groupCaretakers(caretakersState.data || []).filter(
+    (caretaker) =>
+      !propertiesState.selectedId ||
+      caretaker.assignments.some((item) => String(item.property_id) === propertiesState.selectedId)
+  )
   // Looked up again after every reload, so the Manage modal always shows fresh data.
   const managing = caretakers.find((caretaker) => caretaker.caretaker_id === managingId)
 
@@ -144,7 +149,7 @@ function CaretakersPage() {
           isEmpty={() => !caretakers.length}
           empty={
             <EmptyState
-              title="No caretakers yet"
+              title={propertiesState.selected ? `No caretaker at ${propertiesState.selected.name}` : 'No caretakers yet'}
               message="Add a caretaker to a property so they can submit meter readings, report maintenance and record expenses for it."
             />
           }

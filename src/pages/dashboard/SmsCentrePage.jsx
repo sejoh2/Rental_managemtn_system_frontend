@@ -96,7 +96,8 @@ function recipientLabel(broadcast, properties) {
 }
 
 function SmsCentrePage() {
-  const properties = useProperties().data || []
+  const { data, selectedId: propertyId } = useProperties()
+  const properties = data || []
   const [searchParams, setSearchParams] = useSearchParams()
   // null | { template } - template is set when "Use" was clicked.
   const [broadcast, setBroadcast] = useState(null)
@@ -110,7 +111,10 @@ function SmsCentrePage() {
   const status = searchParams.get('status') || ''
 
   const statsState = useApi('sms-stats', getSmsStats)
-  const messagesState = useApi(`sms-messages-${status}`, () => listSmsMessages({ status, limit: 50 }))
+  // The message log follows the property chosen in the top bar.
+  const messagesState = useApi(`sms-messages-${propertyId || 'all'}-${status}`, () =>
+    listSmsMessages({ property_id: propertyId, status, limit: 50 })
+  )
   const templatesState = useApi('sms-templates', listSmsTemplates)
   const scheduledState = useApi('sms-scheduled', () => listSmsBroadcasts({ status: 'scheduled' }))
 
@@ -452,6 +456,7 @@ function SmsCentrePage() {
           selectedTemplate={broadcast.template}
           editing={broadcast.editing}
           properties={properties}
+          defaultSendTo={propertyId ? `property:${propertyId}` : 'all_active_tenants'}
           onClose={() => setBroadcast(null)}
           onDone={reloadAfterSending}
         />
@@ -508,7 +513,7 @@ function timeInput(value) {
 }
 
 // Sends or schedules a broadcast, or changes a scheduled one when `editing` is passed.
-function BroadcastModal({ templates, selectedTemplate, editing, properties, onClose, onDone }) {
+function BroadcastModal({ templates, selectedTemplate, editing, properties, defaultSendTo, onClose, onDone }) {
   const [form, setForm] = useState(
     editing
       ? {
@@ -522,7 +527,7 @@ function BroadcastModal({ templates, selectedTemplate, editing, properties, onCl
       : {
           template_id: selectedTemplate ? String(selectedTemplate.id) : '',
           message: selectedTemplate?.body || '',
-          send_to: 'all_active_tenants',
+          send_to: defaultSendTo,
           when: 'now',
           date: toDateInput(),
           time: '08:00',

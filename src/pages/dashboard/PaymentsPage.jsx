@@ -18,6 +18,7 @@ import StatusBadge from '../../components/common/StatusBadge'
 import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import StatCard from '../../components/dashboard/StatCard'
 import { usePaymentStats } from '../../context/PaymentStatsContext'
+import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import {
   formatDateTime,
@@ -26,7 +27,7 @@ import {
   formatPhone,
   humanize,
 } from '../../utils/format'
-import { appliedToLabel, paymentMethodLabel, paymentStatus } from '../../utils/payments'
+import { appliedToLabel, paymentMethodLabel, paymentStatsFor, paymentStatus } from '../../utils/payments'
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
 function payerLabel(payment) {
@@ -38,8 +39,9 @@ function payerLabel(payment) {
 }
 
 function PaymentsPage() {
-  const paymentsState = useApi('payments', listPayments)
+  const allPaymentsState = useApi('payments', listPayments)
   const statsState = usePaymentStats()
+  const { selectedId, selected } = useProperties()
   const [searchParams, setSearchParams] = useSearchParams()
   const [assigning, setAssigning] = useState(null)
   const [reversing, setReversing] = useState(null)
@@ -49,11 +51,28 @@ function PaymentsPage() {
 
   // The tab lives in the URL so other pages can link straight to /payments?tab=unmatched.
   const activeTab = searchParams.get('tab') === 'unmatched' ? 'unmatched' : 'all'
+  /*
+    With one property chosen in the top bar, only its payments, plus unmatched
+    ones whose account is not tied to any property, since they cannot be placed.
+  */
+  const paymentsState =
+    selectedId && allPaymentsState.data
+      ? {
+          ...allPaymentsState,
+          data: allPaymentsState.data.filter(
+            (payment) =>
+              String(payment.property_id) === selectedId ||
+              (payment.status === 'unmatched' && !payment.property_id)
+          ),
+        }
+      : allPaymentsState
   const payments = paymentsState.data || []
+  // The whole account's figures come from the backend; one property's are counted here.
+  const stats = selectedId ? (paymentsState.data ? paymentStatsFor(paymentsState.data) : null) : statsState.data
   const unmatched = payments.filter((payment) => payment.status === 'unmatched')
 
   function reloadAll() {
-    paymentsState.reload()
+    allPaymentsState.reload()
     statsState.reload()
   }
 
@@ -62,7 +81,7 @@ function PaymentsPage() {
     setExportError(null)
 
     try {
-      await exportPayments()
+      await exportPayments(selectedId ? { property_id: selectedId } : undefined)
     } catch (error) {
       setExportError(error)
     } finally {
@@ -81,7 +100,7 @@ function PaymentsPage() {
             Payments
           </h1>
           <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
-            Rent, water and electricity payments. M-Pesa is matched to tenants
+            {selected ? `${selected.name}: rent` : 'Rent'}, water and electricity payments. M-Pesa is matched to tenants
             automatically; cash and bank payments are recorded by hand.
           </p>
         </div>
@@ -141,7 +160,7 @@ function PaymentsPage() {
       ) : (
         <AllPaymentsView
           paymentsState={paymentsState}
-          stats={statsState.data}
+          stats={stats}
           onReverse={setReversing}
         />
       )}

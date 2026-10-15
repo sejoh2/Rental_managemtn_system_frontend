@@ -218,6 +218,14 @@ Things that bit during the session:
 - Landing: welcome screen on the brand panel, then 3 intro slides once (choice of the user); after that, signed-out goes straight to sign-in. Icon and splash from `assets/icon`, drawn by `tool/make_icons.ps1` (orange K in Space Grotesk Bold); `flutter_launcher_icons` and `flutter_native_splash` settings are in `pubspec.yaml`. Launcher name "Kodi" in AndroidManifest and Info.plist; rename there and in `lib/config.dart`.
 - Packages for this step (installed by the user): go_router, shared_preferences, image_picker (step 2), dev: flutter_launcher_icons, flutter_native_splash. Checked in a scratch copy with them added: analyze clean, 23 tests (routes rule, home figures, welcome and intro screens).
 
+### Caretaker app, steps 2 to 5 (built 2026-10-14, all on `feature/app-foundation`, not committed yet)
+
+- The user asked to "implement what is remaining" in one go, so steps 2 to 5 went onto the foundation branch instead of one branch each.
+- Bottom bar: Home, Water, Tenants, Repairs, More. More holds Units, Expenses, Electricity bills and Settings.
+- Water: meter photo when recording a reading (uploaded after the save), "Meter photos" on a recorded reading. Tenants: list, profile with balance and statement by month, documents (level 2), add and edit (level 2), record a cash payment (only with `can_record_payments`, `POST /api/tenants/:id/payments/manual`). Repairs: report, start, mark done with who pays, cancel. Expenses: by month, add with receipt photos. Electricity bills: typed amounts per unit per month.
+- Photos: `image_picker` (shrunk to 1600 px, quality 82); a PDF opens with `url_launcher`, which **the user still has to add** (`flutter pub add url_launcher`). Checked in a scratch copy with it added: analyze clean, 23 tests pass.
+- **One property at a time.** The property is chosen in `PropertyStrip` under every page's title bar (and on Home); every tab follows it. There is no "All" in the app: a caretaker works on one property.
+
 ### SMS
 
 - **Nothing is sent to a tenant automatically.** Broadcasts are started by the owner. The repair charge notice is sent with a "Send SMS" button on the charged maintenance request (`POST /api/maintenance/:id/charge-sms`), and can be sent again.
@@ -234,8 +242,12 @@ Things that bit during the session:
 
 ### Reports, Dashboard, Settings
 
-- Reports: property and period filters in the URL; arrears show current tenants and former tenants separately; archived properties are left out; exports hold totals and a line per tenant, as PDF or CSV built from the same sections; periods are Kenyan time.
-- The top-bar property dropdown filters the Dashboard only and is hidden elsewhere. The bell lists what needs attention. The search box finds tenants and payments.
+- Reports: the period filter in the URL; arrears show current tenants and former tenants separately; archived properties are left out; exports hold totals and a line per tenant, as PDF or CSV built from the same sections; periods are Kenyan time.
+- **One property choice for the whole web app (built 2026-10-14, asked by the user: "one selection in the top bar, and every page follows it").** The dropdown in the top bar (`PropertySelect` in `Topbar.jsx`) is on every page: "All N properties" or one property. The choice is held in `PropertiesProvider` (`selectedId`, `selected`, `oneProperty`, `selectProperty` from `useProperties()`) and remembered in localStorage per account (`selected-property-<owner id>`, so an admin opening owners does not carry it across). A property that no longer exists falls back to All. The per-page property dropdowns and `?property=` in URLs are gone.
+  - Follow it: Dashboard, Tenants (`property_id` sent to the server), Payments (filtered in the page; unmatched payments with no property are shown under every property since they cannot be placed; the three figures are counted from the filtered list by `paymentStatsFor` in `utils/payments.js`, the whole account's still come from `/api/payments/stats`; the CSV export is filtered too), Expenses, Maintenance, Reports, Agreements, Caretakers (those assigned to it), the SMS message log (and New broadcast starts on "Everyone in" that property). Add forms start on the chosen property.
+  - Pages about one property (Units, Water billing, Settings tabs Payment accounts, Water rules, Reminders) use `oneProperty`: the chosen one, or the only one if there is just one; otherwise they show `ChooseProperty` with a button per property.
+  - Not filtered, on purpose: the Properties page (lists every property; its details open on the chosen one), the bell and the sidebar unmatched count (whole account), SMS figures (account balance and cost).
+- The bell lists what needs attention. The search box finds tenants and payments across all properties.
 - Settings > Users & roles lists the owner and caretakers only. There are no Manager or Accountant roles. Bank accounts are not supported. The owner's phone number cannot be changed.
 
 ### Branches and CI/CD (set up 2026-10-14)
@@ -359,7 +371,7 @@ components/
   common/     DataState.jsx (Loading/Error/Empty/DataState/FormError),
               Modal.jsx (ModalShell, ModalBody, ModalFooter, Field, SelectField, class constants),
               StatusBadge.jsx, SearchableSelect.jsx
-  dashboard/  Topbar.jsx (search, property filter, bell), DashboardSidebar, StatCard,
+  dashboard/  Topbar.jsx (search, the one property choice, bell), ChooseProperty, DashboardSidebar, StatCard,
               ExportReportModal, EditPropertyModal, AddPropertyModal, WaterRulesModal,
               ServiceChargesSection, ElectricityBillsModal, DepositReconciliation, ...
 pages/

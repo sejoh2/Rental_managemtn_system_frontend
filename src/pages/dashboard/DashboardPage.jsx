@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import DashboardSidebar from '../../components/dashboard/DashboardSidebar'
 import AddPropertyModal from '../../components/dashboard/AddPropertyModal'
 import AddTenantModal from '../../components/dashboard/AddTenantModal'
@@ -114,17 +114,13 @@ function DashboardShell() {
   const [addTenantOpen, setAddTenantOpen] = useState(false)
   const [exportReportOpen, setExportReportOpen] = useState(false)
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   const onTenantProfile = Boolean(useMatch('/tenants/:tenantId'))
   const meta = onTenantProfile
     ? pageMeta.tenantProfile
     : pageMeta[location.pathname.split('/')[1]] || pageMeta.dashboard
 
-  // The property the Dashboard is filtered to, chosen in the top bar.
-  const dashboardProperty =
-    meta === pageMeta.dashboard
-      ? properties?.find((property) => String(property.id) === searchParams.get('property'))
-      : null
+  // The property every page is showing, chosen in the top bar.
+  const dashboardProperty = useProperties().selected
 
   let subtitle = meta.subtitle
 

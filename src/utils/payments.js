@@ -57,3 +57,29 @@ export function paymentStatus(payment) {
 
   return { label: humanize(payment.status), tone: 'danger' }
 }
+
+// The day a time falls on in Kenya, as YYYY-MM-DD.
+const kenyaDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' })
+
+/*
+  The payment figures for a list of payments, counted the way the backend's
+  /api/payments/stats counts them; used when one property is chosen.
+  Reversed payments are not money received.
+*/
+export function paymentStatsFor(payments) {
+  const today = kenyaDay.format(new Date())
+  const received = payments.filter((payment) => payment.status !== 'reversed')
+  const receivedToday = received.filter(
+    (payment) => kenyaDay.format(new Date(payment.received_at)) === today
+  )
+  const automatic = received.filter(
+    (payment) => payment.status === 'matched' && payment.match_type === 'automatic'
+  ).length
+
+  return {
+    received_today: receivedToday.reduce((total, payment) => total + payment.amount, 0),
+    received_today_count: receivedToday.length,
+    auto_match_rate: received.length ? Math.round((automatic / received.length) * 100) : 0,
+    unmatched_count: payments.filter((payment) => payment.status === 'unmatched').length,
+  }
+}

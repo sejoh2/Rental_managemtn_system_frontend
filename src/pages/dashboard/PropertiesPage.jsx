@@ -27,8 +27,11 @@ function PropertiesPage({ onAddProperty }) {
   const [deletingProperty, setDeletingProperty] = useState(null)
 
   const properties = propertiesState.data || []
+  // Every property is listed; the details open on the one clicked, else the one chosen in the top bar.
   const selectedProperty =
-    properties.find((property) => String(property.id) === propertyId) || properties[0]
+    properties.find((property) => String(property.id) === propertyId) ||
+    propertiesState.selected ||
+    properties[0]
   const totalUnits = properties.reduce(
     (total, property) => total + property.summary.total_units,
     0
