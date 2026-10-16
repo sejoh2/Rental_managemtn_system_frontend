@@ -100,6 +100,14 @@ The user tested WhatsApp live: it worked; asked for a demo, the agent handed ove
 - Routes `/api/google/status|connect|callback|disconnect`, `/api/meetings` and `/api/meetings/:id/cancel`. Pages: Meetings (upcoming, past and cancelled, Meet link, reminder status, cancel), Settings Calendar tab.
 - Because the PC and Render share one database, `GOOGLE_TOKEN_ENCRYPTION_KEY` must be the same in both, and the calendar is connected once (from the live site).
 - Tested by Claude with the test playing Google and the model: 56 checks, plus the agent (60) and WhatsApp (38) checks again; lint and build clean. Test lesson: 16 October 2026 is a Friday. Older test scripts must create the meetings table, since every reply now looks up the lead's demo. Not yet tried against Google itself.
+- M4 was committed by the user (`c844f60`) on `feature/m4-meetings`.
+
+### "Why was I not told?" (2026-10-16)
+
+The user asked where to ask the agent why it booked a meeting without telling them. Answer: nowhere yet; the Chat page is a test chat (the owner plays a landlord). Gap found: the SMS to the owner left no record (sent: nothing logged; failed: Render log only; no `OWNER_PHONE`: silent; `SMS_MODE=console`: printed and treated as sent). Agreed, in two parts. The user said not to worry about the Gemini free tier.
+
+- **Part 1, built 2026-10-16 on `feature/m4-meetings`, not committed, not yet tested by the user.** `meetings` gets `owner_notice_kind` (booked, moved, cancelled), `owner_notice_result` (sent, printed, failed, no_phone, not_needed), `owner_notice_detail`, `owner_notice_at` (added with `ADD COLUMN IF NOT EXISTS`; older meetings stay blank). `tell_owner(meeting, kind, text)` in `meeting_service.js` records the result, writes `OWNER_SMS_SENT` or `OWNER_SMS_NOT_SENT` to the audit log, and a system note in the conversation ("SMS to you about this booking: sent." or "not sent." plus the reason). Failed, no phone, or printed while `NODE_ENV=production` raise an alert (category other, summary starting "SMS to you about demos are not going out"), one open at a time. Owner cancels are recorded as not_needed, with no audit row. Meetings page: an "SMS to you" line on each meeting, red when not sent. Tested by Claude on a throwaway PostgreSQL with the test playing Google and Africa's Talking: 26 checks, plus the upgrade of an older meetings table; lint and build clean. Not checked in a browser.
+- **Part 2, next:** an "Ask the agent" page for the owner, separate from the test chat, with read-only tools over meetings, conversation notes, activity and alerts; answers cite the records and say when there is none. Later perhaps the same by WhatsApp from the owner's number.
 
 ### M1 progress
 
