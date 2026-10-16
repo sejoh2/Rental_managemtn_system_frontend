@@ -132,7 +132,27 @@ The user asked for voice in Ask the agent, now **"Ask Kodi"** (the agent is call
   - Tested by Claude: voice backend on a throwaway PostgreSQL, 22 checks including a real Gemini Live conversation using the agent's own token and setup; the real page in headless Edge with a fake microphone playing recorded questions (answers spoken and saved; a misheard name still found Peter Otieno; card approved from the display and the note added); typed (65) and SMS (26) checks again; lint and build clean. Not tested: Swahili speech, a real microphone and speakers (echo), phone width of the display. For the browser test the page was built with `VITE_API_URL` pointing at the test server, then rebuilt normally.
 - Step 1 committed by the user (`6a5af7d`) and tested by the user: working.
 - **Changes 2026-10-16 (not committed):** no introductions with the owner (typed and voice instructions: never say who it is or that it is an AI; a greeting gets "I'm here."); the landlord-facing agent still says it is an AI. Voice changed to **Charon** (male; `GEMINI_LIVE_VOICE` overrides). Checked live: "Hello Kodi" -> "I'm here."; a Swahili question answered in Swahili; 22 voice checks pass.
-- **Step 2, next:** the offline wake phrase "Kodi, wake up". Picovoice Porcupine's free plan reportedly ended 30 June 2026 and `vosk-browser` is unmaintained (last release 2022, repository gone); the plan is a small speech model in the page with `@huggingface/transformers`, run only when someone is speaking, matching "Kodi/Cody, wake up". Needs a package the user installs; check the model and its size first.
+- **Step 2, later:** the offline wake phrase "Kodi, wake up".
+
+### Kodi data, morning brief, insights, social media (asked 2026-10-16)
+
+The user asked: reports and analytics from the Kodi system (sign-ins, users...), a morning brief at 8:00 (a phone call later; in the system for now) with suggested actions for earnings and customer satisfaction, growth insights (features to add or promote), and social media (create content, post, read and reply to comments, comment leads logged with a notification). Also: no explanations of what Kodi is (the owner knows); answers lead with the answer.
+
+| Question | User's answer |
+|---|---|
+| What the agent may read from Kodi | **Totals plus landlord accounts** (name, contact, size, sign-ins, features used); never tenants' personal data |
+| Brief | **Every day at 8:00** Nairobi, including weekends; in the system first, a call later |
+| Platforms | **Facebook + Instagram, TikTok, X** (developer accounts: Meta and TikTok free, review or audit wait; X pay-per-use since 6 Feb 2026, roughly USD 0.015 a post, 0.20 with a link, 0.005 per post read; check docs.x.com) |
+| Comments | **Simple replies alone (logged), everything else to approvals**; someone wanting Kodi becomes a lead with an alert |
+
+Order agreed: 1 Kodi data link, 2 morning brief in the system, 3 social media. The user stressed security (breaches).
+
+- **Step 1, built 2026-10-16, not committed, not yet tested by the user.**
+  - Rental backend, new branch **`feature/agent-data-api`** from `origin/test` (the user publishes it): `src/agent_data/` — `agent_data_auth.js` (Bearer `AGENT_API_TOKEN`, at least 32 characters, compared as SHA-256 with timingSafeEqual; switched off when unset), `agent_data_service.js` (read-only SQL: `summary` totals, features by landlord count, sign-ins and sign-ups per Nairobi day; `landlords` per account, sorts quiet, active, largest, newest; tenants as counts only; payments are landlords' collections, not Kodi income), `agent_data_routes.js` (`/api/agent-data/summary|landlords|landlords/:id`, zod strict, 60 a minute, every read audited `AGENT_DATA_READ`). Mounted in `app.js` before the `/api` routers. `.env.example`: `AGENT_API_TOKEN`. OpenAPI not updated.
+  - Agent: `src/kodi/kodi_client.js` (`KODI_API_URL`, `KODI_API_TOKEN`; **refuses real Kodi data unless `GEMINI_PAID_TIER=true`**, only a localhost test server allowed, because on Gemini's free tier Google may use what is sent); tools `kodi_summary`, `kodi_landlords`, `kodi_landlord` in Ask Kodi (typed and voice); instructions on leads vs Kodi landlords, collections not income, insights as suggestions with figures; "Lead with the answer, no preamble"; Ask Kodi page description removed.
+  - Tested by Claude: 30 checks on throwaway databases with made-up data (tokens, switched off, strict input, figures, quiet landlord first, caretaker sign-ins count, no tenant name or phone in any answer, audit, agent tools, Kodi down); the safeguard; one real Gemini question answered from the test Kodi with figures and suggestions.
+  - To switch on: the same random token as `AGENT_API_TOKEN` on the Kodi backend (Render) and `KODI_API_TOKEN` on the agent, `KODI_API_URL` the Kodi backend address, and Gemini billing on plus `GEMINI_PAID_TIER=true`.
+- **Step 2, next:** the morning brief in the system. **Step 3:** social media. Picovoice Porcupine's free plan reportedly ended 30 June 2026 and `vosk-browser` is unmaintained (last release 2022, repository gone); the plan is a small speech model in the page with `@huggingface/transformers`, run only when someone is speaking, matching "Kodi/Cody, wake up". Needs a package the user installs; check the model and its size first.
 
 ### M1 progress
 
