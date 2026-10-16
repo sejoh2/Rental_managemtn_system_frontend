@@ -63,6 +63,44 @@ In the user's words (2026-10-15): "build an AI agent around this. The Agent to d
 | Voice | A spoken-message call first (Africa's Talking rings the user and reads an alert or a brief; Kenyan voice number about KES 5,000 setup + KES 2,000 a month + VAT, to confirm with them), a two-way voice AI later. Timing not fixed; proposed with the alerts (M5) |
 | Gemini billing | Stay on the free tier for now (about 10 replies a day on 3.8 Flash, then 3.6 Flash at 5 requests a minute). Made-up data only; paid tier before real landlords |
 
+### M3 WhatsApp: decisions and build (2026-10-15)
+
+| Question | User's answer |
+|---|---|
+| SMS in M3 | WhatsApp now, two-way SMS later (needs an Africa's Talking number that can receive SMS) |
+| Opt-out words | STOP, UNSUBSCRIBE, ACHA, SITISHA as the whole message, any capitals; both contact and marketing consent withdrawn; confirmation in their language; nothing more is sent until they write again |
+| Voice notes, photos, files | Kept in the conversation as "[Voice note received]" and so on; the agent (if it is answering) replies in English and Swahili asking for text; Gemini is not called |
+| Render plan | Stay free while building (slow first reply after a quiet spell, Meta may repeat a message, which is ignored); paid before real landlords |
+
+- **Branch note:** PR #1 was merged straight into `main`, so `test` stayed at the first commit. `feature/m3-whatsapp` was made from `main`. The user must bring `test` up to `main` (a pull request from `main` into `test`) before the M3 pull request into `test`.
+- Built on `feature/m3-whatsapp`, not committed: `src/whatsapp/whatsapp_client.js` (Graph API with fetch; `WHATSAPP_MODE` console or live; `send_text`, `mark_read`, `signature_is_valid` with the HMAC of the raw body, timing-safe), `whatsapp_service.js` (one conversation per number until closed; a new number becomes a lead at once with its verified phone and WhatsApp profile name, an existing lead with that phone is joined; done under an advisory lock per number; each message stored once by its WhatsApp ID; opt-out; media; receipts that never move a status backwards; messages to another phone number ID ignored), `whatsapp_routes.js` (`GET /api/whatsapp/webhook` verification, `POST` answered 200 at once then handled, `GET /status` for Settings), `src/channels/delivery.js` (every agent or owner message on a WhatsApp conversation is sent from `add_message`; refused when the landlord opted out and has not written since, or more than 24 hours after their last message, with a system note saying why; a send failure marks the message failed with WhatsApp's code). `app.js` keeps the raw body for the signature. The agent's instructions say it is on WhatsApp (plain text, do not ask for the number).
+- **Reply flow changed for all channels:** `agent_service.reply_to_conversation` replaces the 409 "still answering": a message arriving while the agent answers is stored, and the agent answers again with it included (up to 3 rounds).
+- Pages: delivery status under sent WhatsApp messages (Sending, Sent, Delivered, Read, Not sent); Settings, WhatsApp tab (live or printed, keys set, the webhook address, last received and sent).
+- Tested by Claude with the test playing Meta (signed webhooks and the sending API): 38 checks, plus the 60 part (c) checks again, lint and build. Not yet tested against Meta itself.
+
+### M4 Meetings: decisions (2026-10-16)
+
+The user tested WhatsApp live: it worked; asked for a demo, the agent handed over (no calendar tool yet). The user asked for M4: book in the calendar, send the landlord the details, tell the user who, when and what they want.
+
+| Question | User's answer |
+|---|---|
+| Booking hours | Mon to Fri, 9:00 to 17:00 Nairobi time, 30-minute demos, 15 minutes between meetings, at least 2 hours' notice, up to 14 days ahead |
+| Format | Online, Google Meet link on every booking |
+| Confirming with the landlord | **The agent proposes a time and books only after the landlord clearly agrees**; if not, it offers others (the user's words: "ask the client if the meeting which the agent chooses is okay") |
+| Booking needs approval? | No: level 1 as in the plan (books in the user's free slots on its own); told the user, who did not object |
+| Telling the user | The calendar event (details in its description) and an SMS to the user's phone (Africa's Talking, needs `SMS_MODE=live` on Render; until then it is printed in the logs) |
+| Reminder to the landlord, 1 hour before | WhatsApp when inside the 24-hour window, otherwise SMS (only with contact consent) |
+| Calendar connection | "Connect Google Calendar" in Settings (OAuth, the user's own Google account; refresh token kept encrypted). The user sets up a Google Cloud project and OAuth client; consent screen "In production" so the connection does not end every 7 days |
+
+### M4 Meetings: build (2026-10-16, branch `feature/m4-meetings` from `test`, not committed)
+
+- `src/google/google_client.js`: Google sign-in and Calendar with fetch. Scopes `openid email calendar.freebusy calendar.events.owned` (checked against Google's scope list). `start_connect` stores a one-time state (hash, 10 minutes, tied to the session) in `oauth_states`; `finish_connect` requires a refresh token and both calendar scopes, reads the email from the ID token, stores the refresh token sealed with AES-256-GCM (`src/utils/secret_box.js`, `GOOGLE_TOKEN_ENCRYPTION_KEY`, 64 hex). `invalid_grant` on refresh marks the connection broken (`broken_at`), raises one alert, and the agent hands demo requests over. `freeBusy` on `primary`, events created with a Meet link (`conferenceDataVersion=1`), invitation sent (`sendUpdates=all`) when the lead has an email.
+- `src/meetings/availability.js`: the rules (Mon to Fri 9:00 to 17:00 Nairobi, 30 minutes, 15-minute gap, 2 hours' notice, 14 days, on the hour or half hour); Nairobi treated as fixed UTC+3; free slots spread two a day (morning, afternoon). `meeting_service.js`: find slots (calendar busy plus booked meetings), book (rules re-checked, one upcoming demo per lead, advisory lock so a slot is taken once, event with details and a link to the conversation, lead to `demo_booked`, confirmation to the landlord in English or Swahili with the Meet link, SMS to the owner), reschedule (its own old time is cut out of the busy periods), cancel (by the agent: owner gets an SMS; by the owner from Meetings: no SMS), reminders every 5 minutes for demos within the next hour (WhatsApp inside 24 hours, otherwise SMS with contact consent, otherwise a note). Tables `google_connection`, `oauth_states`, `meetings`.
+- Agent tools `find_demo_slots`, `book_demo` (only after the landlord's clear yes, by instruction; the rules and calendar by code), `change_demo` (move or cancel). The instructions now carry the current Nairobi date and time and the lead's booked demo.
+- Routes `/api/google/status|connect|callback|disconnect`, `/api/meetings` and `/api/meetings/:id/cancel`. Pages: Meetings (upcoming, past and cancelled, Meet link, reminder status, cancel), Settings Calendar tab.
+- Because the PC and Render share one database, `GOOGLE_TOKEN_ENCRYPTION_KEY` must be the same in both, and the calendar is connected once (from the live site).
+- Tested by Claude with the test playing Google and the model: 56 checks, plus the agent (60) and WhatsApp (38) checks again; lint and build clean. Test lesson: 16 October 2026 is a Friday. Older test scripts must create the meetings table, since every reply now looks up the lead's demo. Not yet tried against Google itself.
+
 ### M1 progress
 
 Repo `Rental_management_system_agent` exists with `main` and `test` (first commit: `.gitignore`, `README.md`). M1 is on branch `feature/m1-foundation`, in four parts:
@@ -97,7 +135,8 @@ Repo `Rental_management_system_agent` exists with `main` and `test` (first commi
   - `npm run build` (root `package.json`) installs and builds the admin page (`--include=dev`, since Render may leave development packages out); Render: build `npm ci && npm run build`, start `npm start`, health check `/health`, branch `main`, Auto-Deploy "After CI checks pass".
   - `.github/workflows/ci.yml` in the agent repo: code checks (node --check, app loads, admin page lint and build), npm audit (server and admin page, runtime only), start on an empty PostgreSQL 18 twice, a deploy rehearsal with production settings (Render's build and start, 401s, 404, the admin page served for any page address, security headers present), gitleaks. The repo is **private**: on a free GitHub account branch rules cannot be enforced and dependency review and CodeQL are not available, so the checks run and report but do not block a merge. Told the user; making it public would allow both (their choice).
   - Rehearsed by Claude on a clean copy of the committed code with Render's commands and production settings: built, started, every address answered as expected, the page loaded in headless Edge with nothing blocked by the security headers and Kodi's fonts loaded.
-  - Not committed yet: the build script and `ci.yml`.
+  - Build script and `ci.yml` committed; first CI run failed on two things fixed the same day: lint of `web/public/theme-init.js` (CI lints the whole `web` folder, Claude had only linted `web/src`), and gitleaks needing `pull-requests: read` on a pull request.
+  - **Live 2026-10-15 at https://rental-management-system-agent.onrender.com** (free plan). The derived internal database address (`dpg-...-a`) did not resolve, so `DATABASE_URL` on Render is the **External** address with `DB_SSL=true`. The web service's region was not yet confirmed; if it is not Frankfurt, recreate it there before M3. The database's real name has a suffix (`rental_agent_xs35`). Still to add: `FRONTEND_URL`. M1 is done once the user has tested it live.
 
 How Claude tests the agent without touching anything of the user's: `initdb` a throwaway database in the scratchpad on port 55432, copy the repo to a staging folder with a junction to the Kodi backend's `node_modules` (until the agent has its own), run the test, then remove the junction and delete everything.
 
