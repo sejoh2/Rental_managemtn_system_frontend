@@ -7,6 +7,8 @@ import NoAccessPage from './pages/auth/NoAccessPage'
 import SignInPage from './pages/auth/SignInPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import HomePage from './pages/home/HomePage'
+import PrivacyPage from './pages/legal/PrivacyPage'
+import TermsPage from './pages/legal/TermsPage'
 
 function App() {
   const { status, user, actingOwner } = useAuth()
@@ -25,6 +27,10 @@ function App() {
 
   return (
     <Routes>
+      {/* Open to everyone, signed in or not (also linked from app stores and Meta, TikTok and Google). */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+
       {/* The public home page; someone signed in goes straight to their pages. */}
       <Route path="/" element={signedIn ? <Navigate to="/dashboard" replace /> : <HomePage />} />
 
