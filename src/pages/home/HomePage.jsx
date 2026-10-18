@@ -19,6 +19,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import ThemeToggle from '../../components/common/ThemeToggle'
+import KodiChat from '../../components/home/KodiChat'
 import { CONTACT } from '../../config/contact'
 
 /*
@@ -151,6 +152,7 @@ function HomePage() {
       <Faq />
       <GetAnAccount />
       <Footer />
+      <KodiChat />
     </div>
   )
 }
@@ -521,6 +523,8 @@ function Footer() {
         </div>
         <div className="flex gap-5">
           <a href="#questions" className="font-semibold hover:text-[var(--ink)]">Questions</a>
+          <Link to="/terms" className="font-semibold hover:text-[var(--ink)]">Terms</Link>
+          <Link to="/privacy" className="font-semibold hover:text-[var(--ink)]">Privacy</Link>
           <Link to="/login" className="font-semibold hover:text-[var(--ink)]">Sign in</Link>
         </div>
       </div>
