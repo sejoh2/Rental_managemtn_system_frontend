@@ -95,6 +95,26 @@ function AdminBell() {
                   </Link>
                 ) : null}
 
+                {(data.long_unpaid || []).map((item) => (
+                  <Link key={`unpaid-${item.owner_id}`} to={`/admin/billing/${item.owner_id}`} onClick={() => setOpen(false)} className={rowClass}>
+                    <span>
+                      <span className="font-bold text-[var(--danger)]">Billing: </span>
+                      {item.name} has not paid for {item.days_overdue} days
+                    </span>
+                    <span className="text-[11px] font-bold text-[var(--accent-ink)]">Open</span>
+                  </Link>
+                ))}
+
+                {data.payment_problems ? (
+                  <Link to="/admin/audit-log?action=SUBSCRIPTION_PAYMENT_RESULT_MISMATCH" onClick={() => setOpen(false)} className={rowClass}>
+                    <span>
+                      <span className="font-bold text-[var(--danger)]">Billing: </span>
+                      {data.payment_problems} M-Pesa {data.payment_problems === 1 ? 'payment needs' : 'payments need'} checking (in the past 30 days)
+                    </span>
+                    <span className="text-[11px] font-bold text-[var(--accent-ink)]">Log</span>
+                  </Link>
+                ) : null}
+
                 {data.security.map((item) => (
                   <Link
                     key={`${item.kind}-${item.phone}`}

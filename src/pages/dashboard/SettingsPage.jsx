@@ -20,6 +20,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../components/common/Modal'
+import BillingTab from '../../components/billing/BillingTab'
 import InstallApp from '../../components/common/InstallApp'
 import StatusBadge from '../../components/common/StatusBadge'
 import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
@@ -41,6 +42,7 @@ import {
 
 const tabs = [
   ['account', 'Account'],
+  ['billing', 'Billing'],
   ['payments', 'Payment accounts'],
   ['water', 'Water rules'],
   ['reminders', 'Payment reminders'],
@@ -151,6 +153,7 @@ function SettingsPage({ onAddProperty }) {
       </div>
 
       {activeTab === 'account' ? <AccountTab /> : null}
+      {activeTab === 'billing' ? <BillingTab /> : null}
       {activeTab === 'users' ? <UsersRolesTab /> : null}
       {activeTab === 'notifications' ? <NotificationsTab /> : null}
       {activeTab === 'appearance' ? <AppearanceTab /> : null}

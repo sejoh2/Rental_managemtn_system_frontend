@@ -187,7 +187,14 @@ async function sendWithRefresh(path, options = {}) {
     response = await send(path, options)
   }
 
-  if (!response.ok) throw await toApiError(response)
+  if (!response.ok) {
+    const error = await toApiError(response)
+
+    // The Kodi bill is unpaid: the billing banner refreshes and explains.
+    if (error.payload?.code === 'account_read_only') window.dispatchEvent(new Event('kodi-billing-changed'))
+
+    throw error
+  }
 
   return response
 }

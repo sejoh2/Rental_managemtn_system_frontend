@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import DashboardSidebar from '../../components/dashboard/DashboardSidebar'
+import BillingBanner from '../../components/billing/BillingBanner'
 import AddPropertyModal from '../../components/dashboard/AddPropertyModal'
 import AddTenantModal from '../../components/dashboard/AddTenantModal'
 import ExportReportModal from '../../components/dashboard/ExportReportModal'
@@ -174,6 +175,7 @@ function DashboardShell() {
           />
 
           <div className="h-[calc(100vh-98px)] overflow-y-auto px-4 py-6 sm:px-6 lg:px-[30px]">
+            <BillingBanner />
             <Routes>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route
