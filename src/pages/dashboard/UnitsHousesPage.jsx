@@ -35,8 +35,7 @@ const unitLegend = [
   { label: 'Vacant', color: unitStatusColors.vacant },
 ]
 
-// A unit in use is either occupied or vacant. "Reserved" and "Under maintenance" are no longer
-// offered; a unit still carrying one of them is shown as vacant.
+// A unit in use is either occupied or vacant.
 function displayStatus(unit) {
   if (unit.status !== 'occupied') return 'vacant'
 

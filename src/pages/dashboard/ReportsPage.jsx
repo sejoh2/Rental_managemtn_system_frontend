@@ -138,7 +138,6 @@ function ReportCards({ report }) {
             <p className="mt-5 text-[11px] text-[var(--ink-faint)]">
               {occupancy.occupied_units} of {occupancy.total_units}{' '}
               {occupancy.total_units === 1 ? 'unit' : 'units'} occupied
-              {occupancy.maintenance_units ? ` - ${occupancy.maintenance_units} under maintenance` : ''}
             </p>
           </div>
         </section>

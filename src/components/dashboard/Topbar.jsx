@@ -215,6 +215,12 @@ function AttentionBell() {
         [attention.flagged_readings, 'flagged water reading', '/water-billing'],
         [attention.failed_sms, 'failed SMS', '/sms-centre?status=failed', 'failed SMS'],
         [attention.open_maintenance, 'open maintenance request', '/maintenance'],
+        [
+          attention.repairs_done,
+          'repair done by the caretaker',
+          '/maintenance?status=resolved',
+          'repairs done by the caretaker',
+        ],
       ].filter(([count]) => count > 0)
     : []
 

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import {
+  getMaintenance,
   listMaintenance,
+  markRepairNoticesSeen,
   reportMaintenance,
   sendRepairChargeSms,
   updateMaintenance,
@@ -125,6 +127,29 @@ function MaintenancePage() {
   )
   const requests = requestsState.data || []
   const shown = status ? requests.filter((request) => request.status === status) : requests
+  // Marked done by the caretaker since the owner last looked (also on the bell).
+  const doneByCaretaker = requests.filter((request) => request.owner_notice === 'done')
+  const [markingSeen, setMarkingSeen] = useState(false)
+
+  async function markAllSeen() {
+    setMarkingSeen(true)
+
+    try {
+      await markRepairNoticesSeen()
+      requestsState.reload()
+    } finally {
+      setMarkingSeen(false)
+    }
+  }
+
+  // Opening a repair the caretaker marked done clears it from the bell.
+  function openRequest(request) {
+    setUpdating(request)
+
+    if (request.owner_notice) {
+      getMaintenance(request.id).then(requestsState.reload, () => {})
+    }
+  }
 
   function setParam(name, value) {
     const next = new URLSearchParams(searchParams)
@@ -181,6 +206,23 @@ function MaintenancePage() {
         ))}
       </div>
 
+      {doneByCaretaker.length ? (
+        <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[12px]">
+          <span>
+            The caretaker marked {doneByCaretaker.length}{' '}
+            {doneByCaretaker.length === 1 ? 'repair' : 'repairs'} as done. They are marked{' '}
+            <b>New</b> below.
+          </span>
+          <button
+            onClick={markAllSeen}
+            disabled={markingSeen}
+            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+          >
+            {markingSeen ? 'Marking...' : 'Mark as seen'}
+          </button>
+        </div>
+      ) : null}
+
       <DataState
         state={requestsState}
         loadingLabel="Loading maintenance requests..."
@@ -210,9 +252,14 @@ function MaintenancePage() {
                       {requestSubtitle(request)}
                     </p>
                   </div>
-                  <StatusBadge tone={statusTones[request.status]}>
-                    {optionLabel(MAINTENANCE_STATUSES, request.status)}
-                  </StatusBadge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {request.owner_notice === 'done' ? (
+                      <StatusBadge tone="info">New · done by caretaker</StatusBadge>
+                    ) : null}
+                    <StatusBadge tone={statusTones[request.status]}>
+                      {optionLabel(MAINTENANCE_STATUSES, request.status)}
+                    </StatusBadge>
+                  </div>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-3">
@@ -222,7 +269,7 @@ function MaintenancePage() {
                   </span>
 
                   <button
-                    onClick={() => setUpdating(request)}
+                    onClick={() => openRequest(request)}
                     className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
                   >
                     {request.status === 'resolved' || request.status === 'cancelled' ? 'View' : 'Update'}
