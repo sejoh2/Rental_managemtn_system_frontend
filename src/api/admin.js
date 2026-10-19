@@ -89,7 +89,8 @@ export async function getOwnerDetail(ownerId) {
   return data
 }
 
-// -> { pending_sender_ids, waiting_for_access, security: [{ kind, phone, attempts, last_at }], total }
+// -> { pending_sender_ids, waiting_for_access, waiting_people: [{ user_id, name, phone, registered_at, requested_plan_months }],
+//      security: [{ kind, phone, attempts, last_at }], long_unpaid, payment_problems, total }
 export async function getAdminNotifications() {
   const { data } = await api.get('/api/admin/notifications')
 

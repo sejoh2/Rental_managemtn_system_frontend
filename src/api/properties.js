@@ -44,6 +44,17 @@ export async function replacePaymentAccount(propertyId, accountFor, connectionId
   return data
 }
 
+/*
+  Registers the account's payment notice addresses with Safaricom again,
+  with a new secret. Needed once for accounts connected before notices
+  had a secret; their payments are not recorded until then.
+*/
+export async function secureNoticeAddress(propertyId, paymentAccountId) {
+  const { data } = await api.post(`/api/properties/${propertyId}/payment-accounts/${paymentAccountId}/register-c2b-urls`)
+
+  return data
+}
+
 // Removes the optional water or electricity account; those charges then go through the rent account.
 export async function removePaymentAccount(propertyId, accountFor) {
   const { data } = await api.delete(`/api/properties/${propertyId}/payment-accounts/${accountFor}`)

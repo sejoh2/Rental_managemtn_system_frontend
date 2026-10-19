@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import {
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -15,6 +16,8 @@ import { displayName, useAuth } from '../../context/AuthContext'
 import { humanize, initials } from '../../utils/format'
 import AdminAuditEntryPage from './AdminAuditEntryPage'
 import AdminAuditLogPage from './AdminAuditLogPage'
+import AdminBillingOwnerPage from './AdminBillingOwnerPage'
+import AdminBillingPage from './AdminBillingPage'
 import AdminBell from './AdminBell'
 import AdminOwnerPage from './AdminOwnerPage'
 import AdminSmsPage from './AdminSmsPage'
@@ -25,6 +28,7 @@ import AdminUsersPage from './AdminUsersPage'
 const navItems = [
   { label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
   { label: 'Users', icon: Users, to: '/admin/users' },
+  { label: 'Billing', icon: CreditCard, to: '/admin/billing' },
   { label: 'SMS', icon: MessageSquare, to: '/admin/sms' },
   { label: 'Audit log', icon: ScrollText, to: '/admin/audit-log' },
   { label: 'System', icon: ServerCog, to: '/admin/system' },
@@ -36,6 +40,7 @@ const pageMeta = {
   sms: { title: 'SMS', subtitle: 'Sender IDs and platform usage' },
   system: { title: 'System', subtitle: 'How the server is set up' },
   users: { title: 'Users', subtitle: 'Accounts, roles and access' },
+  billing: { title: 'Billing', subtitle: 'What landlords pay Kodi' },
   'audit-log': { title: 'Audit log', subtitle: 'Who did what, in which account' },
 }
 
@@ -158,6 +163,8 @@ function AdminPage() {
               <Route path="admin/overview" element={<AdminOverviewPage />} />
               <Route path="admin/owners/:ownerId" element={<AdminOwnerPage />} />
               <Route path="admin/users" element={<AdminUsersPage />} />
+              <Route path="admin/billing" element={<AdminBillingPage />} />
+              <Route path="admin/billing/:ownerId" element={<AdminBillingOwnerPage />} />
               <Route path="admin/sms" element={<AdminSmsPage />} />
               <Route path="admin/system" element={<AdminSystemPage />} />
               <Route path="admin/audit-log" element={<AdminAuditLogPage />} />
