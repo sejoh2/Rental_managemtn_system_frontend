@@ -9,6 +9,7 @@ import {
   updateNotifications,
   updateProfile,
 } from '../../api/settings'
+import { secureNoticeAddress } from '../../api/properties'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import ChooseProperty from '../../components/dashboard/ChooseProperty'
 import {
@@ -384,6 +385,22 @@ function AccountForm({ settings, onSaved }) {
 
 function PaymentAccountsTab({ property, onSaved }) {
   const [editing, setEditing] = useState(false)
+  const [securing, setSecuring] = useState(null)
+  const [secureError, setSecureError] = useState(null)
+
+  async function secure(account) {
+    setSecuring(account.id)
+    setSecureError(null)
+
+    try {
+      await secureNoticeAddress(property.id, account.id)
+      onSaved()
+    } catch (error) {
+      setSecureError(error)
+    } finally {
+      setSecuring(null)
+    }
+  }
 
   const accounts = [
     ['Rent', property.rent_account, 'Not connected'],
@@ -433,8 +450,26 @@ function PaymentAccountsTab({ property, onSaved }) {
                 {account ? 'Connected' : 'Not set'}
               </StatusBadge>
             </div>
+            {account && !account.notice_address_secured ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[8px] bg-[var(--danger-soft)] px-3 py-[10px] text-[11px] text-[var(--danger)]">
+                <span className="flex-1">
+                  <b>Payments are not being recorded.</b> This account was connected before payment notices had their own
+                  secret address. Secure it once: Kodi registers a new address with Safaricom.
+                </span>
+                <button
+                  type="button"
+                  disabled={securing === account.id}
+                  onClick={() => secure(account)}
+                  className="rounded-[6px] bg-[var(--accent)] px-3 py-[6px] text-[11px] font-bold text-white disabled:opacity-50"
+                >
+                  {securing === account.id ? 'Securing...' : 'Secure it'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ))}
+
+        {secureError ? <FormError error={secureError} /> : null}
 
         <p className="pt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
           Service charges and repairs are paid into:{' '}
