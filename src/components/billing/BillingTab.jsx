@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Download, Smartphone } from 'lucide-react'
 import { downloadReceipt, getMyBilling, getPaymentRequest, payBill } from '../../api/billing'
 import { useApi } from '../../hooks/useApi'
 import { formatDateTime, formatPhone } from '../../utils/format'
 import { DataState, EmptyState, FormError } from '../common/DataState'
-import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal'
+import { inputClass, labelClass, primaryButtonClass } from '../common/Modal'
 import StatusBadge from '../common/StatusBadge'
 import { INVOICE_STATUS, METHOD_LABELS, STATE_LABELS, dayLabel, ksh, periodLabel } from './billingLabels'
+import PricingCards from './PricingCards'
+import { clearChosenPlan, planLabel } from '../../utils/chosenPlan'
 
 const cardClass = 'overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]'
 const cardHeaderClass = 'flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-[18px] py-4'
@@ -26,18 +29,24 @@ function BillingTab() {
     window.dispatchEvent(new Event('kodi-billing-changed'))
   }, [reloadBilling])
 
+  // A change made elsewhere (the admin ended the trial, a payment arrived) shows here at once.
+  useEffect(() => {
+    window.addEventListener('kodi-billing-changed', reloadBilling)
+
+    return () => window.removeEventListener('kodi-billing-changed', reloadBilling)
+  }, [reloadBilling])
+
   return (
     <DataState state={state} loadingLabel="Loading billing...">
       {(billing) => (
-        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-          <div className="grid content-start gap-4">
+        <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             {billing.status.state === 'trial' ? <TrialCard status={billing.status} /> : null}
+            {['grace', 'read_only'].includes(billing.status.state) ? <GraceCard status={billing.status} invoice={billing.open_invoice} /> : null}
             <StatusCard billing={billing} />
-            <History billing={billing} />
           </div>
-          <div className="grid content-start gap-4">
-            <PayCard billing={billing} onPaid={reload} />
-          </div>
+          <PaySection billing={billing} onPaid={reload} />
+          <History billing={billing} />
         </div>
       )}
     </DataState>
@@ -70,7 +79,41 @@ function TrialCard({ status }) {
         <div className={`h-full rounded-full ${soon ? 'bg-[var(--warning)]' : 'bg-[var(--accent)]'}`} style={{ width: `${percent}%` }} />
       </div>
       <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-        Everything in Kodi is open during the trial. You can pay ahead at any time; the trial days are not lost.
+        Everything in Kodi is open during the trial. You can pay ahead at any time below; the trial days are not lost.
+      </p>
+    </section>
+  )
+}
+
+// The grace period's countdown, or that the account is read-only.
+function GraceCard({ status, invoice }) {
+  const readOnly = status.state === 'read_only'
+  const used = Math.min(status.grace_days, Math.max(0, status.grace_days - status.grace_days_left))
+  const percent = readOnly ? 100 : Math.round((used / Math.max(1, status.grace_days)) * 100)
+
+  return (
+    <section className={`${cardClass} px-[18px] py-5`}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className={`text-[10px] font-bold uppercase tracking-[0.08em] ${readOnly ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
+            {readOnly ? 'Read-only' : 'Grace period'}
+          </div>
+          <div className={`mt-1 font-display text-[28px] font-semibold leading-none ${readOnly ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
+            {readOnly ? 'Pay to continue' : status.grace_days_left <= 1 ? 'Last day to pay' : `${status.grace_days_left} days left to pay`}
+          </div>
+        </div>
+        <div className="text-[11px] text-[var(--ink-soft)] sm:text-right">
+          {invoice ? `Bill: ${ksh(invoice.amount_due)} for ${periodLabel(invoice.period_start, invoice.period_end)}` : null}
+          <div>{readOnly ? `Read-only since ${dayLabel(nextDay(status.grace_ends_on))}` : `Pay by ${dayLabel(status.grace_ends_on)}`}</div>
+        </div>
+      </div>
+      <div className="mt-4 h-[8px] overflow-hidden rounded-full bg-[var(--line-soft)]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Grace period used">
+        <div className={`h-full rounded-full ${readOnly ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'}`} style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+        {readOnly
+          ? "Your account is read-only: you can see and download everything and tenants' M-Pesa payments are still recorded, but nothing can be added, changed or sent until the bill is paid. Paying unlocks it at once."
+          : `Your ${status.trial_ends_on === status.covered_until ? 'free trial' : 'paid month'} ended on ${dayLabel(status.covered_until)}. Everything still works during the grace period; if the bill is not paid by ${dayLabel(status.grace_ends_on)}, the account becomes read-only until it is paid.`}
       </p>
     </section>
   )
@@ -137,15 +180,20 @@ function StatusCard({ billing }) {
 
 const FINISHED = ['paid', 'failed', 'cancelled', 'expired']
 
-function PayCard({ billing, onPaid }) {
-  const { open_invoice: invoice, plans } = billing
+/*
+  Choosing how long to pay for: the M-Pesa number (the sign-in phone,
+  which can be changed), then a card per length. The monthly card pays
+  the bill that is due, or the next month ahead when nothing is due.
+*/
+function PaySection({ billing, onPaid }) {
+  const { open_invoice: invoice, plans, status, next_month: next, current_plan_months: current } = billing
   // The account's sign-in phone (also when the admin is inside it); it can be changed.
   const [phone, setPhone] = useState(() => formatPhone(billing.sign_in_phone, ''))
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const [request, setRequest] = useState(null)
 
-  // While the prompt is on the phone: asks every 3 seconds, for up to 3 minutes.
+  // While the prompt is on the phone: asks every 3 seconds, for up to 3 minutes (the live signal also tells the page).
   useEffect(() => {
     if (!request || FINISHED.includes(request.status)) return undefined
 
@@ -168,7 +216,7 @@ function PayCard({ billing, onPaid }) {
   }, [request, onPaid])
 
   async function pay(planMonths = null) {
-    setBusy(planMonths || 'bill')
+    setBusy(planMonths || 'monthly')
     setError(null)
 
     try {
@@ -180,51 +228,95 @@ function PayCard({ billing, onPaid }) {
     }
   }
 
+  // The card picked on the home page (or a link to Billing with ?plan=): marked and brought into view.
+  const [searchParams] = useSearchParams()
+  const picked = Number(searchParams.get('plan')) || null
+  const chosen = picked && plans.some((plan) => plan.months === picked) ? picked : null
+  const sectionRef = useRef(null)
+
+  useEffect(() => {
+    if (!picked) return
+
+    clearChosenPlan()
+
+    if (chosen) sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [picked, chosen])
+
   const waiting = request && !FINISHED.includes(request.status)
+  const disabled = Boolean(busy) || waiting || !phone.trim()
+  // What the monthly card actually charges this landlord (their own discount, carried amounts).
+  const monthlyAmount = invoice ? invoice.amount_due : next?.amount || 0
+
+  function action(card, { dark }) {
+    const buttonClass = dark
+      ? 'w-full rounded-[8px] bg-[var(--accent)] px-4 py-[11px] text-[12px] font-bold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-50'
+      : `${primaryButtonClass} w-full`
+
+    if (card.months === 1) {
+      const differs = monthlyAmount && monthlyAmount !== card.price
+
+      return (
+        <>
+          <button type="button" disabled={disabled || !monthlyAmount} onClick={() => pay()} className={buttonClass}>
+            {busy === 'monthly'
+              ? 'Sending...'
+              : invoice
+                ? `Pay this bill: ${ksh(invoice.amount_due)}`
+                : next
+                  ? `Pay ${periodLabel(next.period_start, next.period_end)}: ${ksh(next.amount)}`
+                  : 'Nothing to pay'}
+          </button>
+          {differs ? (
+            <p className={`mt-2 text-center text-[10px] ${dark ? 'text-[var(--brand-panel-soft)]' : 'text-[var(--ink-faint)]'}`}>
+              {monthlyAmount < card.price ? 'Your own discount is applied.' : 'Includes an amount carried from an earlier bill.'}
+            </p>
+          ) : null}
+        </>
+      )
+    }
+
+    return (
+      <button type="button" disabled={disabled} onClick={() => pay(card.months)} className={buttonClass}>
+        {busy === card.months ? 'Sending...' : `Pay ${card.name}: ${ksh(card.price)}`}
+      </button>
+    )
+  }
 
   return (
-    <section className={`${cardClass} grid gap-3 px-[18px] py-4 text-[12px]`}>
-      <div className="flex items-center gap-2 font-bold">
-        <Smartphone size={15} />
-        Pay by M-Pesa
-      </div>
-      <div>
-        <label className={labelClass}>M-Pesa phone number</label>
-        <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" maxLength={20} className={inputClass} />
-        <p className="mt-2 text-[10px] text-[var(--ink-faint)]">A prompt comes to this phone: enter your M-Pesa PIN to pay Kodi&apos;s till.</p>
-      </div>
-
-      {invoice ? (
-        <button type="button" disabled={Boolean(busy) || waiting || !phone.trim()} onClick={() => pay()} className={primaryButtonClass}>
-          {busy === 'bill' ? 'Sending...' : `Pay ${ksh(invoice.amount_due)}`}
-        </button>
-      ) : (
-        <p className="text-[11px] text-[var(--ink-soft)]">Nothing to pay right now. Your next bill comes on the 1st after your cover ends.</p>
-      )}
-
-      {plans.length ? (
-        <div className="grid gap-2 border-t border-[var(--line)] pt-3">
-          <div className="text-[11px] font-bold">Pay ahead and save</div>
-          {plans.map((plan) => (
-            <button
-              key={plan.months}
-              type="button"
-              disabled={Boolean(busy) || waiting || !phone.trim()}
-              onClick={() => pay(plan.months)}
-              className={`${secondaryButtonClass} flex items-center justify-between gap-2 text-left`}
-            >
-              <span>
-                {plan.months} months: {ksh(plan.price)}
-                <span className="block text-[10px] font-normal text-[var(--success)]">You save {ksh(plan.saving)}</span>
-              </span>
-              <span className="text-[11px]">{busy === plan.months ? 'Sending...' : 'Pay'}</span>
-            </button>
-          ))}
+    <section ref={sectionRef} className={`${cardClass} grid scroll-mt-[110px] gap-4 px-[18px] py-5`}>
+      {chosen && !request ? (
+        <div className="rounded-[8px] border border-[var(--accent-muted)] bg-[var(--accent-soft)] px-3 py-3 text-[12px] text-[var(--accent-ink)]">
+          You chose <b>{planLabel(chosen)}</b> on the home page. Check your M-Pesa number, then tap its Pay button: the prompt comes to your phone.
         </div>
       ) : null}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h3 className="font-display text-[15px] font-semibold">Choose how long to pay for</h3>
+          <p className="mt-1 max-w-[560px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+            {invoice
+              ? `Your bill for ${periodLabel(invoice.period_start, invoice.period_end)} is ${ksh(invoice.amount_due)}${
+                  ['grace', 'read_only'].includes(status.state) ? `, due by ${dayLabel(status.grace_ends_on)}` : ''
+                }. Pay it with Monthly, or pay several months ahead and save.`
+              : `Nothing is due now${
+                  status.state === 'trial' ? `: your free trial runs to ${dayLabel(status.trial_ends_on)}` : `: you are paid until ${dayLabel(status.covered_until)}`
+                }. Whatever you choose starts after what is already covered, so no days are lost.`}
+          </p>
+        </div>
+        <div className="w-full max-w-[260px]">
+          <label className={labelClass}>
+            <Smartphone size={12} className="mr-1 inline" />
+            M-Pesa phone number
+          </label>
+          <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" maxLength={20} className={inputClass} />
+        </div>
+      </div>
 
       {request ? <RequestState request={request} /> : null}
       {error ? <FormError error={error} /> : null}
+
+      <PricingCards cards={plans} current={current} selected={chosen} action={action} compact />
+
+      <p className="text-[10px] text-[var(--ink-faint)]">An M-Pesa prompt comes to the phone above: enter your PIN to pay Kodi&apos;s till.</p>
     </section>
   )
 }

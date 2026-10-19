@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Info, Lock } from 'lucide-react'
-import { dayLabel, ksh } from './billingLabels'
+import { dayLabel, graceLeftText, ksh } from './billingLabels'
 import { useMyBilling } from './useMyBilling'
 
 /*
@@ -9,6 +9,13 @@ import { useMyBilling } from './useMyBilling'
   Refreshed every 5 minutes, after a payment, and whenever the
   server refuses a change because the account is read-only.
 */
+// "2026-10-25" -> "2026-10-26"
+function nextDay(day) {
+  const [year, month, date] = String(day).split('-').map(Number)
+
+  return new Date(Date.UTC(year, month - 1, date + 1)).toISOString().slice(0, 10)
+}
+
 function BillingBanner() {
   const billing = useMyBilling()
 
@@ -40,8 +47,13 @@ function BillingBanner() {
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[10px] bg-[var(--warning-soft)] px-4 py-3 text-[12px] text-[var(--warning)]">
         <AlertTriangle size={16} className="shrink-0" />
         <span>
-          <b>Payment due{invoice ? `: ${ksh(invoice.amount_due)}` : ''}.</b> Pay by {dayLabel(status.grace_ends_on)} to keep using Kodi
-          fully; after that the account becomes read-only until it is paid.
+          <b>
+            Grace period: {graceLeftText(status.grace_days_left)}
+            {invoice ? ` ${ksh(invoice.amount_due)}` : ''}.
+          </b>{' '}
+          Your {status.trial_ends_on === status.covered_until ? 'free trial' : 'paid month'} ended on {dayLabel(status.covered_until)} and the bill
+          is not paid yet. Everything still works until{' '}
+          <b>{dayLabel(status.grace_ends_on)}</b>; from {dayLabel(nextDay(status.grace_ends_on))} the account becomes read-only until it is paid.
         </span>
         {pay}
       </div>

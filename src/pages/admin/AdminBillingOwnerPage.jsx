@@ -4,6 +4,8 @@ import { ArrowLeft, Download } from 'lucide-react'
 import {
   downloadReceipt,
   endDiscount,
+  endGrace,
+  endTrial,
   extendTrial,
   getBillingAccount,
   giveDiscount,
@@ -78,7 +80,13 @@ function AdminBillingOwnerPage() {
                 </dl>
                 <div className="flex flex-wrap gap-2 border-t border-[var(--line)] px-[18px] py-3">
                   {status.state === 'trial' ? (
-                    <button type="button" onClick={() => setAction('trial')} className={actionClass}>Extend trial</button>
+                    <>
+                      <button type="button" onClick={() => setAction('trial')} className={actionClass}>Extend trial</button>
+                      <button type="button" onClick={() => setAction('end-trial')} className={actionClass}>End trial</button>
+                    </>
+                  ) : null}
+                  {status.state === 'grace' ? (
+                    <button type="button" onClick={() => setAction('end-grace')} className={actionClass}>End grace now</button>
                   ) : null}
                   <button type="button" onClick={() => setAction('free')} className={actionClass}>Give free months</button>
                   {discount ? (
@@ -99,6 +107,19 @@ function AdminBillingOwnerPage() {
 
               {action === 'trial' ? (
                 <MonthsModal title="Extend the free trial" hint={`The trial ends ${dayLabel(status.trial_ends_on)}; it is extended to the end of a later month.`} onClose={() => setAction(null)} onDone={reload} run={(months, reason) => extendTrial(owner.owner_id, months, reason)} />
+              ) : null}
+              {action === 'end-trial' ? (
+                <EndTrialModal owner={owner} status={status} discount={discount} onClose={() => setAction(null)} onDone={reload} />
+              ) : null}
+              {action === 'end-grace' ? (
+                <ReasonModal
+                  title={`End ${owner.first_name}'s grace period now`}
+                  button="End grace now"
+                  intro={`The account becomes read-only today instead of after ${dayLabel(status.grace_ends_on)}: they can still see and download everything and pay, but cannot add, change or send anything until the bill${invoice ? ` of ${ksh(invoice.amount_due)}` : ''} is paid. They get an SMS. Paying unlocks it at once.`}
+                  onClose={() => setAction(null)}
+                  onDone={reload}
+                  run={(reason) => endGrace(owner.owner_id, reason)}
+                />
               ) : null}
               {action === 'free' ? (
                 <MonthsModal title="Give free months" hint="Whole months, from the end of what is already covered (from this month if the account is read-only). Any bill they cover is closed." onClose={() => setAction(null)} onDone={reload} run={(months, reason) => giveFreeMonths(owner.owner_id, months, reason)} />
@@ -289,7 +310,7 @@ function MonthsModal({ title, hint, run, onClose, onDone }) {
   )
 }
 
-function ReasonModal({ title, button, run, onClose, onDone }) {
+function ReasonModal({ title, button, intro, run, onClose, onDone }) {
   const [reason, setReason] = useState('')
   const { busy, error, save } = useSave(onDone, onClose)
 
@@ -297,11 +318,67 @@ function ReasonModal({ title, button, run, onClose, onDone }) {
     <ModalShell title={title} onClose={onClose}>
       <ModalBody>
         <div className="grid gap-4">
+          {intro ? <p className="text-[12px] leading-[1.5]">{intro}</p> : null}
           {reasonField(reason, setReason)}
           {error ? <FormError error={error} /> : null}
         </div>
       </ModalBody>
       <Footer onClose={onClose} busy={busy} disabled={reason.trim().length < 3} label={button} onSave={() => save(() => run(reason))} />
+    </ModalShell>
+  )
+}
+
+// Nairobi's date today, as "YYYY-MM-DD".
+const nairobiToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date())
+
+function EndTrialModal({ owner, status, discount, onClose, onDone }) {
+  const [firstBill, setFirstBill] = useState('full')
+  const [reason, setReason] = useState('')
+  const { busy, error, save } = useSave(onDone, onClose)
+  const today = nairobiToday()
+  const [year, month, date] = today.split('-').map(Number)
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const daysLeft = daysInMonth - date + 1
+  const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+  const nextFirst = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
+  const off = !discount ? 0 : discount.kind === 'percent' ? Math.round((status.monthly_price * discount.value) / 100) : Math.min(discount.value, status.monthly_price)
+  const full = status.monthly_price - off + (status.carry_amount || 0)
+  const part = Math.round(((status.monthly_price - off) * daysLeft) / daysInMonth) + (status.carry_amount || 0)
+  const paidAhead = status.paid_through && status.paid_through > today
+  const choices = [
+    ['full', `Full month: ${ksh(full)} now`, `Bill for the rest of ${periodLabel(today, today)} at the full price.`],
+    ['prorated', `Part month: ${ksh(part)} now`, `Only the ${daysLeft} of ${daysInMonth} days left this month, counting today.`],
+    ['next_month', 'Free to month end', `No bill now; the trial ends ${dayLabel(monthEnd)} and the first bill is on ${dayLabel(nextFirst)}.`],
+  ]
+
+  return (
+    <ModalShell title={`End ${owner.first_name}'s free trial`} onClose={onClose}>
+      <ModalBody>
+        <div className="grid gap-4 text-[12px]">
+          <p>The trial now ends {dayLabel(status.trial_ends_on)}. Choose the first bill:</p>
+          <div className="grid gap-2">
+            {choices.map(([value, title, hint]) => (
+              <label key={value} className={`flex cursor-pointer gap-3 rounded-[8px] border px-3 py-3 ${firstBill === value ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line)]'}`}>
+                <input type="radio" name="first_bill" value={value} checked={firstBill === value} onChange={() => setFirstBill(value)} className="mt-[2px]" />
+                <span>
+                  <span className="block font-bold">{title}</span>
+                  <span className="text-[11px] text-[var(--ink-soft)]">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {paidAhead ? <p className="text-[11px] text-[var(--ink-soft)]">They have paid ahead to {dayLabel(status.paid_through)}, so no bill comes before then.</p> : null}
+          {firstBill !== 'next_month' && !paidAhead ? (
+            <p className="text-[11px] text-[var(--ink-soft)]">
+              They get an SMS now with the bill and how to pay; no M-Pesa prompt is sent by itself. They pay in Settings, Billing, or you
+              can send the prompt with &quot;Send M-Pesa prompt&quot;. They have {status.grace_days} days to pay.
+            </p>
+          ) : null}
+          {reasonField(reason, setReason)}
+          {error ? <FormError error={error} /> : null}
+        </div>
+      </ModalBody>
+      <Footer onClose={onClose} busy={busy} disabled={reason.trim().length < 3} label="End trial" onSave={() => save(() => endTrial(owner.owner_id, firstBill, reason))} />
     </ModalShell>
   )
 }

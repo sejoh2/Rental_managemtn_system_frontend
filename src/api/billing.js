@@ -1,4 +1,4 @@
-import { api, download } from './client'
+import { api, download, request } from './client'
 
 /*
   Kodi's own billing: what a landlord pays Kodi. Amounts are whole
@@ -32,6 +32,25 @@ export function downloadReceipt(paymentId, { admin = false } = {}) {
   })
 }
 
+// Someone waiting for owner access tells Kodi the card they picked on the home page.
+export function saveRequestedPlan(months) {
+  return api.put('/api/subscriptions/requested-plan', { months })
+}
+
+// The landing page's prices: the cards that are on, no sign-in. -> { monthly_price, trial, cards }
+export async function getPublicPricing() {
+  const { data } = await request('/api/subscriptions/pricing', { auth: false })
+
+  return data
+}
+
+// The account becomes read-only today (it must be in its grace period).
+export async function endGrace(ownerId, reason) {
+  const { data } = await api.post(`/api/admin/billing/owners/${ownerId}/end-grace`, { reason })
+
+  return data
+}
+
 // Admin. -> { settings, plans, accounts, mpesa: { configured, environment } }
 export async function getAdminBilling() {
   const { data } = await api.get('/api/admin/billing')
@@ -59,6 +78,13 @@ export async function updatePlan(months, changes) {
 
 export async function extendTrial(ownerId, months, reason) {
   const { data } = await api.post(`/api/admin/billing/owners/${ownerId}/extend-trial`, { months, reason })
+
+  return data
+}
+
+// first_bill: full (this month at full price), prorated (days left this month), next_month (free to month end)
+export async function endTrial(ownerId, firstBill, reason) {
+  const { data } = await api.post(`/api/admin/billing/owners/${ownerId}/end-trial`, { first_bill: firstBill, reason })
 
   return data
 }

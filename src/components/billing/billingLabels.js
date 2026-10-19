@@ -31,10 +31,17 @@ export function daysLeftText(days) {
   return `${days} day${days === 1 ? '' : 's'} left`
 }
 
+// The grace period: "7 days left to pay", "last day to pay"
+export function graceLeftText(days) {
+  if (days <= 1) return 'last day to pay'
+
+  return `${days} days left to pay`
+}
+
 export const STATE_LABELS = {
   trial: ['Free trial', 'info'],
   active: ['Paid', 'success'],
-  grace: ['Payment due', 'warning'],
+  grace: ['Grace period', 'warning'],
   read_only: ['Read-only', 'danger'],
 }
 

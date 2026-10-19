@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
 import { FormError } from '../../components/common/DataState'
 import { useAuth } from '../../context/AuthContext'
+import { saveRequestedPlan } from '../../api/billing'
+import { planLabel, readChosenPlan } from '../../utils/chosenPlan'
 import { formatPhone, humanize } from '../../utils/format'
 
 // Shown to signed-in accounts that are neither an owner nor an admin.
@@ -11,6 +13,21 @@ function NoAccessPage() {
   const [error, setError] = useState(null)
 
   const isCaretaker = user.role === 'caretaker'
+  const chosen = isCaretaker ? null : readChosenPlan()
+
+  // The admin sees the chosen card with the new account (told once per visit).
+  useEffect(() => {
+    if (chosen) saveRequestedPlan(chosen).catch(() => {})
+  }, [chosen])
+
+  // Looks every 20 seconds, so the page moves on by itself once the admin opens the account.
+  useEffect(() => {
+    if (isCaretaker) return undefined
+
+    const timer = setInterval(() => refreshUser().catch(() => {}), 20000)
+
+    return () => clearInterval(timer)
+  }, [isCaretaker, refreshUser])
 
   async function checkAgain() {
     setChecking(true)
@@ -52,8 +69,15 @@ function NoAccessPage() {
               .{' '}
               {isCaretaker
                 ? 'Caretaker accounts cannot use the owner web dashboard.'
-                : 'A system admin has to make this number an owner account before you can manage properties.'}
+                : 'A system admin has to make this number an owner account before you can manage properties. This page moves on by itself once that is done.'}
             </p>
+
+            {chosen ? (
+              <div className="mb-5 rounded-[8px] border border-[var(--accent-muted)] bg-[var(--accent-soft)] px-3 py-3 text-[12px] leading-[1.5] text-[var(--accent-ink)]">
+                You chose <b>{planLabel(chosen)}</b>. Once your account is open you go straight to Billing with it ready: check your M-Pesa number and
+                tap Pay.
+              </div>
+            ) : null}
 
             {error ? (
               <div className="mb-4">

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Menu, Plus, Search } from 'lucide-react'
 import { getAttention, searchEverything } from '../../api/dashboard'
@@ -194,11 +194,18 @@ function AttentionBell() {
   const attentionState = useApi('attention', getAttention)
   const [open, setOpen] = useState(false)
   const attention = attentionState.data
+  const { reload: reloadAttention } = attentionState
+  // The same live signal also says when the Kodi bill changed (a trial ended, a bill
+  // was made, a payment arrived): the billing parts of the page look again too.
+  const lookAgain = useCallback(() => {
+    reloadAttention()
+    window.dispatchEvent(new Event('kodi-billing-changed'))
+  }, [reloadAttention])
   // Updates the moment the server reports a change (live connection), and plays a
   // sound when the count goes up, if allowed.
   const { soundAllowed, setSoundAllowed } = useNotificationSound(
     attention ? attention.total : null,
-    attentionState.reload,
+    lookAgain,
     'owner'
   )
 

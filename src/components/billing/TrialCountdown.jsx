@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Clock } from 'lucide-react'
-import { dayLabel, daysLeftText } from './billingLabels'
+import { dayLabel, daysLeftText, graceLeftText } from './billingLabels'
 import { useMyBilling } from './useMyBilling'
 
 const tones = {
@@ -30,8 +30,8 @@ function TrialCountdown() {
     short = status.days_left <= 0 ? 'Trial ends today' : `${status.days_left}d trial`
   } else if (status.state === 'grace') {
     tone = 'warning'
-    text = `Payment due · pay by ${dayLabel(status.grace_ends_on)}`
-    short = 'Payment due'
+    text = `Grace period · ${graceLeftText(status.grace_days_left)}`
+    short = status.grace_days_left <= 1 ? 'Pay today' : `Pay in ${status.grace_days_left}d`
   } else if (status.state === 'read_only') {
     tone = 'danger'
     text = 'Read-only · pay to continue'
@@ -43,7 +43,13 @@ function TrialCountdown() {
   return (
     <Link
       to="/settings?tab=billing"
-      title={status.state === 'trial' ? `Your free trial ends on ${dayLabel(status.trial_ends_on)}` : text}
+      title={
+        status.state === 'trial'
+          ? `Your free trial ends on ${dayLabel(status.trial_ends_on)}`
+          : status.state === 'grace'
+            ? `Pay by ${dayLabel(status.grace_ends_on)}; after that the account is read-only until paid`
+            : text
+      }
       className={`inline-flex shrink-0 items-center gap-[6px] rounded-full border px-3 py-[6px] text-[11px] font-bold ${tones[tone]}`}
     >
       <Clock size={13} />

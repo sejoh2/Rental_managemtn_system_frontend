@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { promoteToOwner } from '../../api/admin'
 import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { getAdminNotifications } from '../../api/admin'
@@ -21,7 +22,65 @@ const securityText = {
     `${item.attempts} wrong ${item.attempts === 1 ? 'code' : 'codes'} for your own number`,
 }
 
-// What is waiting for the admin: sender IDs to approve, people without a role, and sign-in alarms.
+const planName = (months) => (months === 1 ? 'Monthly' : months === 12 ? '1 year' : `${months} months`)
+
+/*
+  A new account waiting to be made an owner. Make owner asks once more
+  before it acts: it opens the account and starts the free trial.
+*/
+function WaitingPerson({ person, onDone }) {
+  const [step, setStep] = useState('idle')
+  const [error, setError] = useState(null)
+
+  async function makeOwner() {
+    if (step !== 'confirm') {
+      setStep('confirm')
+      return
+    }
+
+    setStep('busy')
+    setError(null)
+
+    try {
+      await promoteToOwner(person.user_id)
+      onDone()
+    } catch (promoteError) {
+      setError(promoteError)
+      setStep('idle')
+    }
+  }
+
+  return (
+    <div className="border-b border-[var(--line-soft)] px-3 py-[10px] text-[12px] last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <span>
+          <span className="font-bold text-[var(--accent-ink)]">New account: </span>
+          {person.name || 'Name not given yet'} · {formatPhone(person.phone)}
+          <span className="block text-[10px] text-[var(--ink-faint)]">
+            Registered {formatDateTime(person.registered_at)}
+            {person.requested_plan_months ? ` · chose ${planName(person.requested_plan_months)}` : ''}
+          </span>
+        </span>
+        <button
+          type="button"
+          disabled={step === 'busy'}
+          onClick={makeOwner}
+          className={`shrink-0 rounded-[6px] px-2 py-[5px] text-[11px] font-bold ${
+            step === 'confirm' ? 'bg-[var(--accent)] text-white' : 'border border-[var(--line)] text-[var(--accent-ink)]'
+          }`}
+        >
+          {step === 'busy' ? 'Opening...' : step === 'confirm' ? 'Confirm' : 'Make owner'}
+        </button>
+      </div>
+      {step === 'confirm' ? (
+        <p className="mt-1 text-[10px] text-[var(--ink-soft)]">Opens their owner account and starts the free trial. Tap Confirm.</p>
+      ) : null}
+      {error ? <p className="mt-1 text-[10px] text-[var(--danger)]">{error.message}</p> : null}
+    </div>
+  )
+}
+
+// What is waiting for the admin: sender IDs to approve, new accounts to open, billing and sign-in alarms.
 function AdminBell() {
   const state = useApi('admin-notifications', getAdminNotifications)
   const [open, setOpen] = useState(false)
@@ -85,13 +144,13 @@ function AdminBell() {
                   </Link>
                 ) : null}
 
-                {data.waiting_for_access ? (
+                {(data.waiting_people || []).map((person) => (
+                  <WaitingPerson key={person.user_id} person={person} onDone={state.reload} />
+                ))}
+                {data.waiting_for_access > (data.waiting_people || []).length ? (
                   <Link to="/admin/users" onClick={() => setOpen(false)} className={rowClass}>
-                    <span>
-                      {data.waiting_for_access}{' '}
-                      {data.waiting_for_access === 1 ? 'person' : 'people'} signed in with no role
-                    </span>
-                    <span className="text-[11px] font-bold text-[var(--accent-ink)]">View</span>
+                    <span>{data.waiting_for_access - data.waiting_people.length} more new accounts waiting</span>
+                    <span className="text-[11px] font-bold text-[var(--accent-ink)]">Users</span>
                   </Link>
                 ) : null}
 
