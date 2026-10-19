@@ -1,5 +1,19 @@
 import { api } from './client'
 
+// One request. Opening it clears its "done by the caretaker" note on the owner's bell.
+export async function getMaintenance(requestId) {
+  const { data } = await api.get(`/api/maintenance/${requestId}`)
+
+  return data
+}
+
+// Clears every "done by the caretaker" note on the owner's bell. -> { cleared }
+export async function markRepairNoticesSeen() {
+  const { data } = await api.post('/api/maintenance/notices/seen')
+
+  return data
+}
+
 // filters: { property_id?, unit_id?, status?, priority? }
 export async function listMaintenance(filters) {
   const { data } = await api.get('/api/maintenance', filters)

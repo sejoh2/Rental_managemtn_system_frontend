@@ -184,9 +184,9 @@ function WaterRulesForm({ property, onClose, onSaved }) {
               <span>
                 Also apply to units that already have a tenant
                 <span className="mt-[2px] block text-[10px] font-normal text-[var(--ink-faint)]">
-                  Without this, the new method and rate reach vacant and
-                  reserved units only, and sitting tenants keep their
-                  current water billing.
+                  Without this, the new method and rate reach vacant
+                  units only, and sitting tenants keep their current
+                  water billing.
                 </span>
               </span>
             </label>
