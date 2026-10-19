@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -18,15 +18,20 @@ import {
   Users,
   Wrench,
 } from 'lucide-react'
+import { getPublicPricing } from '../../api/billing'
+import PricingCards from '../../components/billing/PricingCards'
+import { saveChosenPlan } from '../../utils/chosenPlan'
 import ThemeToggle from '../../components/common/ThemeToggle'
+import KodiChat from '../../components/home/KodiChat'
 import { CONTACT } from '../../config/contact'
 
 /*
   The public home page. Its one goal is a new owner asking for an account;
   signing in is for people who already have one.
 
-  Everything said here must be true of the system today. Prices, client names,
-  numbers and testimonials are added only when real ones are given.
+  Everything said here must be true of the system today. Prices come from the
+  server (the pricing cards the admin sets); client names, numbers and
+  testimonials are added only when real ones are given.
 */
 
 // The product name, in one place, because the system will be renamed.
@@ -74,8 +79,8 @@ const features = [
 
 const steps = [
   {
-    title: 'Get in touch',
-    text: 'We open your owner account on your phone number. You sign in with a code sent by SMS; there is no password to forget.',
+    title: 'Sign in with your phone',
+    text: 'Get an account with your phone number: a code comes by SMS, there is no password to forget. We open it as your owner account and your free trial starts.',
   },
   {
     title: 'Add your properties',
@@ -113,11 +118,12 @@ const faqs = [
   },
   {
     question: 'What does it cost?',
-    answer: 'Talk to us: we will look at how many units you manage and agree a plan with you.',
+    answer:
+      'Nothing until the end of your next full calendar month: that is your free trial, with everything included. After that, pay month by month, or pay 3, 6 or 12 months ahead and save. See Pricing above.',
   },
 ]
 
-const sectionClass = 'mx-auto w-full max-w-[1120px] px-5 sm:px-8'
+const sectionClass = 'mx-auto w-full max-w-[1360px] px-5 sm:px-8'
 const eyebrowClass = 'mb-[10px] text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--accent-ink)]'
 const headingClass = 'font-display text-[24px] font-semibold leading-[1.2] tracking-[-0.01em] sm:text-[30px]'
 const primaryClass =
@@ -148,9 +154,11 @@ function HomePage() {
       <Features />
       <HowItWorks />
       <Caretakers />
+      <Pricing />
       <Faq />
       <GetAnAccount />
       <Footer />
+      <KodiChat />
     </div>
   )
 }
@@ -167,6 +175,7 @@ function Header() {
         <nav className="hidden items-center gap-6 text-[12px] font-semibold text-[var(--ink-soft)] md:flex">
           <a href="#features" className="hover:text-[var(--ink)]">Features</a>
           <a href="#how-it-works" className="hover:text-[var(--ink)]">How it works</a>
+          <a href="#pricing" className="hover:text-[var(--ink)]">Pricing</a>
           <a href="#questions" className="hover:text-[var(--ink)]">Questions</a>
         </nav>
 
@@ -175,9 +184,9 @@ function Header() {
           <Link to="/login" className="hidden px-2 text-[12px] font-bold text-[var(--ink-soft)] hover:text-[var(--ink)] sm:block">
             Sign in
           </Link>
-          <a href="#get-an-account" className={`${primaryClass} !px-4 !py-[9px] !text-[12px]`}>
+          <Link to="/login" className={`${primaryClass} !px-4 !py-[9px] !text-[12px]`}>
             Get an account
-          </a>
+          </Link>
         </div>
       </div>
     </header>
@@ -203,10 +212,10 @@ function Hero() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#get-an-account" className={primaryClass}>
+            <Link to="/login" className={primaryClass}>
               Get an account
               <ArrowRight size={15} />
-            </a>
+            </Link>
             <a
               href="#how-it-works"
               className="rounded-[8px] border border-white/30 px-5 py-[11px] text-[13px] font-bold text-white transition hover:bg-white/10"
@@ -358,10 +367,10 @@ function HowItWorks() {
       </ol>
 
       <div className="mt-8">
-        <a href="#get-an-account" className={primaryClass}>
+        <Link to="/login" className={primaryClass}>
           Get an account
           <ArrowRight size={15} />
-        </a>
+        </Link>
       </div>
     </section>
   )
@@ -419,6 +428,79 @@ function Caretakers() {
   )
 }
 
+/*
+  Prices, from the cards the admin switches on. Nothing shows until
+  they load, and the section is left out if they cannot be loaded, so
+  the page never shows a price that is not real.
+*/
+function Pricing() {
+  const [pricing, setPricing] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    getPublicPricing().then(
+      (data) => !cancelled && setPricing(data),
+      () => !cancelled && setPricing({ cards: [] })
+    )
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (pricing && !pricing.cards.length) return null
+
+  return (
+    <section id="pricing" className={`${sectionClass} scroll-mt-[70px] py-16 sm:py-20`}>
+      <div className={eyebrowClass}>Pricing</div>
+      <h2 className={headingClass}>One plan, everything included</h2>
+      <p className="mt-3 max-w-[620px] text-[13px] leading-[1.6] text-[var(--ink-soft)]">
+        Start with a free trial until the end of your next full calendar month. Then pay month by month, or pay ahead and save. Paid by
+        M-Pesa, with a receipt every time. Pick a card to sign in: once your account is open, your choice is ready to pay in Billing.
+      </p>
+
+      <div className="mt-10">
+        {pricing ? (
+          <>
+          <PricingCards
+            cards={pricing.cards}
+            compact
+            trial={
+              pricing.trial_ends_example
+                ? {
+                    ends_on: pricing.trial_ends_example,
+                    grace_days: pricing.grace_days,
+                    action: (
+                      <Link to="/login" className={`${primaryClass} w-full !border-[var(--success)] !bg-[var(--success)]`}>
+                        Start free trial
+                      </Link>
+                    ),
+                  }
+                : null
+            }
+            action={(card, { dark }) => (
+              <Link
+                to={`/login?plan=${card.months}`}
+                onClick={() => saveChosenPlan(card.months)}
+                className={`${primaryClass} w-full ${dark ? '' : '!border-[var(--accent)] !bg-[var(--surface)] !text-[var(--accent-ink)] hover:!bg-[var(--accent-soft)]'}`}
+              >
+                Choose {card.name}
+              </Link>
+            )}
+          />
+          <p className="mt-4 text-[11px] text-[var(--ink-faint)]">
+            Every plan starts with the free trial. Paying ahead never shortens it: a paid period starts after the trial ends.
+          </p>
+          </>
+        ) : (
+          <div className="text-[12px] text-[var(--ink-faint)]">Loading prices...</div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function Faq() {
   const [open, setOpen] = useState(0)
 
@@ -471,23 +553,26 @@ function GetAnAccount() {
           Ready to close the rent book?
         </h2>
         <p className="mx-auto mt-4 max-w-[520px] text-[13px] leading-[1.6] text-[var(--brand-panel-soft)]">
-          Accounts are opened for you, so we can set up your properties and payment accounts
-          together. Tell us how many units you manage and we will take it from there.
+          Sign in with your phone number to get an account: we open it for you and your free trial starts.
+          Would you rather talk first? Tell us how many units you manage and we will set it up together.
         </p>
 
+        <div className="mt-8 flex justify-center">
+          <Link to="/login" className={primaryClass}>
+            Get an account
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+
         {links.length ? (
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {links.map(({ icon: Icon, label, href }, index) => (
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            {links.map(({ icon: Icon, label, href }) => (
               <a
                 key={href}
                 href={href}
                 target={href.startsWith('https:') ? '_blank' : undefined}
                 rel={href.startsWith('https:') ? 'noreferrer' : undefined}
-                className={
-                  index === 0
-                    ? primaryClass
-                    : 'inline-flex items-center gap-2 rounded-[8px] border border-white/30 px-5 py-[11px] text-[13px] font-bold text-white transition hover:bg-white/10'
-                }
+                className="inline-flex items-center gap-2 rounded-[8px] border border-white/30 px-5 py-[11px] text-[13px] font-bold text-white transition hover:bg-white/10"
               >
                 <Icon size={15} />
                 {label}
@@ -521,6 +606,8 @@ function Footer() {
         </div>
         <div className="flex gap-5">
           <a href="#questions" className="font-semibold hover:text-[var(--ink)]">Questions</a>
+          <Link to="/terms" className="font-semibold hover:text-[var(--ink)]">Terms</Link>
+          <Link to="/privacy" className="font-semibold hover:text-[var(--ink)]">Privacy</Link>
           <Link to="/login" className="font-semibold hover:text-[var(--ink)]">Sign in</Link>
         </div>
       </div>

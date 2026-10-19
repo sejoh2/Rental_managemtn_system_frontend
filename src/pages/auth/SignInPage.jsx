@@ -1,12 +1,24 @@
 import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { requestOtp, verifyOtp } from '../../api/auth'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
 import PhoneSignInForm from '../../components/auth/PhoneSignInForm'
 import OtpVerificationForm from '../../components/auth/OtpVerificationForm'
 import { useAuth } from '../../context/AuthContext'
+import { planLabel, readChosenPlan, saveChosenPlan } from '../../utils/chosenPlan'
 
 function SignInPage() {
   const { signIn } = useAuth()
+  const [searchParams] = useSearchParams()
+  // A card picked on the home page (in the link, or remembered from before).
+  const [chosen] = useState(() => {
+    const fromLink = Number(searchParams.get('plan'))
+
+    if (fromLink) saveChosenPlan(fromLink)
+
+    return readChosenPlan()
+  })
   const [authStep, setAuthStep] = useState('phone')
   const [phone, setPhone] = useState('')
   const [sending, setSending] = useState(false)
@@ -87,7 +99,16 @@ function SignInPage() {
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="proto-strip">
-        <span>KODI - Owner Web Dashboard</span>
+        <Link to="/" className="inline-flex items-center gap-1 font-bold text-[var(--strip-ink-strong)] hover:underline">
+          <ArrowLeft size={13} />
+          Back to home
+        </Link>
+        <span className="hidden sm:inline">KODI - Owner Web Dashboard</span>
+        {chosen ? (
+          <span className="ml-auto">
+            Your choice: <b className="text-[var(--strip-ink-strong)]">{planLabel(chosen)}</b>
+          </span>
+        ) : null}
       </div>
 
       <section className="grid min-h-screen pt-[34px] lg:grid-cols-[1.1fr_1fr]">

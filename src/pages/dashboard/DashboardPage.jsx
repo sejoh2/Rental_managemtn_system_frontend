@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import DashboardSidebar from '../../components/dashboard/DashboardSidebar'
+import BillingBanner from '../../components/billing/BillingBanner'
 import AddPropertyModal from '../../components/dashboard/AddPropertyModal'
 import AddTenantModal from '../../components/dashboard/AddTenantModal'
 import ExportReportModal from '../../components/dashboard/ExportReportModal'
@@ -21,6 +22,7 @@ import SmsCentrePage from './SmsCentrePage'
 import ReportsPage from './ReportsPage'
 import SettingsPage from './SettingsPage'
 import { useAuth } from '../../context/AuthContext'
+import { readChosenPlan } from '../../utils/chosenPlan'
 import { useProperties } from '../../context/PropertiesContext'
 import PropertiesProvider from '../../context/PropertiesProvider'
 import PaymentStatsProvider from '../../context/PaymentStatsProvider'
@@ -109,6 +111,13 @@ function DashboardShell() {
   // Set when a system admin is working inside this owner's account.
   const { actingOwner, closeOwnerAccount } = useAuth()
   const navigate = useNavigate()
+
+  // A card picked on the home page before the account existed: Billing, with it chosen (once).
+  useEffect(() => {
+    const chosen = actingOwner ? null : readChosenPlan()
+
+    if (chosen) navigate(`/settings?tab=billing&plan=${chosen}`, { replace: true })
+  }, [actingOwner, navigate])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [addPropertyOpen, setAddPropertyOpen] = useState(false)
   const [addTenantOpen, setAddTenantOpen] = useState(false)
@@ -174,6 +183,7 @@ function DashboardShell() {
           />
 
           <div className="h-[calc(100vh-98px)] overflow-y-auto px-4 py-6 sm:px-6 lg:px-[30px]">
+            <BillingBanner />
             <Routes>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route
