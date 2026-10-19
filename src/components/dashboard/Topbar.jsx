@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Menu, Plus, Search } from 'lucide-react'
 import { getAttention, searchEverything } from '../../api/dashboard'
 import { useProperties } from '../../context/PropertiesContext'
+import TrialCountdown from '../billing/TrialCountdown'
 import SoundToggle from '../common/SoundToggle'
 import ThemeToggle from '../common/ThemeToggle'
 import { useApi } from '../../hooks/useApi'
@@ -40,6 +41,7 @@ function Topbar({ title, subtitle, onOpenSidebar, onAddTenant }) {
       <PropertySelect />
 
       <div className="ml-auto flex items-center gap-[10px]">
+        <TrialCountdown />
         <ThemeToggle />
         <AttentionBell />
 

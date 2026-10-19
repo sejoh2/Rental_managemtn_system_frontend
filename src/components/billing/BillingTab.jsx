@@ -31,6 +31,7 @@ function BillingTab() {
       {(billing) => (
         <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
           <div className="grid content-start gap-4">
+            {billing.status.state === 'trial' ? <TrialCard status={billing.status} /> : null}
             <StatusCard billing={billing} />
             <History billing={billing} />
           </div>
@@ -41,6 +42,52 @@ function BillingTab() {
       )}
     </DataState>
   )
+}
+
+// The trial's countdown: days left, the end date, what happens next.
+function TrialCard({ status }) {
+  const started = String(status.created_at).slice(0, 10)
+  const total = Math.max(1, daysBetween(started, status.trial_ends_on) + 1)
+  const used = Math.min(total, Math.max(0, total - status.days_left - 1))
+  const percent = Math.round((used / total) * 100)
+  const soon = status.days_left <= 7
+
+  return (
+    <section className={`${cardClass} px-[18px] py-5`}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-ink)]">Free trial</div>
+          <div className={`mt-1 font-display text-[28px] font-semibold leading-none ${soon ? 'text-[var(--warning)]' : ''}`}>
+            {status.days_left <= 0 ? 'Last day' : `${status.days_left} day${status.days_left === 1 ? '' : 's'} left`}
+          </div>
+        </div>
+        <div className="text-[11px] text-[var(--ink-soft)] sm:text-right">
+          Ends {dayLabel(status.trial_ends_on)}
+          <div>First bill {dayLabel(nextDay(status.trial_ends_on))}: {ksh(status.monthly_price)}</div>
+        </div>
+      </div>
+      <div className="mt-4 h-[8px] overflow-hidden rounded-full bg-[var(--line-soft)]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Trial used">
+        <div className={`h-full rounded-full ${soon ? 'bg-[var(--warning)]' : 'bg-[var(--accent)]'}`} style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+        Everything in Kodi is open during the trial. You can pay ahead at any time; the trial days are not lost.
+      </p>
+    </section>
+  )
+}
+
+// Text days ("2026-11-30"), counted without time zones.
+function daysBetween(from, to) {
+  const toDay = (day) => Date.UTC(...String(day).split('-').map((part, index) => Number(part) - (index === 1 ? 1 : 0))) / 86400000
+
+  return toDay(to) - toDay(from)
+}
+
+function nextDay(day) {
+  const [year, month, date] = String(day).split('-').map(Number)
+  const next = new Date(Date.UTC(year, month - 1, date + 1))
+
+  return next.toISOString().slice(0, 10)
 }
 
 function StatusCard({ billing }) {

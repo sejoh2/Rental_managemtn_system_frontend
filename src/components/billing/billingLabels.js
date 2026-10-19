@@ -24,6 +24,13 @@ export function periodLabel(start, end) {
   return a === b ? a : `${a} to ${b}`
 }
 
+// "23 days left", "1 day left", "ends today"
+export function daysLeftText(days) {
+  if (days <= 0) return 'ends today'
+
+  return `${days} day${days === 1 ? '' : 's'} left`
+}
+
 export const STATE_LABELS = {
   trial: ['Free trial', 'info'],
   active: ['Paid', 'success'],

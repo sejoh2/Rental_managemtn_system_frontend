@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Info, Lock } from 'lucide-react'
-import { getMyBilling } from '../../api/billing'
 import { dayLabel, ksh } from './billingLabels'
+import { useMyBilling } from './useMyBilling'
 
 /*
   The owner's Kodi bill, at the top of every page: the last week of
@@ -11,28 +10,7 @@ import { dayLabel, ksh } from './billingLabels'
   server refuses a change because the account is read-only.
 */
 function BillingBanner() {
-  const [billing, setBilling] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    const load = () =>
-      getMyBilling().then(
-        (data) => !cancelled && setBilling(data),
-        () => {}
-      )
-
-    load()
-
-    const timer = setInterval(load, 5 * 60 * 1000)
-
-    window.addEventListener('kodi-billing-changed', load)
-
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-      window.removeEventListener('kodi-billing-changed', load)
-    }
-  }, [])
+  const billing = useMyBilling()
 
   if (!billing) return null
 
