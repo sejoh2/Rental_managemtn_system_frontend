@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { trackPage } from './utils/analytics'
 import { LoadingState } from './components/common/DataState'
 import { useAuth } from './context/AuthContext'
 import AdminPage from './pages/admin/AdminPage'
@@ -13,6 +15,11 @@ import TermsPage from './pages/legal/TermsPage'
 function App() {
   const { status, user, actingOwner } = useAuth()
   const location = useLocation()
+
+  // Each page seen, for Admin > Analytics.
+  useEffect(() => {
+    trackPage(location.pathname)
+  }, [location.pathname])
 
   if (status === 'loading') {
     return (

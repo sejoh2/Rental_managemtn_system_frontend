@@ -54,6 +54,14 @@ function PrivacyPage() {
             'On our website, your browser keeps a random chat key for 30 days so you can carry on a conversation; it is not used for anything else, and we do not use advertising or tracking cookies.',
           ]}
         />
+        <p className="font-semibold text-[var(--ink)]">How our website and app are used</p>
+        <List
+          items={[
+            'To see what works and what to improve, we count the pages seen, the buttons and links clicked, the steps to opening an account, how long a page was open, the kind of screen (phone, tablet or computer), the site that sent you here, and errors. Signed in, this is linked to your account so we can see which features landlords use.',
+            'Visitors are counted with a random number kept in the browser (local storage, not a cookie). We do not record names, phone numbers, network addresses or anything you type, and this stays with Kodi: it is not shared with any analytics or advertising company.',
+            'Individual clicks are deleted after 90 days; only daily totals are kept after that.',
+          ]}
+        />
       </Section>
 
       <Section title="Our assistant is an AI">
