@@ -201,10 +201,63 @@ export const SERVICE_CHARGE_ACCOUNTS = [
   ['service', 'Their own account'],
 ]
 
-export const PERMISSION_LEVELS = [
-  ['level_1', 'Level 1 - View tenants, submit readings & reports'],
-  ['level_2', 'Level 2 - Also add / edit tenants'],
+// What a caretaker may do in one property, one switch each: [key, title, hint].
+export const CARETAKER_PERMISSIONS = [
+  ['can_read_meters', 'Meter readings', 'Record, correct and fix water readings, with photos'],
+  ['can_enter_electricity', 'Electricity bills', 'Type in each unit’s electricity for the month'],
+  ['can_manage_maintenance', 'Maintenance', 'Report issues, handle and resolve them'],
+  ['can_add_expenses', 'Expenses', 'Add what they spend, with receipts (only you edit or void)'],
+  ['can_view_tenants', 'View tenants', 'Names, phones, each tenant’s balance and statement'],
+  ['can_manage_tenants', 'Manage tenants', 'Add and edit tenants, mark notice, tenant documents'],
+  ['can_record_payments', 'Record payments', 'Cash, cheque or bank payments handed to them'],
 ]
+
+// A new caretaker: the day-to-day work on, managing tenants and taking money off.
+export const DEFAULT_CARETAKER_PERMISSIONS = {
+  can_read_meters: true,
+  can_enter_electricity: true,
+  can_manage_maintenance: true,
+  can_add_expenses: true,
+  can_view_tenants: true,
+  can_manage_tenants: false,
+  can_record_payments: false,
+}
+
+// One switch changed; managing tenants and payments need "View tenants", as on the server.
+export function withPermission(permissions, key, on) {
+  const next = { ...permissions, [key]: on }
+
+  if (on && (key === 'can_manage_tenants' || key === 'can_record_payments')) {
+    next.can_view_tenants = true
+  }
+
+  if (!on && key === 'can_view_tenants') {
+    next.can_manage_tenants = false
+    next.can_record_payments = false
+  }
+
+  return next
+}
+
+// "Readings · Maintenance · Payments"
+export function permissionSummary(permissions) {
+  const short = {
+    can_read_meters: 'Readings',
+    can_enter_electricity: 'Electricity',
+    can_manage_maintenance: 'Maintenance',
+    can_add_expenses: 'Expenses',
+    can_view_tenants: 'View tenants',
+    can_manage_tenants: 'Manage tenants',
+    can_record_payments: 'Payments',
+  }
+  const on = CARETAKER_PERMISSIONS.map(([key]) => key).filter((key) => permissions?.[key])
+
+  return on.length ? on.map((key) => short[key]).join(' · ') : 'No access'
+}
+
+export function samePermissions(first, second) {
+  return CARETAKER_PERMISSIONS.every(([key]) => Boolean(first?.[key]) === Boolean(second?.[key]))
+}
 
 export function optionLabel(options, value, fallback = '-') {
   return options.find(([optionValue]) => optionValue === value)?.[1] || fallback
