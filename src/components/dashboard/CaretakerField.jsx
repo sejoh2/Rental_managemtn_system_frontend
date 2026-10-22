@@ -1,5 +1,5 @@
 import { formatPhone } from '../../utils/format'
-import { PERMISSION_LEVELS } from '../../utils/labels'
+import CaretakerPermissions from './CaretakerPermissions'
 
 const inputClass =
   'h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:bg-[var(--line-soft)] disabled:text-[var(--ink-faint)]'
@@ -76,7 +76,13 @@ function CaretakerField({
             />
           </div>
 
-          <PermissionSelect caretaker={caretaker} onChange={onChange} />
+        </div>
+
+        <div className="mt-[14px]">
+          <CaretakerPermissions
+            value={caretaker.permissions}
+            onChange={(permissions) => onChange({ permissions })}
+          />
         </div>
 
         <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
@@ -92,7 +98,7 @@ function CaretakerField({
       <label className={labelClass}>Assigned caretaker</label>
 
       {existingCaretakers.length ? (
-        <div className={`grid gap-[14px] ${caretaker.mode === 'existing' ? 'sm:grid-cols-2' : ''}`}>
+        <div className="grid gap-[14px]">
           <select
             value={caretaker.caretakerId}
             onChange={(event) =>
@@ -112,7 +118,10 @@ function CaretakerField({
           </select>
 
           {caretaker.mode === 'existing' ? (
-            <PermissionSelect caretaker={caretaker} onChange={onChange} hideLabel />
+            <CaretakerPermissions
+              value={caretaker.permissions}
+              onChange={(permissions) => onChange({ permissions })}
+            />
           ) : null}
         </div>
       ) : (
@@ -128,24 +137,6 @@ function CaretakerField({
       >
         {existingCaretakers.length ? '+ Create a new caretaker' : '+ Create caretaker'}
       </button>
-    </div>
-  )
-}
-
-function PermissionSelect({ caretaker, onChange, hideLabel }) {
-  return (
-    <div>
-      {hideLabel ? null : <label className={labelClass}>Permission level</label>}
-      <select
-        value={caretaker.permission_level}
-        onChange={(event) => onChange({ permission_level: event.target.value })}
-        aria-label="Permission level"
-        className={inputClass}
-      >
-        {PERMISSION_LEVELS.map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
     </div>
   )
 }

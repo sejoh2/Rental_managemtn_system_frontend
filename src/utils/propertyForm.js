@@ -1,4 +1,5 @@
 // Shared form state for the Add property and Edit property modals.
+import { DEFAULT_CARETAKER_PERMISSIONS } from './labels'
 
 export const emptyAccount = {
   accountType: 'paybill',
@@ -20,7 +21,7 @@ export const emptyCaretaker = {
   first_name: '',
   last_name: '',
   phone: '',
-  permission_level: 'level_1',
+  permissions: DEFAULT_CARETAKER_PERMISSIONS,
 }
 
 // The API returns one row per assignment, so a caretaker with two properties appears twice.
@@ -41,7 +42,7 @@ export function caretakerDetails(caretaker, existingCaretakers) {
       first_name: caretaker.first_name.trim(),
       last_name: caretaker.last_name.trim(),
       phone: caretaker.phone.replace(/\s/g, ''),
-      permission_level: caretaker.permission_level,
+      permissions: caretaker.permissions,
     }
   }
 
@@ -55,7 +56,7 @@ export function caretakerDetails(caretaker, existingCaretakers) {
           first_name: selected.first_name,
           last_name: selected.last_name,
           phone: selected.phone,
-          permission_level: caretaker.permission_level,
+          permissions: caretaker.permissions,
         }
       : null
   }

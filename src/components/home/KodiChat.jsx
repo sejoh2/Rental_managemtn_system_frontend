@@ -77,7 +77,14 @@ function KodiChat() {
       const seen = new Set(current.map((message) => message.id))
       const fresh = incoming.filter((message) => !seen.has(message.id))
 
-      return fresh.length ? [...current, ...fresh] : current
+      if (!fresh.length) return current
+
+      // The saved copy of a message still shown as sending replaces it: the
+      // check every few seconds can bring it back before the reply arrives.
+      const saved = new Set(fresh.filter((message) => message.from === 'you').map((message) => message.text))
+      const kept = current.filter((message) => !(message.pending && saved.has(message.text)))
+
+      return [...kept, ...fresh]
     })
     lastIdRef.current = Math.max(lastIdRef.current, ...incoming.map((message) => message.id))
   }, [])
