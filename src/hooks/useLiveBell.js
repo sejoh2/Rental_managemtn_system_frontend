@@ -6,6 +6,9 @@ const GATHER_MS = 500
 const FIRST_RETRY_MS = 5000
 const LONGEST_RETRY_MS = 120000
 
+// Sent on window when the server says data changed: { area, property_id }.
+export const DATA_CHANGED = 'kodi-data-changed'
+
 /*
   Keeps a live connection for a bell and calls onChange when the server says it
   changed, and once each time the connection (re)opens, to catch up on anything
@@ -58,9 +61,25 @@ export function useLiveBell(scope, onChange) {
         source.addEventListener('ready', () => {
           retryIn = FIRST_RETRY_MS
           changed()
+          // Anything missed while the connection was down: every page looks again.
+          window.dispatchEvent(new CustomEvent(DATA_CHANGED, { detail: { area: 'all' } }))
         })
 
         source.addEventListener('bell', changed)
+
+        // Data on screens changed (by anyone: the caretaker, M-Pesa, a job). Every
+        // open page looks again (see useApi), also when the connection reopens.
+        source.addEventListener('changed', (event) => {
+          let detail = {}
+
+          try {
+            detail = JSON.parse(event.data)
+          } catch {
+            // Without details every page still looks again.
+          }
+
+          window.dispatchEvent(new CustomEvent(DATA_CHANGED, { detail }))
+        })
 
         // The pass is single-use in practice (it runs out after a minute), so a
         // dropped connection is reopened here with a new one, not by the browser.
