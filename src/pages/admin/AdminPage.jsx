@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import {
+  BarChart3,
   CreditCard,
   LayoutDashboard,
   LogOut,
@@ -14,6 +15,7 @@ import {
 import ThemeToggle from '../../components/common/ThemeToggle'
 import { displayName, useAuth } from '../../context/AuthContext'
 import { humanize, initials } from '../../utils/format'
+import AdminAnalyticsPage from './AdminAnalyticsPage'
 import AdminAuditEntryPage from './AdminAuditEntryPage'
 import AdminAuditLogPage from './AdminAuditLogPage'
 import AdminBillingOwnerPage from './AdminBillingOwnerPage'
@@ -29,6 +31,7 @@ const navItems = [
   { label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
   { label: 'Users', icon: Users, to: '/admin/users' },
   { label: 'Billing', icon: CreditCard, to: '/admin/billing' },
+  { label: 'Analytics', icon: BarChart3, to: '/admin/analytics' },
   { label: 'SMS', icon: MessageSquare, to: '/admin/sms' },
   { label: 'Audit log', icon: ScrollText, to: '/admin/audit-log' },
   { label: 'System', icon: ServerCog, to: '/admin/system' },
@@ -41,6 +44,7 @@ const pageMeta = {
   system: { title: 'System', subtitle: 'How the server is set up' },
   users: { title: 'Users', subtitle: 'Accounts, roles and access' },
   billing: { title: 'Billing', subtitle: 'What landlords pay Kodi' },
+  analytics: { title: 'Analytics', subtitle: 'How people find and use Kodi' },
   'audit-log': { title: 'Audit log', subtitle: 'Who did what, in which account' },
 }
 
@@ -165,6 +169,7 @@ function AdminPage() {
               <Route path="admin/users" element={<AdminUsersPage />} />
               <Route path="admin/billing" element={<AdminBillingPage />} />
               <Route path="admin/billing/:ownerId" element={<AdminBillingOwnerPage />} />
+              <Route path="admin/analytics" element={<AdminAnalyticsPage />} />
               <Route path="admin/sms" element={<AdminSmsPage />} />
               <Route path="admin/system" element={<AdminSystemPage />} />
               <Route path="admin/audit-log" element={<AdminAuditLogPage />} />

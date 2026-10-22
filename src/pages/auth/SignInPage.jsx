@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { requestOtp, verifyOtp } from '../../api/auth'
+import { trackStep } from '../../utils/analytics'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
 import PhoneSignInForm from '../../components/auth/PhoneSignInForm'
 import OtpVerificationForm from '../../components/auth/OtpVerificationForm'
@@ -49,6 +50,8 @@ function SignInPage() {
   async function sendCode() {
     const response = await requestOtp(cleanPhone)
 
+    trackStep('code_requested')
+
     setOtpRequest({
       id: Date.now(),
       phone: cleanPhone,
@@ -84,7 +87,10 @@ function SignInPage() {
 
   async function handleVerify(code) {
     try {
-      signIn(await verifyOtp(cleanPhone, code))
+      const session = await verifyOtp(cleanPhone, code)
+
+      trackStep('signed_in')
+      signIn(session)
     } catch (verifyError) {
       const attemptsLeft = verifyError.payload?.attempts_remaining
 
