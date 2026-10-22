@@ -23,12 +23,14 @@ let timer = null
 let currentPath = null
 let pageStartedAt = 0
 
+// From the browser's secure random generator (randomUUID needs https, so on plain
+// http it is made from getRandomValues instead).
 function randomId() {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
-  }
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 function visitorId() {
@@ -61,19 +63,22 @@ function sourceOf() {
 
     if (host === window.location.hostname) return 'direct'
 
+    // The site itself or one of its subdomains (m.facebook.com), never a lookalike
+    // such as google.example.com.
     const known = [
-      ['google', /google\./],
-      ['bing', /bing\.com/],
-      ['whatsapp', /(whatsapp|wa\.me|l\.wl\.co)/],
-      ['facebook', /(facebook\.com|fb\.com|fb\.me)/],
-      ['instagram', /instagram\.com/],
-      ['tiktok', /tiktok\.com/],
-      ['x', /(twitter\.com|t\.co|x\.com)/],
-      ['linkedin', /linkedin\.com/],
-      ['youtube', /youtube\.com/],
+      ['google', ['google.com', 'google.co.ke']],
+      ['bing', ['bing.com']],
+      ['whatsapp', ['whatsapp.com', 'wa.me', 'l.wl.co']],
+      ['facebook', ['facebook.com', 'fb.com', 'fb.me']],
+      ['instagram', ['instagram.com']],
+      ['tiktok', ['tiktok.com']],
+      ['x', ['twitter.com', 't.co', 'x.com']],
+      ['linkedin', ['linkedin.com', 'lnkd.in']],
+      ['youtube', ['youtube.com', 'youtu.be']],
     ]
+    const isSite = (domain) => host === domain || host.endsWith(`.${domain}`)
 
-    return known.find(([, pattern]) => pattern.test(host))?.[0] || host.slice(0, 40)
+    return known.find(([, domains]) => domains.some(isSite))?.[0] || host.slice(0, 40)
   } catch {
     return 'direct'
   }
