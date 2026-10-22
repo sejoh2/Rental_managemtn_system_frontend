@@ -5,7 +5,6 @@ import {
   getCaretaker,
   listCaretakers,
   updateCaretaker,
-  setCaretakerPaymentPermission,
   updatePropertyCaretaker,
 } from '../../api/caretakers'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
@@ -24,7 +23,12 @@ import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
 import { formatPhone } from '../../utils/format'
-import { PERMISSION_LEVELS } from '../../utils/labels'
+import CaretakerPermissions from '../../components/dashboard/CaretakerPermissions'
+import {
+  DEFAULT_CARETAKER_PERMISSIONS,
+  permissionSummary,
+  samePermissions,
+} from '../../utils/labels'
 
 const smallButtonClass =
   'rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]'
@@ -55,8 +59,7 @@ function groupCaretakers(rows) {
       caretakers.get(row.caretaker_id).assignments.push({
         property_id: row.property_id,
         property_name: row.property_name,
-        permission_level: row.permission_level,
-        can_record_payments: row.can_record_payments === true,
+        permissions: row.permissions || DEFAULT_CARETAKER_PERMISSIONS,
       })
     }
   }
@@ -79,10 +82,6 @@ function caretakerStatus(caretaker) {
   return caretaker.assignments.length && caretaker.user_status === 'active'
     ? { key: 'active', label: 'Active', tone: 'success' }
     : { key: 'inactive', label: 'Inactive', tone: 'neutral' }
-}
-
-function levelLabel(level) {
-  return level === 'level_2' ? 'Level 2 · Add tenants' : 'Level 1 · View only'
 }
 
 // "Green View Apartments - currently: Peter Mwangi"
@@ -187,12 +186,9 @@ function CaretakersPage() {
                               {caretaker.assignments.map((assignment) => (
                                 <div key={assignment.property_id} className="flex flex-wrap items-center gap-2">
                                   <span>{assignment.property_name}</span>
-                                  <StatusBadge tone={assignment.permission_level === 'level_2' ? 'info' : 'neutral'}>
-                                    {levelLabel(assignment.permission_level)}
-                                  </StatusBadge>
-                                  {assignment.can_record_payments ? (
-                                    <StatusBadge tone="warning">Records payments</StatusBadge>
-                                  ) : null}
+                                  <span className="text-[10px] text-[var(--ink-faint)]">
+                                    {permissionSummary(assignment.permissions)}
+                                  </span>
                                 </div>
                               ))}
                             </div>
@@ -267,7 +263,7 @@ function AddCaretakerModal({ properties, onClose, onDone }) {
     last_name: '',
     phone: '',
     property_id: String(properties[0]?.id || ''),
-    permission_level: 'level_1',
+    permissions: DEFAULT_CARETAKER_PERMISSIONS,
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -288,7 +284,7 @@ function AddCaretakerModal({ properties, onClose, onDone }) {
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         phone: form.phone.replace(/\s/g, ''),
-        permission_level: form.permission_level,
+        permissions: form.permissions,
       })
 
       onDone()
@@ -343,11 +339,9 @@ function AddCaretakerModal({ properties, onClose, onDone }) {
             </div>
 
             <div className="sm:col-span-2">
-              <SelectField
-                label="Permission level"
-                value={form.permission_level}
-                onChange={setField('permission_level')}
-                options={PERMISSION_LEVELS}
+              <CaretakerPermissions
+                value={form.permissions}
+                onChange={(permissions) => setForm((current) => ({ ...current, permissions }))}
               />
             </div>
           </div>
@@ -393,11 +387,9 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
     phone: formatPhone(caretaker.phone, ''),
     status: suspended ? 'suspended' : 'active',
   })
-  // property id -> permission level picked, for the properties whose level was changed.
-  const [levels, setLevels] = useState({})
-  // property id -> true or false, for the properties whose payment permission was changed.
-  const [payments, setPayments] = useState({})
-  const [another, setAnother] = useState({ property_id: '', permission_level: 'level_1' })
+  // property id -> the switches, for the properties whose switches were changed.
+  const [permissions, setPermissions] = useState({})
+  const [another, setAnother] = useState({ property_id: '' })
   const [removing, setRemoving] = useState(null)
   // 'save' | 'assign' while a request is running.
   const [working, setWorking] = useState(null)
@@ -433,16 +425,10 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
       if (Object.keys(details).length) await updateCaretaker(caretaker.caretaker_id, details)
 
       for (const assignment of caretaker.assignments) {
-        const level = levels[assignment.property_id]
+        const changed = permissions[assignment.property_id]
 
-        if (level && level !== assignment.permission_level) {
-          await updatePropertyCaretaker(assignment.property_id, { permission_level: level })
-        }
-
-        const allowed = payments[assignment.property_id]
-
-        if (allowed !== undefined && allowed !== assignment.can_record_payments) {
-          await setCaretakerPaymentPermission(assignment.property_id, allowed)
+        if (changed && !samePermissions(changed, assignment.permissions)) {
+          await updatePropertyCaretaker(assignment.property_id, { permissions: changed })
         }
       }
 
@@ -464,10 +450,9 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
         first_name: caretaker.first_name,
         last_name: caretaker.last_name,
         phone: caretaker.phone,
-        permission_level: another.permission_level,
       })
 
-      setAnother({ property_id: '', permission_level: 'level_1' })
+      setAnother({ property_id: '' })
       onChanged()
     } catch (assignError) {
       setError(assignError)
@@ -539,21 +524,6 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
                   <span className="min-w-[150px] flex-1 text-[12px] font-bold">
                     {assignment.property_name}
                   </span>
-                  <select
-                    value={levels[assignment.property_id] || assignment.permission_level}
-                    onChange={(event) =>
-                      setLevels((current) => ({
-                        ...current,
-                        [assignment.property_id]: event.target.value,
-                      }))
-                    }
-                    aria-label={`Permission level for ${assignment.property_name}`}
-                    className={`${inputClass} max-w-[300px]`}
-                  >
-                    {PERMISSION_LEVELS.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
                   <button
                     type="button"
                     onClick={() => setRemoving(assignment)}
@@ -562,27 +532,15 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
                     Remove
                   </button>
 
-                  <label className="flex w-full basis-full items-start gap-2 text-[11px] leading-[1.5]">
-                    <input
-                      type="checkbox"
-                      checked={payments[assignment.property_id] ?? assignment.can_record_payments}
-                      onChange={(event) =>
-                        setPayments((current) => ({
-                          ...current,
-                          [assignment.property_id]: event.target.checked,
-                        }))
+                  <div className="w-full basis-full">
+                    <CaretakerPermissions
+                      value={permissions[assignment.property_id] || assignment.permissions}
+                      onChange={(next) =>
+                        setPermissions((current) => ({ ...current, [assignment.property_id]: next }))
                       }
-                      className="mt-[2px] h-[13px] w-[13px]"
+                      propertyName={assignment.property_name}
                     />
-                    <span>
-                      May record payments handed to them (cash, cheque or bank) for{' '}
-                      {assignment.property_name}
-                      <span className="block text-[10px] text-[var(--ink-faint)]">
-                        Each payment they record shows their name and is in the audit log. Off unless
-                        you turn it on.
-                      </span>
-                    </span>
-                  </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -592,7 +550,11 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
 
           {otherProperties.length ? (
             <div className="mt-[14px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-              <div className="mb-3 text-[12px] font-bold">Assign to another property</div>
+              <div className="mb-1 text-[12px] font-bold">Assign to another property</div>
+              <p className="mb-3 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                They start with the day-to-day work (readings, electricity, maintenance, expenses,
+                view tenants). Change it in the list above once assigned.
+              </p>
 
               <div className="flex flex-wrap items-center gap-3">
                 <select
@@ -609,17 +571,6 @@ function ManageCaretakerModal({ caretaker, properties, onClose, onChanged }) {
 
                     return <option key={value} value={value}>{label}</option>
                   })}
-                </select>
-                <select
-                  value={another.permission_level}
-                  onChange={(event) =>
-                    setAnother((current) => ({ ...current, permission_level: event.target.value }))
-                  }
-                  aria-label="Permission level"
-                  className={`${inputClass} max-w-[150px]`}
-                >
-                  <option value="level_1">Level 1</option>
-                  <option value="level_2">Level 2</option>
                 </select>
                 <button
                   type="button"

@@ -24,6 +24,7 @@ import {
 } from '../../utils/propertyForm'
 import { FormError } from '../common/DataState'
 import CaretakerField from './CaretakerField'
+import { samePermissions } from '../../utils/labels'
 import PaymentAccountCard from './PaymentAccountCard'
 import SmsSenderField from './SmsSenderField'
 
@@ -61,7 +62,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
           ...emptyCaretaker,
           mode: 'existing',
           caretakerId: String(currentCaretaker.caretaker_id),
-          permission_level: currentCaretaker.permission_level,
+          permissions: currentCaretaker.permissions || emptyCaretaker.permissions,
         }
       : emptyCaretaker
   )
@@ -134,10 +135,8 @@ function EditPropertyForm({ property, onClose, onSaved }) {
       caretaker.caretakerId === String(currentCaretaker?.caretaker_id)
 
     if (sameCaretaker) {
-      if (caretaker.permission_level !== currentCaretaker.permission_level) {
-        await updatePropertyCaretaker(property.id, {
-          permission_level: caretaker.permission_level,
-        })
+      if (!samePermissions(caretaker.permissions, currentCaretaker.permissions)) {
+        await updatePropertyCaretaker(property.id, { permissions: caretaker.permissions })
       }
 
       return
