@@ -55,8 +55,8 @@ const RECIPIENT_GROUPS = [
 function recipientTarget(sendTo) {
   const [kind, id] = sendTo.split(':')
 
-  if (kind === 'property') return { recipient_group: 'property', property_id: Number(id) }
-  if (kind === 'tenant') return { recipient_group: 'specific_tenant', tenant_id: Number(id) }
+  if (kind === 'property') return { recipient_group: 'property', property_id: id }
+  if (kind === 'tenant') return { recipient_group: 'specific_tenant', tenant_id: id }
 
   return { recipient_group: sendTo }
 }
@@ -610,7 +610,7 @@ function BroadcastModal({ templates, selectedTemplate, editing, properties, defa
 
     const body = {
       ...target,
-      ...(form.template_id ? { template_id: Number(form.template_id) } : {}),
+      ...(form.template_id ? { template_id: form.template_id } : {}),
       message: form.message.trim(),
       ...(sendAt ? { send_at: sendAt.toISOString() } : {}),
     }

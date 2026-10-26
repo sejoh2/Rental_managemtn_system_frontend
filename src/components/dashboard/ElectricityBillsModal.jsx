@@ -65,7 +65,7 @@ function MonthBills({ property, period, onClose, onSaved }) {
       await saveElectricityBills(
         property.id,
         period,
-        changed.map(([unitId, value]) => ({ unit_id: Number(unitId), amount: Number(value) }))
+        changed.map(([unitId, value]) => ({ unit_id: unitId, amount: Number(value) }))
       )
 
       onSaved?.()
