@@ -515,7 +515,7 @@ function ExpenseFormModal({ properties, defaultPropertyId, expense, onClose, onD
       amount: Number(form.amount),
       expense_date: form.expense_date,
       notes: form.notes.trim() || null,
-      unit_id: form.unit_id ? Number(form.unit_id) : null,
+      unit_id: form.unit_id || null,
     }
 
     let created = null

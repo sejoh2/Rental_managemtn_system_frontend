@@ -388,7 +388,7 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
 
     try {
       await matchPayment(payment.id, {
-        tenant_id: Number(tenantId),
+        tenant_id: tenantId,
         remember_payment_phone: rememberPhone,
       })
       onDone()

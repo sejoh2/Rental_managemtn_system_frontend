@@ -336,7 +336,7 @@ function ReportIssueModal({ properties, defaultPropertyId, onClose, onDone }) {
 
     try {
       await reportMaintenance(form.property_id, {
-        unit_id: form.unit_id ? Number(form.unit_id) : null,
+        unit_id: form.unit_id || null,
         title: form.title.trim(),
         description: form.description.trim() || null,
         category: form.category,
@@ -527,11 +527,7 @@ function UpdateRequestModal({ request, property, onClose, onDone }) {
         priority: form.priority,
         // Sent only when it changes: a caretaker since removed from the property cannot be re-sent.
         ...(form.assigned_caretaker_id !== String(request.assigned_caretaker_id || '')
-          ? {
-              assigned_caretaker_id: form.assigned_caretaker_id
-                ? Number(form.assigned_caretaker_id)
-                : null,
-            }
+          ? { assigned_caretaker_id: form.assigned_caretaker_id || null }
           : {}),
         assigned_vendor_name: form.assigned_vendor_name.trim() || null,
         estimated_cost: form.estimated_cost === '' ? null : Number(form.estimated_cost),

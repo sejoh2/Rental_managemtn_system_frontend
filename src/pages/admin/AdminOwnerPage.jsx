@@ -27,7 +27,7 @@ function AdminOwnerPage() {
     setError(null)
 
     try {
-      await openOwnerAccount(Number(ownerId))
+      await openOwnerAccount(ownerId)
       navigate('/dashboard')
     } catch (openError) {
       setError(openError)
