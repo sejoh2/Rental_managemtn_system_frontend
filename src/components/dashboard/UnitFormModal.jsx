@@ -17,6 +17,31 @@ const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]'
 // The choice in the unit type list that opens a box for typing a new type.
 const NEW_TYPE = '__new_type__'
 
+const linkClass = 'text-[11px] font-bold text-[var(--accent-ink)] hover:underline'
+
+// The property's rules, in words, for a unit that follows them.
+function waterRuleText(property) {
+  if (property.water_billing_method === 'per_unit_metered') {
+    return `Per-unit metered at ${formatKES(property.water_rate_per_unit)} a unit`
+  }
+
+  if (property.water_billing_method === 'fixed_monthly') {
+    return `Fixed ${formatKES(property.water_fixed_fee)} every month`
+  }
+
+  return 'Included in rent'
+}
+
+function electricityRuleText(property) {
+  if (property.electricity_billing_method === 'fixed_monthly') {
+    return `Fixed ${formatKES(property.electricity_monthly_charge)} every month, with rent`
+  }
+
+  if (property.electricity_billing_method === 'entered') return 'The amount you enter each month'
+
+  return 'Not billed'
+}
+
 // Adds a unit to `property`, or edits `unit` when one is passed.
 function UnitFormModal({ open, ...props }) {
   if (!open || !props.property) return null
@@ -44,6 +69,9 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
       unit?.water_fixed_monthly_bill ?? (property.water_fixed_fee || '')
     ),
     water_meter_number: unit?.water_meter_number || '',
+    // Billed differently from the property's rules (decided 2026-10-27); new units follow them.
+    water_own: Boolean(unit?.water_billing_own),
+    electricity_own: Boolean(unit?.electricity_billing_own),
     electricity_billing:
       unit?.electricity_billing_method === 'entered'
         ? 'entered'
@@ -68,8 +96,13 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
   ]
   const addingType = form.unit_type === NEW_TYPE
 
-  const metered = form.water_billing_method === 'per_unit_metered'
-  const fixed = form.water_billing_method === 'fixed_monthly'
+  // What actually applies to this unit: its own choice, or the property's rule.
+  const waterMethod = form.water_own ? form.water_billing_method : property.water_billing_method
+  const electricityMethod = form.electricity_own
+    ? form.electricity_billing
+    : property.electricity_billing_method || 'none'
+  const metered = waterMethod === 'per_unit_metered'
+  const fixed = form.water_own && waterMethod === 'fixed_monthly'
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -88,18 +121,26 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
       rent_deposit: Number(form.rent_deposit) || 0,
       // Empty means this unit has no water deposit.
       water_deposit: Number(form.water_deposit) || 0,
-      water_billing_method: form.water_billing_method,
-      water_rate_per_unit: metered ? Number(form.water_rate_per_unit) : null,
+      // Following the property: the backend fills in its rules; only the meter number is this unit's.
+      water_billing_own: form.water_own,
       water_meter_number: metered ? form.water_meter_number.trim() : null,
-      water_fixed_monthly_bill: fixed ? Number(form.water_fixed_monthly_bill) : null,
-      // "Not billed" is a fixed monthly amount of nothing.
-      electricity_billing_method:
-        form.electricity_billing === 'entered' ? 'entered' : 'fixed_monthly',
-      electricity_monthly_charge:
-        form.electricity_billing === 'fixed_monthly'
-          ? Number(form.electricity_monthly_charge) || null
-          : null,
-      electricity_deposit: Number(form.electricity_deposit) || null,
+      ...(form.water_own
+        ? {
+            water_billing_method: form.water_billing_method,
+            water_rate_per_unit: metered ? Number(form.water_rate_per_unit) : null,
+            water_fixed_monthly_bill: fixed ? Number(form.water_fixed_monthly_bill) : null,
+          }
+        : {}),
+      electricity_billing_own: form.electricity_own,
+      ...(form.electricity_own
+        ? {
+            // "Not billed" is a fixed monthly amount of nothing.
+            electricity_billing_method: form.electricity_billing === 'entered' ? 'entered' : 'fixed_monthly',
+            electricity_monthly_charge:
+              form.electricity_billing === 'fixed_monthly' ? Number(form.electricity_monthly_charge) || null : null,
+          }
+        : {}),
+      electricity_deposit: electricityMethod === 'none' ? null : Number(form.electricity_deposit) || null,
       // A unit is occupied only through a tenant; otherwise it is vacant.
       ...(occupied ? {} : { status: 'vacant' }),
     }
@@ -198,33 +239,57 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
               required
             />
 
-            <SelectField
-              label="Water billing"
-              value={form.water_billing_method}
-              onChange={setField('water_billing_method')}
-              options={WATER_BILLING_METHODS}
-            />
+            {form.water_own ? (
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold text-[var(--warning)]">Billed differently from the property</span>
+                  <button
+                    type="button"
+                    className={linkClass}
+                    onClick={() => setForm((current) => ({ ...current, water_own: false }))}
+                  >
+                    Use the property&apos;s water rule
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <SelectField
+                    label="Water billing"
+                    value={form.water_billing_method}
+                    onChange={setField('water_billing_method')}
+                    options={WATER_BILLING_METHODS}
+                  />
+                </div>
+              </div>
+            ) : (
+              <RuleLine
+                label="Water"
+                text={`${waterRuleText(property)} (the property's rule)`}
+                action="Bill this unit differently"
+                onAction={() => setForm((current) => ({ ...current, water_own: true }))}
+              />
+            )}
+
+            {metered && form.water_own ? (
+              <Field
+                label="Water rate per unit (KES)"
+                placeholder="e.g. 100"
+                type="number"
+                min="1"
+                step="any"
+                value={form.water_rate_per_unit}
+                onChange={setField('water_rate_per_unit')}
+                required
+              />
+            ) : null}
 
             {metered ? (
-              <>
-                <Field
-                  label="Water rate per unit (KES)"
-                  placeholder="e.g. 100"
-                  type="number"
-                  min="1"
-                  step="any"
-                  value={form.water_rate_per_unit}
-                  onChange={setField('water_rate_per_unit')}
-                  required
-                />
-                <Field
-                  label="Water meter number"
-                  placeholder="e.g. GV-H15-01"
-                  value={form.water_meter_number}
-                  onChange={setField('water_meter_number')}
-                  required
-                />
-              </>
+              <Field
+                label="Water meter number"
+                placeholder="e.g. GV-H15-01"
+                value={form.water_meter_number}
+                onChange={setField('water_meter_number')}
+                required
+              />
             ) : null}
 
             {fixed ? (
@@ -240,24 +305,49 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
               />
             ) : null}
 
-            <Field
-              label="Water deposit (KES, optional)"
-              placeholder="e.g. 2000"
-              type="number"
-              min="0"
-              step="any"
-              value={form.water_deposit}
-              onChange={setField('water_deposit')}
-            />
+            {waterMethod === 'included_in_rent' ? null : (
+              <Field
+                label="Water deposit (KES, optional)"
+                placeholder="e.g. 2000"
+                type="number"
+                min="0"
+                step="any"
+                value={form.water_deposit}
+                onChange={setField('water_deposit')}
+              />
+            )}
 
-            <SelectField
-              label="Electricity billing"
-              value={form.electricity_billing}
-              onChange={setField('electricity_billing')}
-              options={ELECTRICITY_BILLING}
-            />
+            {form.electricity_own ? (
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold text-[var(--warning)]">Billed differently from the property</span>
+                  <button
+                    type="button"
+                    className={linkClass}
+                    onClick={() => setForm((current) => ({ ...current, electricity_own: false }))}
+                  >
+                    Use the property&apos;s electricity rule
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <SelectField
+                    label="Electricity billing"
+                    value={form.electricity_billing}
+                    onChange={setField('electricity_billing')}
+                    options={ELECTRICITY_BILLING}
+                  />
+                </div>
+              </div>
+            ) : (
+              <RuleLine
+                label="Electricity"
+                text={`${electricityRuleText(property)} (the property's rule)`}
+                action="Bill this unit differently"
+                onAction={() => setForm((current) => ({ ...current, electricity_own: true }))}
+              />
+            )}
 
-            {form.electricity_billing === 'fixed_monthly' ? (
+            {form.electricity_own && form.electricity_billing === 'fixed_monthly' ? (
               <Field
                 label="Electricity (KES / month)"
                 placeholder="e.g. 2000"
@@ -270,24 +360,27 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
               />
             ) : null}
 
-            <Field
-              label="Electricity deposit (KES, optional)"
-              placeholder="e.g. 2000"
-              type="number"
-              min="0"
-              step="any"
-              value={form.electricity_deposit}
-              onChange={setField('electricity_deposit')}
-            />
+            {electricityMethod === 'none' ? null : (
+              <Field
+                label="Electricity deposit (KES, optional)"
+                placeholder="e.g. 2000"
+                type="number"
+                min="0"
+                step="any"
+                value={form.electricity_deposit}
+                onChange={setField('electricity_deposit')}
+              />
+            )}
 
             <p className="-mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)] sm:col-span-2">
-              {form.electricity_billing === 'fixed_monthly'
+              {electricityMethod === 'fixed_monthly'
                 ? "The fixed amount is added to the tenant's bill on the 1st of every month, together with rent."
-                : form.electricity_billing === 'entered'
+                : electricityMethod === 'entered'
                   ? 'You type what this unit owes each month with "Enter electricity bills" on the Units page, and the tenant is billed exactly that.'
                   : 'Electricity is not billed for this unit.'}{' '}
               Each deposit you set is charged once, in full, when a tenant
-              moves in; a deposit left empty is not charged.
+              moves in; a deposit left empty is not charged. The property&apos;s
+              rules are changed in Edit property (electricity) and Settings, Water rules.
             </p>
 
             <div className="sm:col-span-2">
@@ -339,6 +432,21 @@ function UnitForm({ property, unit, customTypes = [], onClose, onSaved }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// The property's rule for this unit, with a way to bill it differently.
+function RuleLine({ label, text, action, onAction }) {
+  return (
+    <div className="sm:col-span-2">
+      <label className={labelClass}>{label}</label>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--line-soft)] px-3 py-[9px] text-[12px] text-[var(--ink-soft)]">
+        <span>{text}</span>
+        <button type="button" className={linkClass} onClick={onAction}>
+          {action}
+        </button>
       </div>
     </div>
   )

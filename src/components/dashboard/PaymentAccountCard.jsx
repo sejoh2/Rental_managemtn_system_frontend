@@ -48,6 +48,8 @@ function PaymentAccountCard({
   callbackNote,
   onCancel,
   cancelLabel = 'Keep current account',
+  // An extra account added by mistake: a Remove next to its name too, where it is easy to find.
+  onRemove,
 }) {
   const [guideOpen, setGuideOpen] = useState(false)
 
@@ -107,9 +109,21 @@ function PaymentAccountCard({
     <div className="mb-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
-        <span className={`text-[11px] font-bold ${connected ? 'text-[var(--success)]' : 'text-[var(--ink-faint)]'}`}>
-          {connected ? 'Connected' : 'Not connected'}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`text-[11px] font-bold ${connected ? 'text-[var(--success)]' : 'text-[var(--ink-faint)]'}`}>
+            {connected ? 'Connected' : 'Not connected'}
+          </span>
+          {onRemove ? (
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={connecting}
+              className="text-[11px] font-bold text-[var(--danger)] hover:underline disabled:opacity-50"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mb-3 grid gap-[14px] sm:grid-cols-2">

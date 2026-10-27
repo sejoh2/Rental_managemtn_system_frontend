@@ -14,6 +14,7 @@ import {
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
   SERVICE_CHARGE_ACCOUNTS,
+  ELECTRICITY_BILLING,
   paymentAccountTypeLabel,
 } from '../../utils/labels'
 import {
@@ -55,6 +56,10 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     move_out_billing: property.move_out_billing,
     sms_sender_id: property.sms_sender_id || '',
     service_charge_account: property.service_charge_account || 'rent',
+    // How electricity is billed; units that follow the property change with it.
+    electricity_billing_method: property.electricity_billing_method || 'none',
+    electricity_monthly_charge: property.electricity_monthly_charge ? String(property.electricity_monthly_charge) : '',
+    electricity_apply_occupied: false,
   })
   const [caretaker, setCaretaker] = useState(
     currentCaretaker
@@ -101,6 +106,11 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     : serviceChargeAccounts.some(([accountFor]) => accountFor === form.service_charge_account)
       ? form.service_charge_account
       : 'rent'
+
+  const electricityChanged =
+    form.electricity_billing_method !== (property.electricity_billing_method || 'none') ||
+    (form.electricity_billing_method === 'fixed_monthly' &&
+      Number(form.electricity_monthly_charge) !== Number(property.electricity_monthly_charge || 0))
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -183,6 +193,15 @@ function EditPropertyForm({ property, onClose, onSaved }) {
         move_in_billing: form.move_in_billing,
         move_out_billing: form.move_out_billing,
         sms_sender_id: form.sms_sender_id.trim() || null,
+        // Sent only when changed, so the units are not touched otherwise.
+        ...(electricityChanged
+          ? {
+              electricity_billing_method: form.electricity_billing_method,
+              electricity_monthly_charge:
+                form.electricity_billing_method === 'fixed_monthly' ? Number(form.electricity_monthly_charge) : 0,
+              apply_to_occupied_units: form.electricity_apply_occupied,
+            }
+          : {}),
       })
       saved.push('property details')
 
@@ -292,6 +311,48 @@ function EditPropertyForm({ property, onClose, onSaved }) {
               that has already been billed is not changed.
             </p>
 
+            <SectionTitle title="Electricity billing" />
+
+            <SelectField
+              label="Billing method"
+              value={form.electricity_billing_method}
+              onChange={setField('electricity_billing_method')}
+              options={ELECTRICITY_BILLING}
+            />
+
+            {form.electricity_billing_method === 'fixed_monthly' ? (
+              <div className="mb-[18px] max-w-[300px]">
+                <label className="mb-2 block text-[11px] font-bold text-[var(--ink)]">Electricity (KES / month)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  required
+                  value={form.electricity_monthly_charge}
+                  onChange={setField('electricity_monthly_charge')}
+                  placeholder="e.g. 1000"
+                  className="h-10 w-full rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                />
+              </div>
+            ) : null}
+
+            {electricityChanged ? (
+              <label className="-mt-2 mb-[10px] flex items-start gap-2 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+                <input
+                  type="checkbox"
+                  className="mt-[3px]"
+                  checked={form.electricity_apply_occupied}
+                  onChange={(event) => setForm((current) => ({ ...current, electricity_apply_occupied: event.target.checked }))}
+                />
+                Also change units that have a tenant. Left unticked, only vacant units change now.
+              </label>
+            ) : null}
+
+            <p className="-mt-1 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+              Units that follow the property change with it; a unit billed
+              differently keeps its own. Bills already made are not changed.
+            </p>
+
             <div className="mb-[18px] max-w-[300px]">
               <SmsSenderField
                 saved={property.sms_sender_id}
@@ -371,8 +432,13 @@ function EditPropertyForm({ property, onClose, onSaved }) {
                   propertyName={form.name}
                   propertyId={property.id}
                   callbackNote="The new account replaces the current one, and payment callbacks are registered with Safaricom, when you save."
-                  cancelLabel={property[`${accountFor}_account`] ? 'Keep current account' : 'Cancel'}
+                  cancelLabel={property[`${accountFor}_account`] ? 'Keep current account' : 'Remove this account'}
                   onCancel={() => setChanging((current) => ({ ...current, [accountFor]: false }))}
+                  onRemove={
+                    accountFor !== 'rent' && !property[`${accountFor}_account`]
+                      ? () => setChanging((current) => ({ ...current, [accountFor]: false }))
+                      : undefined
+                  }
                 />
               ) : (
                 <CurrentAccount
