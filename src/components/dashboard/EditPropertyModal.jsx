@@ -86,18 +86,21 @@ function EditPropertyForm({ property, onClose, onSaved }) {
 
   const existingCaretakers = uniqueCaretakers(caretakers.data)
 
-  // Service charges can be paid into any account the property has, or is getting in this save.
+  // Has, or is getting in this save, an account of its own.
+  const keeps = (accountFor) => changing[accountFor] || (property[`${accountFor}_account`] && !removing[accountFor])
+
+  /*
+    Service charges and repairs are paid into one account: their own account
+    when the property has one, otherwise rent, water or electricity.
+  */
   const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
-    ([accountFor]) =>
-      accountFor === 'rent' ||
-      changing[accountFor] ||
-      (property[`${accountFor}_account`] && !removing[accountFor])
+    ([accountFor]) => accountFor === 'rent' || (accountFor !== 'service' && keeps(accountFor))
   )
-  const serviceChargeAccount = serviceChargeAccounts.some(
-    ([accountFor]) => accountFor === form.service_charge_account
-  )
-    ? form.service_charge_account
-    : 'rent'
+  const serviceChargeAccount = keeps('service')
+    ? 'service'
+    : serviceChargeAccounts.some(([accountFor]) => accountFor === form.service_charge_account)
+      ? form.service_charge_account
+      : 'rent'
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -333,19 +336,29 @@ function EditPropertyForm({ property, onClose, onSaved }) {
               through the rent account unless they have their own.
             </p>
 
-            <SelectField
-              label="Service charges and repairs are paid into"
-              value={serviceChargeAccount}
-              onChange={setField('service_charge_account')}
-              options={serviceChargeAccounts}
-            />
+            {keeps('service') ? (
+              <p className="mb-[18px] rounded-[8px] bg-[var(--line-soft)] px-3 py-[10px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+                Service charges and repairs are paid into the service charges
+                account only. To have them paid into another account, remove it
+                below.
+              </p>
+            ) : (
+              <>
+                <SelectField
+                  label="Service charges and repairs are paid into"
+                  value={serviceChargeAccount}
+                  onChange={setField('service_charge_account')}
+                  options={serviceChargeAccounts}
+                />
 
-            <p className="-mt-2 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-              Money paid into this account settles that account&apos;s own
-              bills first, then service charges such as garbage or security.
-              To use a separate account just for them, add a service charges
-              account below and choose it here.
-            </p>
+                <p className="-mt-2 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                  Money paid into this account settles that account&apos;s own
+                  bills first, then service charges such as garbage or security.
+                  To use a separate account just for them, add a service charges
+                  account below.
+                </p>
+              </>
+            )}
 
             {accountSlots.map(([accountFor, title]) =>
               changing[accountFor] ? (

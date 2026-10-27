@@ -86,15 +86,19 @@ function AddPropertyForm({ onClose }) {
   const rentDueDay =
     form.rent_due_day || String(settings.data?.defaults.default_rent_due_day || 5);
 
-  // Service charges can be paid into the rent account or any separate account being added.
+  /*
+    Service charges and repairs are paid into one account: their own account
+    when one is being added, otherwise rent, or a separate water or
+    electricity account being added.
+  */
   const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
-    ([accountFor]) => accountFor === 'rent' || separateAccount[accountFor]
+    ([accountFor]) => accountFor === 'rent' || (accountFor !== 'service' && separateAccount[accountFor])
   );
-  const serviceChargeAccount = serviceChargeAccounts.some(
-    ([accountFor]) => accountFor === form.service_charge_account
-  )
-    ? form.service_charge_account
-    : 'rent';
+  const serviceChargeAccount = separateAccount.service
+    ? 'service'
+    : serviceChargeAccounts.some(([accountFor]) => accountFor === form.service_charge_account)
+      ? form.service_charge_account
+      : 'rent';
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -436,25 +440,33 @@ function AddPropertyForm({ onClose }) {
                 )
               )}
 
-              <div className="mb-4">
-                <label className={labelClass}>Service charges and repairs are paid into</label>
-                <select
-                  value={serviceChargeAccount}
-                  onChange={setField('service_charge_account')}
-                  className={inputClass}
-                >
-                  {serviceChargeAccounts.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-                <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-                  Service charges are costs you pass on to tenants, such as
-                  garbage or security. You add them on the Properties page
-                  after the property is created. Money paid into the account
-                  chosen here settles that account&apos;s own bills first,
-                  then service charges.
+              {separateAccount.service ? (
+                <p className="mb-4 rounded-[8px] bg-[var(--line-soft)] px-3 py-[10px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
+                  Service charges and repairs are paid into the service charges
+                  account only. To have them paid into another account, remove it.
                 </p>
-              </div>
+              ) : (
+                <div className="mb-4">
+                  <label className={labelClass}>Service charges and repairs are paid into</label>
+                  <select
+                    value={serviceChargeAccount}
+                    onChange={setField('service_charge_account')}
+                    className={inputClass}
+                  >
+                    {serviceChargeAccounts.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                    Service charges are costs you pass on to tenants, such as
+                    garbage or security. You add them on the Properties page
+                    after the property is created. Money paid into the account
+                    chosen here settles that account&apos;s own bills first,
+                    then service charges. For an account just for them, add a
+                    service charges account above.
+                  </p>
+                </div>
+              )}
 
               {/* Water Billing Section */}
               <SectionTitle title="Water billing" className="mt-[6px]" />
