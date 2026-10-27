@@ -301,6 +301,16 @@ function UnitTile({ unit, onEdit, onDelete }) {
         {formatKES(unit.monthly_rent)}
       </div>
 
+      {unit.water_billing_own || unit.electricity_billing_own ? (
+        <p className="mt-[6px] text-[10px] font-bold text-[var(--warning)]">
+          {unit.water_billing_own && unit.electricity_billing_own
+            ? 'Water and electricity: different from the property'
+            : unit.water_billing_own
+              ? 'Water: different from the property'
+              : 'Electricity: different from the property'}
+        </p>
+      ) : null}
+
       <div className="mt-[12px] grid grid-cols-2 gap-[8px]">
         <button
           onClick={onEdit}
