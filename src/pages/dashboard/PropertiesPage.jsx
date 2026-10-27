@@ -299,6 +299,12 @@ function PaymentAccount({ account, badge, tone }) {
           {badge}
         </span>
       </div>
+
+      {account?.connection_error ? (
+        <p className="mt-[10px] rounded-[8px] bg-[var(--warning-soft)] px-3 py-2 text-[10.5px] leading-[1.5] text-[var(--warning)]">
+          {account.connection_error}
+        </p>
+      ) : null}
     </div>
   )
 }

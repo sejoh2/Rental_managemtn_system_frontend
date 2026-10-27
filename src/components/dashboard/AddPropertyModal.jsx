@@ -12,6 +12,7 @@ import {
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
   SERVICE_CHARGE_ACCOUNTS,
+  ELECTRICITY_BILLING,
   WATER_BILLING_METHODS,
 } from '../../utils/labels';
 import {
@@ -63,6 +64,9 @@ function AddPropertyForm({ onClose }) {
     water_billing_method: 'per_unit_metered',
     water_rate_per_unit: '',
     water_fixed_fee: '',
+    // How electricity is billed; the units follow it (decided 2026-10-27).
+    electricity_billing_method: 'none',
+    electricity_monthly_charge: '',
     service_charge_account: 'rent',
   });
   const [accounts, setAccounts] = useState({
@@ -109,6 +113,12 @@ function AddPropertyForm({ onClose }) {
       ...current,
       [accountFor]: { ...current[accountFor], ...patch },
     }));
+  }
+
+  // Back to no separate account: water and electricity are then paid through the rent account.
+  function removeAccount(accountFor) {
+    patchAccount(accountFor, emptyAccount);
+    setSeparateAccount((current) => ({ ...current, [accountFor]: false }));
   }
 
   function finish(property) {
@@ -174,6 +184,10 @@ function AddPropertyForm({ onClose }) {
           : {}),
         ...(form.water_billing_method === 'fixed_monthly'
           ? { water_fixed_fee: Number(form.water_fixed_fee) }
+          : {}),
+        electricity_billing_method: form.electricity_billing_method,
+        ...(form.electricity_billing_method === 'fixed_monthly'
+          ? { electricity_monthly_charge: Number(form.electricity_monthly_charge) }
           : {}),
         rent_connection_id: accounts.rent.connectionId,
         water_connection_id: separateAccount.water ? accounts.water.connectionId : null,
@@ -409,11 +423,9 @@ function AddPropertyForm({ onClose }) {
                     onChange={(patch) => patchAccount(accountFor, patch)}
                     propertyName={form.name}
                     callbackNote="Payment callbacks are registered with Safaricom when you add the property."
-                    cancelLabel={accountFor === 'service' ? 'Remove this account' : 'Use the rent account instead'}
-                    onCancel={() => {
-                      patchAccount(accountFor, emptyAccount);
-                      setSeparateAccount((current) => ({ ...current, [accountFor]: false }));
-                    }}
+                    cancelLabel="Remove this account"
+                    onCancel={() => removeAccount(accountFor)}
+                    onRemove={() => removeAccount(accountFor)}
                   />
                 ) : (
                   <div
@@ -524,7 +536,51 @@ function AddPropertyForm({ onClose }) {
                   monthly payment is less common — use it only if this property
                   isn't metered. Full rules — billing day, reading deadlines and
                   missed-reading handling — can be fine-tuned later from Settings
-                  › Water rules.
+                  › Water rules. Every unit follows this rule, unless you bill
+                  one differently when you add or edit it.
+                </p>
+              </div>
+
+              {/* Electricity Billing Section */}
+              <SectionTitle title="Electricity billing" className="mt-[22px]" />
+
+              <div className="grid gap-[14px]">
+                <div>
+                  <label className={labelClass}>Billing method</label>
+                  <select
+                    value={form.electricity_billing_method}
+                    onChange={setField('electricity_billing_method')}
+                    className={inputClass}
+                  >
+                    {ELECTRICITY_BILLING.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {form.electricity_billing_method === 'fixed_monthly' ? (
+                  <div>
+                    <label className={labelClass}>Electricity (KES / month)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      required
+                      value={form.electricity_monthly_charge}
+                      onChange={setField('electricity_monthly_charge')}
+                      placeholder="e.g. 1000"
+                      className={inputClass}
+                    />
+                  </div>
+                ) : null}
+
+                <p className="text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+                  {form.electricity_billing_method === 'fixed_monthly'
+                    ? "The amount is added to each tenant's bill on the 1st of every month, with rent."
+                    : form.electricity_billing_method === 'entered'
+                      ? 'You type what each unit owes every month with "Enter electricity bills" on the Units page.'
+                      : 'Tenants are not billed for electricity, for example when they buy their own tokens.'}{' '}
+                  Every unit follows this rule, unless you bill one differently.
                 </p>
               </div>
 
