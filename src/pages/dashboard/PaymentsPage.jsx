@@ -27,6 +27,7 @@ import {
   formatPhone,
   humanize,
 } from '../../utils/format'
+import { paymentAccountHint } from '../../utils/accountSharing'
 import { appliedToLabel, paymentMethodLabel, paymentStatsFor, paymentStatus } from '../../utils/payments'
 import { isCurrentTenant } from '../../utils/tenantStatus'
 
@@ -370,6 +371,7 @@ function UnmatchedView({ paymentsState, unmatched, onAssign }) {
 }
 
 function AssignPaymentModal({ payment, onClose, onDone }) {
+  const property = useProperties()?.data?.find((item) => item.id === payment.property_id)
   // A payment can only go to a tenant of the property whose account received it.
   const tenantsState = useApi(`tenants-property-${payment.property_id}`, () =>
     listTenants({ property_id: payment.property_id })
@@ -435,9 +437,8 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
           </select>
 
           <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-            The money is applied to the tenant's oldest unpaid{' '}
-            {payment.account_for === 'rent' ? 'rent deposit and rent' : `${payment.account_for} deposit and bills`}{' '}
-            first, because it arrived in the {payment.account_for} account.
+            {paymentAccountHint(payment.account_for, property) ||
+              `The money pays the tenant's ${payment.account_for} bills, because it arrived in the ${payment.account_for} account.`}
           </p>
 
           {payment.payer_phone ? (

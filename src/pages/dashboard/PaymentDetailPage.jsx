@@ -2,7 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { getPayment } from '../../api/payments'
 import { DataState, EmptyState } from '../../components/common/DataState'
 import StatusBadge from '../../components/common/StatusBadge'
+import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
+import { alsoCollectsText } from '../../utils/accountSharing'
 import { chargeLabel } from '../../utils/billing'
 import { formatDateTime, formatKES, formatPhone, humanize } from '../../utils/format'
 import { paymentMethodLabel, paymentStatus } from '../../utils/payments'
@@ -23,6 +25,7 @@ function Row({ label, children }) {
 function PaymentDetailPage() {
   const { paymentId } = useParams()
   const state = useApi(`payment-${paymentId}`, () => getPayment(paymentId))
+  const properties = useProperties()?.data
 
   return (
     <DataState state={state} loadingLabel="Loading payment...">
@@ -31,6 +34,11 @@ function PaymentDetailPage() {
         const applied = payment.applied_to.reduce((total, item) => total + item.amount, 0)
         // What was paid over the tenant's bills is kept as credit on their account.
         const credit = payment.status === 'matched' ? Math.max(payment.amount - applied, 0) : 0
+        // Other bills this account collects at the property, e.g. "Also collects service charges."
+        const alsoCollects = alsoCollectsText(
+          payment.account_for,
+          properties?.find((item) => item.id === payment.property_id)?.charge_accounts
+        )
 
         return (
           <>
@@ -78,7 +86,12 @@ function PaymentDetailPage() {
                 <Row label="Paid from">
                   <span className="font-mono">{formatPhone(payment.payer_phone)}</span>
                 </Row>
-                <Row label="Paid into">{humanize(payment.account_for)} account</Row>
+                <Row label="Paid into">
+                  {humanize(payment.account_for)} account
+                  {alsoCollects ? (
+                    <span className="block text-[10px] font-medium text-[var(--ink-faint)]">{alsoCollects}</span>
+                  ) : null}
+                </Row>
                 {payment.notes ? <Row label="Notes">{payment.notes}</Row> : null}
               </section>
 

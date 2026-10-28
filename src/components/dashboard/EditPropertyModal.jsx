@@ -13,7 +13,6 @@ import {
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
-  SERVICE_CHARGE_ACCOUNTS,
   ELECTRICITY_BILLING,
   paymentAccountTypeLabel,
 } from '../../utils/labels'
@@ -23,18 +22,21 @@ import {
   emptyCaretaker,
   uniqueCaretakers,
 } from '../../utils/propertyForm'
+import {
+  CHARGE_ACCOUNT_FIELD,
+  SHARED_KINDS,
+  alsoCollectsText,
+  effectiveAccount,
+  shareTargets,
+} from '../../utils/accountSharing'
 import { FormError } from '../common/DataState'
+import { PaymentOrderField, SharedAccountSlot } from './AccountSharing'
 import CaretakerField from './CaretakerField'
 import { samePermissions } from '../../utils/labels'
 import PaymentAccountCard from './PaymentAccountCard'
 import SmsSenderField from './SmsSenderField'
 
-const accountSlots = [
-  ['rent', 'Rent account'],
-  ['water', 'Water account'],
-  ['electricity', 'Electricity account'],
-  ['service', 'Service charges account'],
-]
+const accountSlots = [['rent', 'Rent account', 'Rent'], ...SHARED_KINDS]
 
 function EditPropertyModal({ open, property, ...props }) {
   if (!open || !property) return null
@@ -55,7 +57,11 @@ function EditPropertyForm({ property, onClose, onSaved }) {
     move_in_billing: property.move_in_billing,
     move_out_billing: property.move_out_billing,
     sms_sender_id: property.sms_sender_id || '',
+    // The account each kind uses when it has none of its own.
+    water_charge_account: property.water_charge_account || 'rent',
+    electricity_charge_account: property.electricity_charge_account || 'rent',
     service_charge_account: property.service_charge_account || 'rent',
+    payment_order: property.payment_order || 'fixed',
     // How electricity is billed; units that follow the property change with it.
     electricity_billing_method: property.electricity_billing_method || 'none',
     electricity_monthly_charge: property.electricity_monthly_charge ? String(property.electricity_monthly_charge) : '',
@@ -95,17 +101,26 @@ function EditPropertyForm({ property, onClose, onSaved }) {
   const keeps = (accountFor) => changing[accountFor] || (property[`${accountFor}_account`] && !removing[accountFor])
 
   /*
-    Service charges and repairs are paid into one account: their own account
-    when the property has one, otherwise rent, water or electricity.
+    Each kind is paid into one account: its own account when the property
+    keeps one, otherwise the one chosen with "Use ... account" (rent by default).
   */
-  const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
-    ([accountFor]) => accountFor === 'rent' || (accountFor !== 'service' && keeps(accountFor))
+  const hasAccount = (accountFor) => Boolean(keeps(accountFor))
+  const paidInto = Object.fromEntries(
+    SHARED_KINDS.map(([kind]) => [kind, effectiveAccount(kind, form[CHARGE_ACCOUNT_FIELD[kind]], hasAccount)])
   )
-  const serviceChargeAccount = keeps('service')
-    ? 'service'
-    : serviceChargeAccounts.some(([accountFor]) => accountFor === form.service_charge_account)
-      ? form.service_charge_account
-      : 'rent'
+  const chargeAccounts = { rent: 'rent', ...paidInto }
+  const accountNumbers = Object.fromEntries(
+    accountSlots.map(([accountFor]) => [
+      accountFor,
+      changing[accountFor]
+        ? accounts[accountFor].businessNumber.trim()
+        : property[`${accountFor}_account`]?.business_number || '',
+    ])
+  )
+  // True when where some bills are paid changes in this save.
+  const choicesChanged = SHARED_KINDS.some(
+    ([kind]) => paidInto[kind] !== (property.charge_accounts?.[kind] || property[CHARGE_ACCOUNT_FIELD[kind]] || 'rent')
+  )
 
   const electricityChanged =
     form.electricity_billing_method !== (property.electricity_billing_method || 'none') ||
@@ -193,6 +208,7 @@ function EditPropertyForm({ property, onClose, onSaved }) {
         move_in_billing: form.move_in_billing,
         move_out_billing: form.move_out_billing,
         sms_sender_id: form.sms_sender_id.trim() || null,
+        ...(form.payment_order !== (property.payment_order || 'fixed') ? { payment_order: form.payment_order } : {}),
         // Sent only when changed, so the units are not touched otherwise.
         ...(electricityChanged
           ? {
@@ -220,9 +236,14 @@ function EditPropertyForm({ property, onClose, onSaved }) {
       }
 
       // Saved after the accounts, because the chosen account must already exist.
-      if (serviceChargeAccount !== property.service_charge_account) {
-        await updateProperty(property.id, { service_charge_account: serviceChargeAccount })
-        saved.push('service charge account choice')
+      if (choicesChanged) {
+        await updateProperty(
+          property.id,
+          Object.fromEntries(
+            SHARED_KINDS.map(([kind]) => [CHARGE_ACCOUNT_FIELD[kind], paidInto[kind]])
+          )
+        )
+        saved.push('choice of accounts')
       }
 
       await saveCaretaker()
@@ -393,67 +414,92 @@ function EditPropertyForm({ property, onClose, onSaved }) {
             <p className="mb-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
               To switch to a different M-Pesa account, or to update the
               credentials of the current one, connect it here. Earlier
-              payments stay on record. Water and electricity are paid
-              through the rent account unless they have their own.
+              payments stay on record. Water, electricity and service charges
+              can each have their own account, or use another one.
             </p>
 
-            {keeps('service') ? (
-              <p className="mb-[18px] rounded-[8px] bg-[var(--line-soft)] px-3 py-[10px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
-                Service charges and repairs are paid into the service charges
-                account only. To have them paid into another account, remove it
-                below.
-              </p>
-            ) : (
-              <>
-                <SelectField
-                  label="Service charges and repairs are paid into"
-                  value={serviceChargeAccount}
-                  onChange={setField('service_charge_account')}
-                  options={serviceChargeAccounts}
-                />
+            {accountSlots.map(([accountFor, title, billsLabel]) => {
+              if (changing[accountFor]) {
+                return (
+                  <PaymentAccountCard
+                    key={accountFor}
+                    title={property[`${accountFor}_account`] ? `New ${title.toLowerCase()}` : title}
+                    accountFor={accountFor}
+                    account={accounts[accountFor]}
+                    onChange={(patch) => patchAccount(accountFor, patch)}
+                    propertyName={form.name}
+                    propertyId={property.id}
+                    callbackNote="The new account replaces the current one, and payment callbacks are registered with Safaricom, when you save."
+                    cancelLabel={property[`${accountFor}_account`] ? 'Keep current account' : 'Remove this account'}
+                    onCancel={() => setChanging((current) => ({ ...current, [accountFor]: false }))}
+                    onRemove={
+                      accountFor !== 'rent' && !property[`${accountFor}_account`]
+                        ? () => setChanging((current) => ({ ...current, [accountFor]: false }))
+                        : undefined
+                    }
+                  />
+                )
+              }
 
-                <p className="-mt-2 mb-[18px] text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-                  Money paid into this account settles that account&apos;s own
-                  bills first, then service charges such as garbage or security.
-                  To use a separate account just for them, add a service charges
-                  account below.
-                </p>
-              </>
-            )}
+              if (accountFor === 'rent' || keeps(accountFor)) {
+                return (
+                  <CurrentAccount
+                    key={accountFor}
+                    title={title}
+                    account={property[`${accountFor}_account`]}
+                    note={alsoCollectsText(accountFor, chargeAccounts)}
+                    onChange={() => startChanging(accountFor)}
+                    onRemove={
+                      accountFor !== 'rent'
+                        ? () => setRemoving((current) => ({ ...current, [accountFor]: true }))
+                        : undefined
+                    }
+                  />
+                )
+              }
 
-            {accountSlots.map(([accountFor, title]) =>
-              changing[accountFor] ? (
-                <PaymentAccountCard
-                  key={accountFor}
-                  title={property[`${accountFor}_account`] ? `New ${title.toLowerCase()}` : title}
-                  accountFor={accountFor}
-                  account={accounts[accountFor]}
-                  onChange={(patch) => patchAccount(accountFor, patch)}
-                  propertyName={form.name}
-                  propertyId={property.id}
-                  callbackNote="The new account replaces the current one, and payment callbacks are registered with Safaricom, when you save."
-                  cancelLabel={property[`${accountFor}_account`] ? 'Keep current account' : 'Remove this account'}
-                  onCancel={() => setChanging((current) => ({ ...current, [accountFor]: false }))}
-                  onRemove={
-                    accountFor !== 'rent' && !property[`${accountFor}_account`]
-                      ? () => setChanging((current) => ({ ...current, [accountFor]: false }))
-                      : undefined
-                  }
-                />
-              ) : (
-                <CurrentAccount
+              const leaving = removing[accountFor]
+
+              return (
+                <SharedAccountSlot
                   key={accountFor}
                   title={title}
-                  account={property[`${accountFor}_account`]}
-                  onChange={() => startChanging(accountFor)}
-                  removable={accountFor !== 'rent'}
-                  removing={Boolean(removing[accountFor])}
-                  onToggleRemove={() =>
-                    setRemoving((current) => ({ ...current, [accountFor]: !current[accountFor] }))
+                  billsLabel={billsLabel}
+                  target={paidInto[accountFor]}
+                  targets={shareTargets(accountFor, hasAccount)}
+                  numbers={accountNumbers}
+                  addLabel={`Add ${accountFor === 'service' ? 'service charges' : accountFor} account`}
+                  onUse={(target) =>
+                    setForm((current) => ({ ...current, [CHARGE_ACCOUNT_FIELD[accountFor]]: target }))
+                  }
+                  onAdd={leaving ? undefined : () => startChanging(accountFor)}
+                  note={
+                    leaving ? (
+                      <p className="mt-[4px] text-[10px] font-bold text-[var(--danger)]">
+                        The {property[`${accountFor}_account`].business_number} account will be removed when you save.
+                      </p>
+                    ) : null
+                  }
+                  actions={
+                    leaving ? (
+                      <button
+                        type="button"
+                        onClick={() => setRemoving((current) => ({ ...current, [accountFor]: false }))}
+                        className="shrink-0 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
+                      >
+                        Undo remove
+                      </button>
+                    ) : null
                   }
                 />
               )
-            )}
+            })}
+
+            <PaymentOrderField
+              value={form.payment_order}
+              onChange={(value) => setForm((current) => ({ ...current, payment_order: value }))}
+              note="A change applies to payments from now on; earlier payments stay as they are."
+            />
 
             {error ? (
               <div className="mt-[18px]">
@@ -496,7 +542,7 @@ function SectionTitle({ title }) {
   )
 }
 
-function CurrentAccount({ title, account, onChange, removable, removing, onToggleRemove }) {
+function CurrentAccount({ title, account, note, onChange, onRemove }) {
   return (
     <div className="mb-[10px] flex items-center justify-between gap-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
       <div>
@@ -504,41 +550,32 @@ function CurrentAccount({ title, account, onChange, removable, removing, onToggl
         <p className="mt-[4px] text-[10px] text-[var(--ink-faint)]">
           {account
             ? `${paymentAccountTypeLabel(account)} ${account.business_number} - ${humanize(account.environment)}`
-            : title === 'Rent account'
-              ? 'Not connected'
-              : title === 'Service charges account'
-                ? 'No separate account'
-                : 'No separate account - paid through the rent account'}
+            : 'Not connected'}
         </p>
 
-        {removing ? (
-          <p className="mt-[4px] text-[10px] font-bold text-[var(--danger)]">
-            Will be removed when you save. These payments will then go
-            through the rent account.
-          </p>
+        {note ? (
+          <p className="mt-[4px] text-[10px] font-bold text-[var(--ink-soft)]">{note}</p>
         ) : null}
       </div>
 
       <div className="flex shrink-0 gap-2">
-        {account && removable ? (
+        {account && onRemove ? (
           <button
             type="button"
-            onClick={onToggleRemove}
+            onClick={onRemove}
             className="rounded-[8px] border border-[var(--danger)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold text-[var(--danger)] transition hover:bg-[var(--danger-soft)]"
           >
-            {removing ? 'Undo' : 'Remove'}
+            Remove
           </button>
         ) : null}
 
-        {removing ? null : (
-          <button
-            type="button"
-            onClick={onChange}
-            className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
-          >
-            {account ? 'Change account' : 'Add account'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onChange}
+          className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
+        >
+          {account ? 'Change account' : 'Add account'}
+        </button>
       </div>
     </div>
   )

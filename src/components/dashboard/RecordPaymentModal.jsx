@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { listTenants, recordManualPayment } from '../../api/tenants'
+import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
+import { paymentAccountHint } from '../../utils/accountSharing'
 import { toDateInput } from '../../utils/format'
 import { PAYMENT_ACCOUNTS, PAYMENT_ACCOUNT_HINTS, PAYMENT_METHODS } from '../../utils/payments'
 import { isCurrentTenant } from '../../utils/tenantStatus'
@@ -39,6 +41,8 @@ function RecordPaymentModal({ tenant, onClose, onDone }) {
   const [error, setError] = useState(null)
 
   const payer = tenant || tenants.find((item) => String(item.id) === form.tenant_id)
+  // The payer's property: which bills each account pays there.
+  const property = useProperties()?.data?.find((item) => item.id === payer?.property_id)
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -139,7 +143,7 @@ function RecordPaymentModal({ tenant, onClose, onDone }) {
           </div>
 
           <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-            {PAYMENT_ACCOUNT_HINTS[form.account_for]} Anything left over is
+            {paymentAccountHint(form.account_for, property) || PAYMENT_ACCOUNT_HINTS[form.account_for]} Anything left over is
             kept as credit for the next bill.
           </p>
 
