@@ -68,7 +68,16 @@ function PaymentDetailPage() {
                 <Row label="Amount">
                   <span className="font-mono">{formatKES(payment.amount)}</span>
                 </Row>
-                <Row label="Received">{formatDateTime(payment.received_at)}</Row>
+                <Row label={payment.notified_at ? 'Paid (M-Pesa time)' : 'Received'}>
+                  {formatDateTime(payment.received_at)}
+                  {/* The notice can arrive later; the payment counts on the day it was paid. */}
+                  {payment.notified_at &&
+                  Math.abs(new Date(payment.notified_at) - new Date(payment.received_at)) > 60 * 1000 ? (
+                    <span className="block text-[10px] font-medium text-[var(--ink-faint)]">
+                      Safaricom's notice reached Kodi {formatDateTime(payment.notified_at)}
+                    </span>
+                  ) : null}
+                </Row>
                 <Row label="Method">{paymentMethodLabel(payment)}</Row>
                 <Row label="How it arrived">
                   {payment.payment_source === 'manual'
@@ -93,6 +102,11 @@ function PaymentDetailPage() {
                   ) : null}
                 </Row>
                 {payment.notes ? <Row label="Notes">{payment.notes}</Row> : null}
+                {payment.duplicate_override_reason ? (
+                  <Row label="Recorded although it looked like an unmatched M-Pesa payment">
+                    {payment.duplicate_override_reason}
+                  </Row>
+                ) : null}
               </section>
 
               <section className={cardClass}>
@@ -127,6 +141,22 @@ function PaymentDetailPage() {
                 </Row>
                 {payment.unmatched_reason && payment.status === 'unmatched' ? (
                   <Row label="Why it is unmatched">{humanize(payment.unmatched_reason)}</Row>
+                ) : null}
+                {payment.status === 'dismissed' ? (
+                  <Row label="Not a tenant payment">
+                    {formatDateTime(payment.dismissed_at)}
+                    <span className="block text-[10px] font-normal text-[var(--ink-faint)]">
+                      {payment.dismiss_reason}
+                    </span>
+                  </Row>
+                ) : null}
+                {payment.added_to_refund > 0 ? (
+                  <Row label="Added to the deposit refund">
+                    <span className="font-mono">{formatKES(payment.added_to_refund)}</span>
+                    <span className="block text-[10px] font-normal text-[var(--ink-faint)]">
+                      Paid after the deposits were settled, above what was owed: it is owed back to the tenant.
+                    </span>
+                  </Row>
                 ) : null}
                 {payment.reversed_at ? (
                   <Row label="Reversed">

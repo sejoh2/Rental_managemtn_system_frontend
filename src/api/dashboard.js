@@ -2,7 +2,7 @@ import { api } from './client'
 
 /*
   Figures for the Dashboard home; propertyId narrows them to one property.
-  -> { rent: { collected, collected_last_month, change_percent, outstanding, units_in_arrears },
+  -> { rent: { collected, collected_last_month, change_percent, outstanding, units_in_arrears }, owed: { owed, overdue, tenants_owing, tenants_overdue, former_owed },
        occupancy, unmatched_payments: { count, latest }, water, rent_by_month, activity }
 */
 export async function getDashboardHome(propertyId) {

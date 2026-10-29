@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
-import { exportPayments, listPayments, matchPayment, reversePayment } from '../../api/payments'
+import {
+  dismissPayment,
+  exportPayments,
+  listPayments,
+  matchPayment,
+  restorePayment,
+  reversePayment,
+} from '../../api/payments'
 import { listTenants } from '../../api/tenants'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
@@ -46,12 +53,13 @@ function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [assigning, setAssigning] = useState(null)
   const [reversing, setReversing] = useState(null)
+  const [dismissing, setDismissing] = useState(null)
   const [recordOpen, setRecordOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
 
   // The tab lives in the URL so other pages can link straight to /payments?tab=unmatched.
-  const activeTab = searchParams.get('tab') === 'unmatched' ? 'unmatched' : 'all'
+  const activeTab = ['unmatched', 'dismissed'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'all'
   /*
     With one property chosen in the top bar, only its payments, plus unmatched
     ones whose account is not tied to any property, since they cannot be placed.
@@ -71,6 +79,8 @@ function PaymentsPage() {
   // The whole account's figures come from the backend; one property's are counted here.
   const stats = selectedId ? (paymentsState.data ? paymentStatsFor(paymentsState.data) : null) : statsState.data
   const unmatched = payments.filter((payment) => payment.status === 'unmatched')
+  // Marked "Not a tenant payment": kept apart, and can be put back.
+  const dismissed = payments.filter((payment) => payment.status === 'dismissed')
 
   function reloadAll() {
     allPaymentsState.reload()
@@ -136,6 +146,7 @@ function PaymentsPage() {
         {[
           ['all', 'All payments'],
           ['unmatched', 'Unmatched'],
+          ...(dismissed.length || activeTab === 'dismissed' ? [['dismissed', 'Not tenant payments']] : []),
         ].map(([key, label]) => (
           <button
             key={key}
@@ -157,7 +168,14 @@ function PaymentsPage() {
       </div>
 
       {activeTab === 'unmatched' ? (
-        <UnmatchedView paymentsState={paymentsState} unmatched={unmatched} onAssign={setAssigning} />
+        <UnmatchedView
+          paymentsState={paymentsState}
+          unmatched={unmatched}
+          onAssign={setAssigning}
+          onDismiss={setDismissing}
+        />
+      ) : activeTab === 'dismissed' ? (
+        <DismissedView paymentsState={paymentsState} dismissed={dismissed} onRestored={reloadAll} />
       ) : (
         <AllPaymentsView
           paymentsState={paymentsState}
@@ -170,6 +188,14 @@ function PaymentsPage() {
         <AssignPaymentModal
           payment={assigning}
           onClose={() => setAssigning(null)}
+          onDone={reloadAll}
+        />
+      ) : null}
+
+      {dismissing ? (
+        <DismissPaymentModal
+          payment={dismissing}
+          onClose={() => setDismissing(null)}
           onDone={reloadAll}
         />
       ) : null}
@@ -306,7 +332,7 @@ function AllPaymentsView({ paymentsState, stats, onReverse }) {
   )
 }
 
-function UnmatchedView({ paymentsState, unmatched, onAssign }) {
+function UnmatchedView({ paymentsState, unmatched, onAssign, onDismiss }) {
   return (
     <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
       <div className="flex items-center justify-between border-b border-[var(--line)] px-[18px] py-4">
@@ -355,12 +381,21 @@ function UnmatchedView({ paymentsState, unmatched, onAssign }) {
                   ) : null}
                 </div>
 
-                <button
-                  onClick={() => onAssign(payment)}
-                  className="shrink-0 rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
-                >
-                  Assign to tenant
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    onClick={() => onDismiss(payment)}
+                    className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold"
+                    title="A wrong number, or your own money: it leaves this list and the money received"
+                  >
+                    Not a tenant payment
+                  </button>
+                  <button
+                    onClick={() => onAssign(payment)}
+                    className="rounded-[8px] border border-[var(--accent)] bg-[var(--accent)] px-4 py-[10px] text-[12px] font-bold text-white"
+                  >
+                    Assign to tenant
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -376,9 +411,17 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
   const tenantsState = useApi(`tenants-property-${payment.property_id}`, () =>
     listTenants({ property_id: payment.property_id })
   )
-  const tenants = (tenantsState.data || []).filter(isCurrentTenant)
+  const allTenants = tenantsState.data || []
+  const current = allTenants.filter(isCurrentTenant)
+  // A tenant who has moved out can still pay what they owe.
+  const former = allTenants.filter((tenant) => tenant.status === 'moved_out')
 
-  const [tenantId, setTenantId] = useState('')
+  const [chosenId, setTenantId] = useState('')
+  // The former tenant who used this number is chosen for the owner.
+  const suggested = former.find((tenant) => payment.payer_phone && tenant.payment_phone === payment.payer_phone)
+  const tenantId = chosenId || (suggested && !current.some((tenant) => tenant.payment_phone === payment.payer_phone) ? suggested.id : '')
+  const chosen = allTenants.find((tenant) => String(tenant.id) === String(tenantId))
+  const chosenFormer = chosen?.status === 'moved_out'
   const [rememberPhone, setRememberPhone] = useState(Boolean(payment.payer_phone))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -391,7 +434,7 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
     try {
       await matchPayment(payment.id, {
         tenant_id: tenantId,
-        remember_payment_phone: rememberPhone,
+        remember_payment_phone: rememberPhone && !chosenFormer,
       })
       onDone()
       onClose()
@@ -428,20 +471,34 @@ function AssignPaymentModal({ payment, onClose, onDone }) {
             <option value="">
               {tenantsState.loading ? 'Loading tenants...' : 'Choose a tenant'}
             </option>
-            {tenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.full_name} - {tenant.unit_number}
-                {tenant.balance > 0 ? ` (owes ${formatKES(tenant.balance)})` : ''}
-              </option>
-            ))}
+            <optgroup label="Current tenants">
+              {current.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.full_name} - {tenant.unit_number}
+                  {tenant.balance > 0 ? ` (owes ${formatKES(tenant.balance)})` : ''}
+                </option>
+              ))}
+            </optgroup>
+            {former.length ? (
+              <optgroup label="Former tenants (moved out)">
+                {former.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.full_name} - {tenant.unit_number}
+                    {tenant.balance > 0 ? ` (owes ${formatKES(tenant.balance)})` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
 
           <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-            {paymentAccountHint(payment.account_for, property) ||
-              `The money pays the tenant's ${payment.account_for} bills, because it arrived in the ${payment.account_for} account.`}
+            {chosenFormer
+              ? `${chosen.full_name} has moved out, so the money pays whatever they still owe. If their deposits are already settled, anything extra is added to the refund owed back to them.`
+              : paymentAccountHint(payment.account_for, property) ||
+                `The money pays the tenant's ${payment.account_for} bills, because it arrived in the ${payment.account_for} account.`}
           </p>
 
-          {payment.payer_phone ? (
+          {payment.payer_phone && !chosenFormer ? (
             <label className="mt-[18px] flex items-start gap-3 text-[12px] font-medium">
               <input
                 type="checkbox"
@@ -529,6 +586,14 @@ function ReversePaymentModal({ payment, onClose, onDone }) {
           {error ? (
             <div className="mt-[14px]">
               <FormError error={error} />
+              {error.payload?.details?.code === 'reopen_settlement_first' && payment.tenant_id ? (
+                <Link
+                  to={`/tenants/${payment.tenant_id}`}
+                  className="mt-2 inline-block text-[11px] font-bold text-[var(--accent-ink)] underline"
+                >
+                  Open {payment.tenant_name || 'the tenant'}'s deposit settlement
+                </Link>
+              ) : null}
             </div>
           ) : null}
         </ModalBody>
@@ -544,6 +609,148 @@ function ReversePaymentModal({ payment, onClose, onDone }) {
             className="rounded-[8px] border border-[var(--danger-solid)] bg-[var(--danger-solid)] px-5 py-[10px] text-[12px] font-bold text-white disabled:opacity-50"
           >
             {saving ? 'Working...' : manual ? 'Reverse payment' : 'Unassign payment'}
+          </button>
+        </ModalFooter>
+      </form>
+    </ModalShell>
+  )
+}
+
+function DismissedView({ paymentsState, dismissed, onRestored }) {
+  const [restoring, setRestoring] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function restore(payment) {
+    setRestoring(payment.id)
+    setError(null)
+
+    try {
+      await restorePayment(payment.id)
+      onRestored()
+    } catch (restoreError) {
+      setError(restoreError)
+    } finally {
+      setRestoring(null)
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)]">
+      <div className="border-b border-[var(--line)] px-[18px] py-4">
+        <h3 className="text-[12px] font-bold">Not tenant payments</h3>
+        <p className="mt-1 text-[10px] text-[var(--ink-faint)]">
+          M-Pesa money you marked as not a tenant's. It is not counted as money received. Put one back if it was
+          marked by mistake.
+        </p>
+      </div>
+
+      {error ? (
+        <div className="px-[18px] pt-4">
+          <FormError error={error} />
+        </div>
+      ) : null}
+
+      <DataState
+        state={paymentsState}
+        loadingLabel="Loading payments..."
+        isEmpty={() => !dismissed.length}
+        empty={<EmptyState title="Nothing here" message="No payment is marked as not a tenant payment." />}
+      >
+        {() => (
+          <div className="space-y-[12px] p-[18px]">
+            {dismissed.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex flex-col gap-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[14px] font-bold">
+                      {formatKES(payment.amount)} from {payerLabel(payment)}
+                    </h3>
+                    <StatusBadge tone="neutral">Not a tenant payment</StatusBadge>
+                  </div>
+                  <p className="mt-[5px] text-[11px] text-[var(--ink-faint)]">
+                    Received {formatDateTime(payment.received_at)}
+                    {payment.provider_transaction_id ? ` - M-Pesa ${payment.provider_transaction_id}` : ''}
+                  </p>
+                  {payment.dismiss_reason ? (
+                    <p className="mt-[3px] text-[11px] text-[var(--ink-faint)]">Why: {payment.dismiss_reason}</p>
+                  ) : null}
+                </div>
+
+                <button
+                  onClick={() => restore(payment)}
+                  disabled={restoring === payment.id}
+                  className="shrink-0 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-[10px] text-[12px] font-bold disabled:opacity-50"
+                >
+                  {restoring === payment.id ? 'Putting back...' : 'Put back under unmatched'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </DataState>
+    </section>
+  )
+}
+
+function DismissPaymentModal({ payment, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    try {
+      await dismissPayment(payment.id, reason.trim())
+      onDone()
+      onClose()
+    } catch (saveError) {
+      setError(saveError)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ModalShell title="Not a tenant payment" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="mb-[18px] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
+            <h3 className="text-[14px] font-bold">
+              {formatKES(payment.amount)} from {payerLabel(payment)}
+            </h3>
+            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
+              For money that is no tenant's, such as a payment from a wrong number or your own money. It leaves the
+              unmatched list and is not counted as money received. You can put it back later.
+            </p>
+          </div>
+
+          <Field
+            label="Why is it not a tenant payment?"
+            placeholder="e.g. Sent to the wrong paybill by a stranger"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            minLength={3}
+          />
+
+          {error ? (
+            <div className="mt-[14px]">
+              <FormError error={error} />
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saving || reason.trim().length < 3} className={primaryButtonClass}>
+            {saving ? 'Saving...' : 'Mark as not a tenant payment'}
           </button>
         </ModalFooter>
       </form>

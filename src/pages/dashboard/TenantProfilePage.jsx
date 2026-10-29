@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Download, FileText } from 'lucide-react'
 import {
   downloadTenantAgreement,
@@ -12,6 +12,7 @@ import {
   undoMoveOut,
   updateTenant,
 } from '../../api/tenants'
+import { downloadTenantStatement } from '../../api/reports'
 import { listWaterReadings } from '../../api/water'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import {
@@ -28,7 +29,7 @@ import DepositReconciliation from '../../components/dashboard/DepositReconciliat
 import RecordPaymentModal from '../../components/dashboard/RecordPaymentModal'
 import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
-import { chargeLabel, moveOutEstimate } from '../../utils/billing'
+import { moveOutEstimate } from '../../utils/billing'
 import {
   formatDate,
   formatDateTime,
@@ -78,6 +79,8 @@ function TenantProfile({ tenant, onTenantChanged }) {
   const statementState = useApi(`tenant-statement-${tenant.id}`, () => getTenantStatement(tenant.id))
   const paymentsState = useApi(`tenant-payments-${tenant.id}`, () => listTenantPayments(tenant.id))
   const agreementState = useApi(`tenant-agreement-${tenant.id}`, () => getTenantAgreement(tenant.id))
+  // Goes up whenever the tenant's money changes, so the statement loads again.
+  const [moneyVersion, setMoneyVersion] = useState(0)
 
   const [activeTab, setActiveTab] = useState('Overview')
   // agreement | moveOut | undoMoveOut | payment | edit | notice
@@ -89,6 +92,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
 
   function reloadMoney() {
     onTenantChanged()
+    setMoneyVersion((value) => value + 1)
     statementState.reload()
     paymentsState.reload()
   }
@@ -209,7 +213,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
       {activeTab === 'Overview' ? (
         <TenantOverview
           tenant={tenant}
-          statementState={statementState}
+          moneyVersion={moneyVersion}
           paymentsState={paymentsState}
           recordPaymentButton={recordPaymentButton}
           onMoneyChanged={reloadMoney}
@@ -273,7 +277,7 @@ function TenantProfile({ tenant, onTenantChanged }) {
 
 function TenantOverview({
   tenant,
-  statementState,
+  moneyVersion,
   paymentsState,
   recordPaymentButton,
   onMoneyChanged,
@@ -297,9 +301,7 @@ function TenantOverview({
             )}
           </div>
 
-          <DataState state={statementState} loadingLabel="Loading charges...">
-            {(statement) => <ChargesSummary charges={statement.charges} tenant={tenant} />}
-          </DataState>
+          <AccountStatement tenant={tenant} version={moneyVersion} />
         </section>
 
         <PaymentsTable
@@ -345,94 +347,192 @@ function TenantOverview({
   )
 }
 
-// Everything billed to the tenant that is still owed, plus what was billed this year.
-function ChargesSummary({ charges, tenant }) {
-  const liveCharges = charges.filter((charge) => charge.status !== 'void')
-  const billed = liveCharges.reduce((total, charge) => total + charge.amount_due, 0)
-  const paid = liveCharges.reduce((total, charge) => total + charge.amount_paid, 0)
-  // Repairs kept for move-out are owed but not due, so they are not in the balance.
-  const heldAtMoveOut = liveCharges
-    .filter((charge) => charge.status === 'held')
-    .reduce((total, charge) => total + charge.amount_due, 0)
+const STATEMENT_PERIODS = [
+  ['this_month', 'This month'],
+  ['last_month', 'Last month'],
+  ['last_3_months', 'Last 3 months'],
+  ['last_6_months', 'Last 6 months'],
+  ['this_year', 'This year'],
+]
 
-  if (!liveCharges.length) {
-    return <EmptyState title="Nothing billed yet" message="Charges appear here once the tenant is billed." />
+// A balance below zero is money paid ahead.
+function signedKES(value) {
+  return value < 0 ? `${formatKES(-value)} in credit` : formatKES(value)
+}
+
+/*
+  The tenant's account as a running statement, like a bank statement:
+  brought forward, each bill and payment with the balance after it, and
+  the balance at the end. The balance is what is owed less credit held.
+  The period is kept in the address (?statement=last_3_months).
+*/
+function AccountStatement({ tenant, version }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const period = STATEMENT_PERIODS.some(([key]) => key === searchParams.get('statement'))
+    ? searchParams.get('statement')
+    : 'this_year'
+
+  // Loaded again whenever the tenant's money changes (version) or the period does.
+  const statementState = useApi(`tenant-ledger-${tenant.id}-${period}-${version}`, () =>
+    getTenantStatement(tenant.id, period)
+  )
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState(null)
+
+  function choosePeriod(event) {
+    const next = new URLSearchParams(searchParams)
+    if (event.target.value === 'this_year') next.delete('statement')
+    else next.set('statement', event.target.value)
+    setSearchParams(next, { replace: true })
+  }
+
+  async function download() {
+    setDownloading(true)
+    setDownloadError(null)
+
+    try {
+      await downloadTenantStatement(tenant.id, period)
+    } catch (error) {
+      setDownloadError(error)
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
-    <>
-      <div className="px-[18px] py-4 text-[12px]">
-        <DetailRow label="Billed" value={formatKES(billed)} />
-        <DetailRow label="Paid so far" value={formatKES(paid)} />
-        <DetailRow label="Balance" value={formatKES(tenant.balance)} danger={tenant.balance > 0} />
-        {heldAtMoveOut > 0 ? (
-          <DetailRow label="Repairs to deduct at move-out" value={formatKES(heldAtMoveOut)} />
-        ) : null}
-        {tenant.credit_balance > 0 ? (
-          <DetailRow label="Credit held" value={formatKES(tenant.credit_balance)} />
-        ) : null}
-        <div className="mt-3 h-[5px] rounded-full bg-[var(--line-soft)]">
-          <div
-            className="h-full rounded-full bg-[var(--accent)]"
-            style={{ width: `${billed ? Math.min((paid / billed) * 100, 100) : 0}%` }}
-          />
-        </div>
+    <DataState state={statementState} loadingLabel="Loading the statement...">
+      {(statement) => {
+        const ledger = statement.ledger
+        // Repairs kept for move-out are owed but not due, so they are not in the balance.
+        const heldAtMoveOut = statement.charges
+          .filter((charge) => charge.status === 'held')
+          .reduce((total, charge) => total + Math.round(charge.amount_due * 100), 0) / 100
 
-        {tenant.balance > 0 && tenant.credit_balance > 0 ? (
-          <p className="mt-3 text-[11px] leading-[1.5] text-[var(--warning)]">
-            This tenant owes money and also holds credit. The credit was
-            paid into a different account (for example water), so it can
-            only settle that kind of bill. If the payment was meant for
-            what is owed, reverse it on the Payments page and record it
-            against the right account.
-          </p>
-        ) : null}
-      </div>
+        return (
+          <>
+            <div className="px-[18px] py-4 text-[12px]">
+              <DetailRow
+                label="Balance today"
+                value={signedKES(ledger.balance_today)}
+                danger={ledger.balance_today > 0}
+              />
+              <DetailRow label="Owed (unpaid bills)" value={formatKES(ledger.owed)} danger={ledger.owed > 0} />
+              {ledger.credits.map((credit) => (
+                <DetailRow
+                  key={credit.account_for}
+                  label={`Credit held for ${credit.pays} bills`}
+                  value={formatKES(credit.amount)}
+                />
+              ))}
+              {ledger.refund_outstanding > 0 ? (
+                <DetailRow label="Refund still due to the tenant" value={formatKES(ledger.refund_outstanding)} />
+              ) : null}
+              {heldAtMoveOut > 0 ? (
+                <DetailRow label="Repairs to deduct at move-out" value={formatKES(heldAtMoveOut)} />
+              ) : null}
 
-      <div className="overflow-x-auto border-t border-[var(--line)]">
-        <table className="w-full min-w-[640px] border-collapse text-[12px]">
-          <thead>
-            <tr className={headRowClass}>
-              <th className="px-[18px] py-[10px]">Charge</th>
-              <th className="px-[18px] py-[10px]">Due</th>
-              <th className="px-[18px] py-[10px]">Amount</th>
-              <th className="px-[18px] py-[10px]">Paid</th>
-              <th className="px-[18px] py-[10px]">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {liveCharges.map((charge) => (
-              <tr key={charge.id} className="border-b border-[var(--line-soft)] last:border-b-0">
-                <td className="px-[18px] py-[13px] font-bold">{chargeLabel(charge)}</td>
-                <td className="px-[18px] py-[13px]">{formatDate(charge.due_date)}</td>
-                <td className="font-mono px-[18px] py-[13px]">{formatKES(charge.amount_due)}</td>
-                <td className="font-mono px-[18px] py-[13px]">{formatKES(charge.amount_paid)}</td>
-                <td className="px-[18px] py-[13px]">
-                  {/* held: a repair that waits for move-out; it is not arrears. */}
-                  <StatusBadge
-                    tone={
-                      charge.status === 'paid'
-                        ? 'success'
-                        : charge.status === 'partial'
-                          ? 'warning'
-                          : charge.status === 'held'
-                            ? 'info'
-                            : 'danger'
-                    }
-                  >
-                    {charge.status === 'open'
-                      ? 'Unpaid'
-                      : charge.status === 'held'
-                        ? 'Deduct at move-out'
-                        : humanize(charge.status)}
-                  </StatusBadge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+              {ledger.owed > 0 && ledger.credit > 0 ? (
+                <p className="mt-3 text-[11px] leading-[1.5] text-[var(--warning)]">
+                  This tenant owes money and also holds credit. The credit was paid into an account that only
+                  pays {ledger.credits.map((credit) => credit.pays).join(' and ')} bills, so it cannot settle the
+                  rest. If the payment was meant for what is owed, reverse it on the Payments page and record it
+                  against the right account.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] px-[18px] py-3">
+              <h4 className="text-[11px] font-bold">Statement</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={period}
+                  onChange={choosePeriod}
+                  className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold"
+                  aria-label="Statement period"
+                >
+                  {STATEMENT_PERIODS.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={download} disabled={downloading} className={smallButtonClass}>
+                  <Download size={12} className="mr-1 inline" />
+                  {downloading ? 'Preparing...' : 'PDF'}
+                </button>
+              </div>
+            </div>
+
+            {downloadError ? (
+              <div className="px-[18px] pb-3">
+                <FormError error={downloadError} />
+              </div>
+            ) : null}
+
+            <div className="overflow-x-auto border-t border-[var(--line)]">
+              <table className="w-full min-w-[640px] border-collapse text-[12px]">
+                <thead>
+                  <tr className={headRowClass}>
+                    <th className="px-[18px] py-[10px]">Date</th>
+                    <th className="px-[18px] py-[10px]">Details</th>
+                    <th className="px-[18px] py-[10px] text-right">Billed</th>
+                    <th className="px-[18px] py-[10px] text-right">Paid</th>
+                    <th className="px-[18px] py-[10px] text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--line-soft)] bg-[var(--bg)]">
+                    <td className="px-[18px] py-[11px]">{formatDate(statement.period.start_date)}</td>
+                    <td className="px-[18px] py-[11px] font-bold">Brought forward</td>
+                    <td />
+                    <td />
+                    <td className="font-mono px-[18px] py-[11px] text-right font-bold">
+                      {signedKES(ledger.opening_balance)}
+                    </td>
+                  </tr>
+
+                  {ledger.lines.map((line) => (
+                    <tr key={`${line.kind}-${line.id}`} className="border-b border-[var(--line-soft)]">
+                      <td className="px-[18px] py-[11px]">{formatDate(line.date)}</td>
+                      <td className="px-[18px] py-[11px]">{line.description}</td>
+                      <td className="font-mono px-[18px] py-[11px] text-right">
+                        {line.billed === null ? '' : formatKES(line.billed)}
+                      </td>
+                      <td className="font-mono px-[18px] py-[11px] text-right text-[var(--success)]">
+                        {line.paid === null ? '' : formatKES(line.paid)}
+                      </td>
+                      <td className="font-mono px-[18px] py-[11px] text-right">{signedKES(line.balance)}</td>
+                    </tr>
+                  ))}
+
+                  {!ledger.lines.length ? (
+                    <tr className="border-b border-[var(--line-soft)]">
+                      <td colSpan={5} className="px-[18px] py-[13px] text-[11px] text-[var(--ink-faint)]">
+                        Nothing billed or paid in this period.
+                      </td>
+                    </tr>
+                  ) : null}
+
+                  <tr className="bg-[var(--bg)]">
+                    <td className="px-[18px] py-[11px]">{formatDate(statement.period.end_date)}</td>
+                    <td className="px-[18px] py-[11px] font-bold">Balance at the end</td>
+                    <td className="font-mono px-[18px] py-[11px] text-right font-bold">
+                      {formatKES(ledger.total_billed)}
+                    </td>
+                    <td className="font-mono px-[18px] py-[11px] text-right font-bold">
+                      {formatKES(ledger.total_paid)}
+                    </td>
+                    <td className="font-mono px-[18px] py-[11px] text-right font-bold">
+                      {signedKES(ledger.closing_balance)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      }}
+    </DataState>
   )
 }
 
