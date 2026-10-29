@@ -9,12 +9,12 @@ import {
 } from '../../api/serviceCharges'
 import { listUnits } from '../../api/units'
 import { useApi } from '../../hooks/useApi'
+import { accountLabel } from '../../utils/accountSharing'
 import { moveInEstimate } from '../../utils/billing'
 import { formatKES, formatMonth, ordinal, toDateInput } from '../../utils/format'
 import {
   EXPENSE_CATEGORIES,
   MOVE_IN_BILLING,
-  SERVICE_CHARGE_ACCOUNTS,
   SERVICE_CHARGE_FIRST_BILLING,
   SERVICE_CHARGE_FREQUENCIES,
   optionLabel,
@@ -78,8 +78,7 @@ function ServiceChargesSection({ property }) {
           <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
             Costs you pass on to tenants, such as garbage or security. Paid
             into the{' '}
-            {optionLabel(SERVICE_CHARGE_ACCOUNTS, property.service_charge_account, 'rent account').toLowerCase()}
-            .
+            {accountLabel(property.charge_accounts?.service || property.service_charge_account)}.
           </p>
         </div>
 

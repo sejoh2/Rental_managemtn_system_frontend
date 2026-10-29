@@ -107,13 +107,19 @@ function HomeFigures({ home, scope }) {
           : `${rent.change_percent >= 0 ? '↑' : '↓'} ${formatPercent(Math.abs(rent.change_percent))} vs ${lastMonth}`,
       tone: rent.change_percent === null ? 'muted' : rent.change_percent >= 0 ? 'success' : 'danger',
     },
+    /*
+      Every unpaid bill of tenants living there now, and the part past its
+      due date: the same figures as Reports.
+    */
     {
-      label: 'Rent outstanding',
-      value: formatKES(rent.outstanding),
-      note: rent.units_in_arrears
-        ? `arrears in ${rent.units_in_arrears} ${rent.units_in_arrears === 1 ? 'unit' : 'units'}`
-        : 'no rent arrears',
-      tone: rent.units_in_arrears ? 'danger' : 'success',
+      label: 'Owed by tenants',
+      value: formatKES(home.owed.owed),
+      note: home.owed.overdue
+        ? `${formatKES(home.owed.overdue)} overdue, ${home.owed.tenants_overdue} ${home.owed.tenants_overdue === 1 ? 'tenant' : 'tenants'}`
+        : home.owed.owed
+          ? 'nothing overdue yet'
+          : 'nothing owed',
+      tone: home.owed.overdue ? 'danger' : 'success',
     },
     {
       label: 'Occupancy rate',

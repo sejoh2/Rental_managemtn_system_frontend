@@ -358,7 +358,12 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const refundPending = settlement.refund_due > 0 && !settlement.refund_paid_on
+  /*
+    What is still to be refunded: the refund, or what the former tenant paid
+    after it was paid out, above what they owed.
+  */
+  const outstanding = settlement.refund_outstanding ?? (settlement.refund_paid_on ? 0 : settlement.refund_due)
+  const refundPending = outstanding > 0
 
   // Reopening: null until "Reopen" is clicked, then the reason being typed.
   const [reopenReason, setReopenReason] = useState(null)
@@ -414,7 +419,7 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
         {settlement.tenant_owes > 0 ? (
           <StatusBadge tone="danger">Tenant owes {formatKES(settlement.tenant_owes)}</StatusBadge>
         ) : refundPending ? (
-          <StatusBadge tone="warning">Refund of {formatKES(settlement.refund_due)} to pay</StatusBadge>
+          <StatusBadge tone="warning">Refund of {formatKES(outstanding)} to pay</StatusBadge>
         ) : settlement.refund_due > 0 ? (
           <StatusBadge tone="success">Refund paid</StatusBadge>
         ) : (
@@ -433,6 +438,12 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
           label={`Used for unpaid bills${settlement.deductions_total > 0 ? ` and ${formatKES(settlement.deductions_total)} of deductions` : ''}`}
           value={`- ${formatKES(settlement.applied_to_bills)}`}
         />
+        {settlement.added_after_settlement > 0 ? (
+          <Row
+            label={`Paid by ${tenant.full_name} after the settlement, above what they owed`}
+            value={`+ ${formatKES(settlement.added_after_settlement)}`}
+          />
+        ) : null}
         {settlement.tenant_owes > 0 ? (
           <Row label={`${tenant.full_name} still owes you`} value={formatKES(settlement.tenant_owes)} strong danger />
         ) : (
@@ -442,7 +453,9 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
         {settlement.tenant_owes > 0 ? (
           <p className="mt-3 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
             The deposits did not cover everything. What is still owed stays on
-            this tenant&apos;s account; record a payment when they pay it.
+            this tenant&apos;s account; record a payment when they pay it. If
+            they pay more than they owe, the extra is added to the refund owed
+            back to them.
           </p>
         ) : null}
 
@@ -499,7 +512,7 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
 
         {settlement.refund_paid_on ? (
           <p className="mt-3 text-[11px] leading-[1.5] text-[var(--success)]">
-            Refund of {formatKES(settlement.refund_due)} paid on{' '}
+            Refund of {formatKES(settlement.refund_paid_amount || settlement.refund_due)} paid on{' '}
             {formatDate(settlement.refund_paid_on)} by{' '}
             {optionLabel(REFUND_METHODS, settlement.refund_method).toLowerCase()}
             {settlement.refund_reference ? ` (${settlement.refund_reference})` : ''}.
@@ -508,7 +521,11 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
 
         {refundPending ? (
           <form onSubmit={handleSubmit} className="mt-4 border-t border-[var(--line-soft)] pt-4">
-            <h4 className="mb-3 text-[12px] font-bold">Record the refund once you have paid it</h4>
+            <h4 className="mb-3 text-[12px] font-bold">
+              {settlement.refund_paid_on
+                ? `${tenant.full_name} paid more after the refund: record it once you have paid back ${formatKES(outstanding)}`
+                : 'Record the refund once you have paid it'}
+            </h4>
 
             <div className="grid gap-[14px] sm:grid-cols-3">
               <Field
@@ -541,7 +558,7 @@ function Settled({ tenant, settlement, repairs, onChanged }) {
 
             <div className="mt-4 flex justify-end">
               <button type="submit" disabled={saving} className={primaryButtonClass}>
-                {saving ? 'Saving...' : `Record refund of ${formatKES(settlement.refund_due)}`}
+                {saving ? 'Saving...' : `Record refund of ${formatKES(outstanding)}`}
               </button>
             </div>
           </form>

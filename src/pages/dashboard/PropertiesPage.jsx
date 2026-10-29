@@ -7,12 +7,12 @@ import EditPropertyModal from '../../components/dashboard/EditPropertyModal'
 import ConfirmDeleteModal from '../../components/dashboard/ConfirmDeleteModal'
 import ServiceChargesSection from '../../components/dashboard/ServiceChargesSection'
 import { useProperties } from '../../context/PropertiesContext'
+import { ACCOUNT_NAMES, PAYMENT_ORDERS, alsoCollectsText } from '../../utils/accountSharing'
 import { formatKESCompact, humanize } from '../../utils/format'
 import {
   MOVE_IN_BILLING,
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
-  SERVICE_CHARGE_ACCOUNTS,
   optionLabel,
   paymentAccountTypeLabel,
   rentDueDayLabel,
@@ -137,8 +137,9 @@ function PropertiesPage({ onAddProperty }) {
                     ['Assigned caretaker', selectedProperty.caretaker?.full_name || 'Not assigned'],
                     ['Water billing', waterBillingLabel(selectedProperty)],
                     [
-                      'Service charges paid into',
-                      optionLabel(SERVICE_CHARGE_ACCOUNTS, selectedProperty.service_charge_account),
+                      'When a payment is short, pay',
+                      PAYMENT_ORDERS.find(([value]) => value === selectedProperty.payment_order)?.[1] ||
+                        'In this order',
                     ],
                     [
                       'SMS sender',
@@ -169,20 +170,21 @@ function PropertiesPage({ onAddProperty }) {
                     <span className="h-px flex-1 bg-[var(--line)]" />
                   </div>
 
-                  <PaymentAccount account={selectedProperty.rent_account} badge="Rent" tone="rent" />
-                  <PaymentAccount account={selectedProperty.water_account} badge="Water" tone="water" />
-                  <PaymentAccount
-                    account={selectedProperty.electricity_account}
-                    badge="Electricity"
-                    tone="water"
-                  />
-                  {selectedProperty.service_account ? (
+                  {[
+                    ['rent', 'Rent', 'rent'],
+                    ['water', 'Water', 'water'],
+                    ['electricity', 'Electricity', 'water'],
+                    ['service', 'Service charges', 'water'],
+                  ].map(([kind, badge, tone]) => (
                     <PaymentAccount
-                      account={selectedProperty.service_account}
-                      badge="Service charges"
-                      tone="water"
+                      key={kind}
+                      account={selectedProperty[`${kind}_account`]}
+                      badge={badge}
+                      tone={tone}
+                      paidInto={selectedProperty.charge_accounts?.[kind] || 'rent'}
+                      note={alsoCollectsText(kind, selectedProperty.charge_accounts)}
                     />
-                  ) : null}
+                  ))}
                 </div>
               </div>
             </section>
@@ -265,7 +267,7 @@ function MiniStat({ value, label }) {
   )
 }
 
-function PaymentAccount({ account, badge, tone }) {
+function PaymentAccount({ account, badge, tone, paidInto, note }) {
   const badgeClass =
     tone === 'water'
       ? 'bg-[var(--info-soft)] text-[var(--info)]'
@@ -291,8 +293,9 @@ function PaymentAccount({ account, badge, tone }) {
                   .join(' - ')
               : badge === 'Rent'
                 ? 'No active payment account for this property.'
-                : 'Paid through the rent account.'}
+                : `Paid into the ${ACCOUNT_NAMES[paidInto] || 'rent'} account.`}
           </p>
+          {note ? <p className="mt-[4px] text-[10px] font-bold text-[var(--ink-soft)]">{note}</p> : null}
         </div>
 
         <span className={`rounded-full px-[9px] py-[3px] text-[9px] font-bold uppercase ${badgeClass}`}>

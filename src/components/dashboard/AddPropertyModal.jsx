@@ -11,7 +11,6 @@ import {
   MOVE_OUT_BILLING,
   PROPERTY_TYPES,
   RENT_DUE_DAYS,
-  SERVICE_CHARGE_ACCOUNTS,
   ELECTRICITY_BILLING,
   WATER_BILLING_METHODS,
 } from '../../utils/labels';
@@ -21,7 +20,14 @@ import {
   emptyCaretaker,
   uniqueCaretakers,
 } from '../../utils/propertyForm';
+import {
+  CHARGE_ACCOUNT_FIELD,
+  SHARED_KINDS,
+  effectiveAccount,
+  shareTargets,
+} from '../../utils/accountSharing';
 import { FormError } from '../common/DataState';
+import { PaymentOrderField, SharedAccountSlot } from './AccountSharing';
 import CaretakerField from './CaretakerField';
 import PaymentAccountCard from './PaymentAccountCard';
 import SmsSenderField from './SmsSenderField';
@@ -31,13 +37,8 @@ const inputClass =
 
 const labelClass = 'mb-2 block text-[11px] font-bold text-[var(--ink)]';
 
-// Water and electricity can each have their own account, or be paid through the rent account.
-// Service charges can also have an account of their own, or be paid into one of the others.
-const optionalAccounts = [
-  ['water', 'Water account'],
-  ['electricity', 'Electricity account'],
-  ['service', 'Service charges account'],
-];
+// Water, electricity and service charges can each have their own account, or use another one.
+const optionalAccounts = SHARED_KINDS;
 
 function AddPropertyModal({ open, onClose }) {
   if (!open) return null;
@@ -67,7 +68,11 @@ function AddPropertyForm({ onClose }) {
     // How electricity is billed; the units follow it (decided 2026-10-27).
     electricity_billing_method: 'none',
     electricity_monthly_charge: '',
+    // The account each kind uses when it has none of its own.
+    water_charge_account: 'rent',
+    electricity_charge_account: 'rent',
     service_charge_account: 'rent',
+    payment_order: 'fixed',
   });
   const [accounts, setAccounts] = useState({
     rent: emptyAccount,
@@ -91,18 +96,19 @@ function AddPropertyForm({ onClose }) {
     form.rent_due_day || String(settings.data?.defaults.default_rent_due_day || 5);
 
   /*
-    Service charges and repairs are paid into one account: their own account
-    when one is being added, otherwise rent, or a separate water or
-    electricity account being added.
+    Each kind is paid into one account: its own account when one is being
+    added, otherwise the one chosen with "Use ... account" (rent by default).
   */
-  const serviceChargeAccounts = SERVICE_CHARGE_ACCOUNTS.filter(
-    ([accountFor]) => accountFor === 'rent' || (accountFor !== 'service' && separateAccount[accountFor])
+  const hasAccount = (accountFor) => Boolean(separateAccount[accountFor]);
+  const paidInto = Object.fromEntries(
+    optionalAccounts.map(([kind]) => [
+      kind,
+      effectiveAccount(kind, form[CHARGE_ACCOUNT_FIELD[kind]], hasAccount),
+    ])
   );
-  const serviceChargeAccount = separateAccount.service
-    ? 'service'
-    : serviceChargeAccounts.some(([accountFor]) => accountFor === form.service_charge_account)
-      ? form.service_charge_account
-      : 'rent';
+  const accountNumbers = Object.fromEntries(
+    Object.entries(accounts).map(([accountFor, account]) => [accountFor, account.businessNumber.trim()])
+  );
 
   function setField(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -195,7 +201,10 @@ function AddPropertyForm({ onClose }) {
           ? accounts.electricity.connectionId
           : null,
         service_connection_id: separateAccount.service ? accounts.service.connectionId : null,
-        service_charge_account: serviceChargeAccount,
+        water_charge_account: paidInto.water,
+        electricity_charge_account: paidInto.electricity,
+        service_charge_account: paidInto.service,
+        payment_order: form.payment_order,
       });
     } catch (createError) {
       setError(createError);
@@ -397,11 +406,11 @@ function AddPropertyForm({ onClose }) {
               <SectionTitle title="Payment accounts" className="mt-[22px]" />
 
               <p className="mb-4 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-                Connect the M-Pesa account that receives rent. Water and
-                electricity can each have their own account, or be paid
-                through the rent account. Every account needs a different
-                business number, and these credentials belong only to this
-                property.
+                Connect the M-Pesa account that receives rent. Water,
+                electricity and service charges can each have their own
+                account, or use the rent account or another one you add.
+                Every account needs a different business number, and these
+                credentials belong only to this property.
               </p>
 
               <PaymentAccountCard
@@ -413,7 +422,7 @@ function AddPropertyForm({ onClose }) {
                 callbackNote="Payment callbacks are registered with Safaricom when you add the property."
               />
 
-              {optionalAccounts.map(([accountFor, title]) =>
+              {optionalAccounts.map(([accountFor, title, billsLabel]) =>
                 separateAccount[accountFor] ? (
                   <PaymentAccountCard
                     key={accountFor}
@@ -428,57 +437,32 @@ function AddPropertyForm({ onClose }) {
                     onRemove={() => removeAccount(accountFor)}
                   />
                 ) : (
-                  <div
+                  <SharedAccountSlot
                     key={accountFor}
-                    className="mb-4 flex items-center justify-between gap-4 rounded-[10px] border border-[var(--line)] bg-[var(--surface)] p-4"
-                  >
-                    <div>
-                      <div className="text-[13px] font-bold text-[var(--ink)]">{title}</div>
-                      <p className="mt-[4px] text-[11px] text-[var(--ink-faint)]">
-                        {accountFor === 'service'
-                          ? 'No separate account - service charges are paid into the account chosen below.'
-                          : `No separate account - ${accountFor} is paid through the rent account.`}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setSeparateAccount((current) => ({ ...current, [accountFor]: true }))}
-                      className="shrink-0 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px] font-bold transition hover:border-[var(--accent-soft-line)] hover:text-[var(--accent-ink)]"
-                    >
-                      Add {accountFor === 'service' ? 'service charges' : accountFor} account
-                    </button>
-                  </div>
+                    title={title}
+                    billsLabel={billsLabel}
+                    target={paidInto[accountFor]}
+                    targets={shareTargets(accountFor, hasAccount)}
+                    numbers={accountNumbers}
+                    addLabel={`Add ${accountFor === 'service' ? 'service charges' : accountFor} account`}
+                    onUse={(target) =>
+                      setForm((current) => ({ ...current, [CHARGE_ACCOUNT_FIELD[accountFor]]: target }))
+                    }
+                    onAdd={() => setSeparateAccount((current) => ({ ...current, [accountFor]: true }))}
+                  />
                 )
               )}
 
-              {separateAccount.service ? (
-                <p className="mb-4 rounded-[8px] bg-[var(--line-soft)] px-3 py-[10px] text-[11px] leading-[1.5] text-[var(--ink-soft)]">
-                  Service charges and repairs are paid into the service charges
-                  account only. To have them paid into another account, remove it.
-                </p>
-              ) : (
-                <div className="mb-4">
-                  <label className={labelClass}>Service charges and repairs are paid into</label>
-                  <select
-                    value={serviceChargeAccount}
-                    onChange={setField('service_charge_account')}
-                    className={inputClass}
-                  >
-                    {serviceChargeAccounts.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
-                    Service charges are costs you pass on to tenants, such as
-                    garbage or security. You add them on the Properties page
-                    after the property is created. Money paid into the account
-                    chosen here settles that account&apos;s own bills first,
-                    then service charges. For an account just for them, add a
-                    service charges account above.
-                  </p>
-                </div>
-              )}
+              <PaymentOrderField
+                value={form.payment_order}
+                onChange={(value) => setForm((current) => ({ ...current, payment_order: value }))}
+              />
+
+              <p className="mb-4 text-[10px] leading-[1.5] text-[var(--ink-faint)]">
+                Service charges are costs you pass on to tenants, such as
+                garbage or security. You add them on the Properties page after
+                the property is created.
+              </p>
 
               {/* Water Billing Section */}
               <SectionTitle title="Water billing" className="mt-[6px]" />

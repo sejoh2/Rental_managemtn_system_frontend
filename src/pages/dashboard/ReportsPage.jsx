@@ -144,8 +144,11 @@ function ReportCards({ report }) {
 
         <section className={cardClass}>
           <div className={cardHeaderClass}>
-            <h3 className="text-[12px] font-bold">Arrears by property</h3>
-            <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">Owed today, whatever the period</p>
+            <h3 className="text-[12px] font-bold">Owed by tenants</h3>
+            <p className="mt-[3px] text-[10px] text-[var(--ink-faint)]">
+              Today, whatever the period. Owed is every unpaid bill, deposits included; overdue is the part past its
+              due date. The dashboard shows the same figures.
+            </p>
           </div>
 
           <div className="px-[18px] py-3">
@@ -160,6 +163,7 @@ function ReportCards({ report }) {
                     item.tenants_in_arrears
                       ? `${item.tenants_in_arrears} current ${item.tenants_in_arrears === 1 ? 'tenant' : 'tenants'}`
                       : null,
+                    item.overdue_amount > 0 ? `${formatKES(item.overdue_amount)} overdue` : null,
                     item.former_tenant_arrears > 0
                       ? `former tenants owe ${formatKES(item.former_tenant_arrears)}`
                       : null,
@@ -175,6 +179,16 @@ function ReportCards({ report }) {
               value={formatKES(arrears.total_arrears)}
               strong
               danger={arrears.total_arrears > 0}
+            />
+            <Row
+              label="Of which overdue"
+              value={formatKES(arrears.total_overdue)}
+              note={
+                arrears.tenants_overdue
+                  ? `${arrears.tenants_overdue} ${arrears.tenants_overdue === 1 ? 'tenant' : 'tenants'}`
+                  : null
+              }
+              danger={arrears.total_overdue > 0}
             />
             {arrears.total_former_arrears > 0 ? (
               <Row label="Former tenants owe" value={formatKES(arrears.total_former_arrears)} strong />
