@@ -54,6 +54,7 @@ export function paymentStatus(payment) {
   if (payment.status === 'matched') return { label: 'Matched', tone: 'success' }
   if (payment.status === 'unmatched') return { label: 'Unmatched', tone: 'warning' }
   if (payment.status === 'reversed') return { label: 'Reversed', tone: 'neutral' }
+  if (payment.status === 'dismissed') return { label: 'Not a tenant payment', tone: 'neutral' }
 
   return { label: humanize(payment.status), tone: 'danger' }
 }
@@ -64,11 +65,11 @@ const kenyaDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }
 /*
   The payment figures for a list of payments, counted the way the backend's
   /api/payments/stats counts them; used when one property is chosen.
-  Reversed payments are not money received.
+  Reversed payments, and those marked not a tenant payment, are not money received.
 */
 export function paymentStatsFor(payments) {
   const today = kenyaDay.format(new Date())
-  const received = payments.filter((payment) => payment.status !== 'reversed')
+  const received = payments.filter((payment) => payment.status === 'matched' || payment.status === 'unmatched')
   const receivedToday = received.filter(
     (payment) => kenyaDay.format(new Date(payment.received_at)) === today
   )
@@ -77,7 +78,8 @@ export function paymentStatsFor(payments) {
   ).length
 
   return {
-    received_today: receivedToday.reduce((total, payment) => total + payment.amount, 0),
+    // In cents, so the sum is exact.
+    received_today: receivedToday.reduce((total, payment) => total + Math.round(payment.amount * 100), 0) / 100,
     received_today_count: receivedToday.length,
     auto_match_rate: received.length ? Math.round((automatic / received.length) * 100) : 0,
     unmatched_count: payments.filter((payment) => payment.status === 'unmatched').length,

@@ -193,14 +193,6 @@ export const SERVICE_CHARGE_FIRST_BILLING = [
   ['next_billing', 'From the next monthly billing, on the 1st'],
 ]
 
-// Where tenants pay service charges and repairs, by the property's service_charge_account.
-export const SERVICE_CHARGE_ACCOUNTS = [
-  ['rent', 'Rent account'],
-  ['water', 'Water account'],
-  ['electricity', 'Electricity account'],
-  ['service', 'Their own account'],
-]
-
 // What a caretaker may do in one property, one switch each: [key, title, hint].
 export const CARETAKER_PERMISSIONS = [
   ['can_read_meters', 'Meter readings', 'Record, correct and fix water readings, with photos'],

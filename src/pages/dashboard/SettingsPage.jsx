@@ -10,6 +10,7 @@ import {
   updateProfile,
 } from '../../api/settings'
 import { secureNoticeAddress } from '../../api/properties'
+import { accountLabel } from '../../utils/accountSharing'
 import { DataState, EmptyState, FormError } from '../../components/common/DataState'
 import ChooseProperty from '../../components/dashboard/ChooseProperty'
 import {
@@ -34,9 +35,7 @@ import { useApi } from '../../hooks/useApi'
 import { formatDateTime, formatPhone, humanize, ordinal } from '../../utils/format'
 import {
   RENT_DUE_DAYS,
-  SERVICE_CHARGE_ACCOUNTS,
   THEME_MODES,
-  optionLabel,
   paymentAccountTypeLabel,
   waterBillingLabel,
 } from '../../utils/labels'
@@ -472,8 +471,10 @@ function PaymentAccountsTab({ property, onSaved }) {
         {secureError ? <FormError error={secureError} /> : null}
 
         <p className="pt-1 text-[11px] leading-[1.5] text-[var(--ink-faint)]">
-          Service charges and repairs are paid into:{' '}
-          <strong>{optionLabel(SERVICE_CHARGE_ACCOUNTS, property.service_charge_account).toLowerCase()}</strong>.
+          Water is paid into the <strong>{accountLabel(property.charge_accounts?.water || 'rent')}</strong>,
+          electricity into the <strong>{accountLabel(property.charge_accounts?.electricity || 'rent')}</strong>,
+          and service charges and repairs into the{' '}
+          <strong>{accountLabel(property.charge_accounts?.service || property.service_charge_account)}</strong>.
           To connect, change or remove an account, use &quot;Change payment
           accounts&quot;.
         </p>

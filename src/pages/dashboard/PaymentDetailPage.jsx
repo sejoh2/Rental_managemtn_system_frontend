@@ -2,7 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { getPayment } from '../../api/payments'
 import { DataState, EmptyState } from '../../components/common/DataState'
 import StatusBadge from '../../components/common/StatusBadge'
+import { useProperties } from '../../context/PropertiesContext'
 import { useApi } from '../../hooks/useApi'
+import { alsoCollectsText } from '../../utils/accountSharing'
 import { chargeLabel } from '../../utils/billing'
 import { formatDateTime, formatKES, formatPhone, humanize } from '../../utils/format'
 import { paymentMethodLabel, paymentStatus } from '../../utils/payments'
@@ -23,6 +25,7 @@ function Row({ label, children }) {
 function PaymentDetailPage() {
   const { paymentId } = useParams()
   const state = useApi(`payment-${paymentId}`, () => getPayment(paymentId))
+  const properties = useProperties()?.data
 
   return (
     <DataState state={state} loadingLabel="Loading payment...">
@@ -31,6 +34,11 @@ function PaymentDetailPage() {
         const applied = payment.applied_to.reduce((total, item) => total + item.amount, 0)
         // What was paid over the tenant's bills is kept as credit on their account.
         const credit = payment.status === 'matched' ? Math.max(payment.amount - applied, 0) : 0
+        // Other bills this account collects at the property, e.g. "Also collects service charges."
+        const alsoCollects = alsoCollectsText(
+          payment.account_for,
+          properties?.find((item) => item.id === payment.property_id)?.charge_accounts
+        )
 
         return (
           <>
@@ -60,7 +68,16 @@ function PaymentDetailPage() {
                 <Row label="Amount">
                   <span className="font-mono">{formatKES(payment.amount)}</span>
                 </Row>
-                <Row label="Received">{formatDateTime(payment.received_at)}</Row>
+                <Row label={payment.notified_at ? 'Paid (M-Pesa time)' : 'Received'}>
+                  {formatDateTime(payment.received_at)}
+                  {/* The notice can arrive later; the payment counts on the day it was paid. */}
+                  {payment.notified_at &&
+                  Math.abs(new Date(payment.notified_at) - new Date(payment.received_at)) > 60 * 1000 ? (
+                    <span className="block text-[10px] font-medium text-[var(--ink-faint)]">
+                      Safaricom's notice reached Kodi {formatDateTime(payment.notified_at)}
+                    </span>
+                  ) : null}
+                </Row>
                 <Row label="Method">{paymentMethodLabel(payment)}</Row>
                 <Row label="How it arrived">
                   {payment.payment_source === 'manual'
@@ -78,8 +95,18 @@ function PaymentDetailPage() {
                 <Row label="Paid from">
                   <span className="font-mono">{formatPhone(payment.payer_phone)}</span>
                 </Row>
-                <Row label="Paid into">{humanize(payment.account_for)} account</Row>
+                <Row label="Paid into">
+                  {humanize(payment.account_for)} account
+                  {alsoCollects ? (
+                    <span className="block text-[10px] font-medium text-[var(--ink-faint)]">{alsoCollects}</span>
+                  ) : null}
+                </Row>
                 {payment.notes ? <Row label="Notes">{payment.notes}</Row> : null}
+                {payment.duplicate_override_reason ? (
+                  <Row label="Recorded although it looked like an unmatched M-Pesa payment">
+                    {payment.duplicate_override_reason}
+                  </Row>
+                ) : null}
               </section>
 
               <section className={cardClass}>
@@ -114,6 +141,22 @@ function PaymentDetailPage() {
                 </Row>
                 {payment.unmatched_reason && payment.status === 'unmatched' ? (
                   <Row label="Why it is unmatched">{humanize(payment.unmatched_reason)}</Row>
+                ) : null}
+                {payment.status === 'dismissed' ? (
+                  <Row label="Not a tenant payment">
+                    {formatDateTime(payment.dismissed_at)}
+                    <span className="block text-[10px] font-normal text-[var(--ink-faint)]">
+                      {payment.dismiss_reason}
+                    </span>
+                  </Row>
+                ) : null}
+                {payment.added_to_refund > 0 ? (
+                  <Row label="Added to the deposit refund">
+                    <span className="font-mono">{formatKES(payment.added_to_refund)}</span>
+                    <span className="block text-[10px] font-normal text-[var(--ink-faint)]">
+                      Paid after the deposits were settled, above what was owed: it is owed back to the tenant.
+                    </span>
+                  </Row>
                 ) : null}
                 {payment.reversed_at ? (
                   <Row label="Reversed">
